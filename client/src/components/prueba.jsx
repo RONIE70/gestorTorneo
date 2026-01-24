@@ -534,3 +534,448 @@ const AdminConfig = () => {
 };
 
 export default AdminConfig;
+
+
+//------------------------------------------
+
+/*import React, { useState, useEffect, useCallback } from 'react'; // Agregado useCallback
+import { supabase } from '../supabaseClient';
+import axios from 'axios';
+import CarnetJugadora from '../components/CarnetJugadora'; */
+
+const AdminDelegado = ({ equipoId = 1 }) => {
+  const [activeTab, setActiveTab] = useState('planilla'); // 'planilla' o 'fichaje'
+  const [plantel, setPlantel] = useState([]);
+  const [partidos, setPartidos] = useState([]);
+  const [clubes, setClubes] = useState([]); // Estado para cargar todos los clubes
+  const [partidoSeleccionado, setPartidoSeleccionado] = useState('');
+  const [seleccionadas, setSeleccionadas] = useState([]);
+
+  // ESTADOS DEL FORMULARIO DE FICHAJE
+  const [filePerfil, setFilePerfil] = useState(null);
+  const [fileDNI, setFileDNI] = useState(null);
+  const [jugadoraRegistrada, setJugadoraRegistrada] = useState(null);
+  const [cargandoFichaje, setCargandoFichaje] = useState(false);
+  const [datosFichaje, setDatosFichaje] = useState({ 
+    nombre: '', 
+    apellido: '', 
+    dni: '', 
+    fecha_nacimiento: '', 
+    equipo_id: '', // Iniciamos vacío para obligar a seleccionar
+    club_nombre: '', // Para previsualizar en carnet
+    club_escudo: ''  // Para previsualizar en carnet
+  });
+
+  // Usamos useCallback para que la función sea estable y no dispare el useEffect infinitamente
+  const fetchData = useCallback(async () => {
+    // 1. Cargar jugadoras del club que NO estén sancionadas
+    const { data: jugadorasData } = await supabase
+      .from('jugadoras')
+      .select('*')
+      .eq('equipo_id', equipoId)
+      .eq('sancionada', false);
+    setPlantel(jugadorasData || []);
+
+    // 2. Cargar próximos partidos del club (Fixture dinámico)
+    const { data: partidosData } = await supabase
+      .from('partidos')
+      .select('*, local:equipos!local_id(nombre), visitante:equipos!visitante_id(nombre)')
+      .or(`local_id.eq.${equipoId},visitante_id.eq.${equipoId}`)
+      .eq('finalizado', false); // Traemos los partidos que aún no terminaron
+    setPartidos(partidosData || []);
+
+    // 3. Cargar lista de clubes para el selector de fichaje (Nuevo)
+    const { data: clubesData } = await supabase
+      .from('equipos')
+      .select('*')
+      .order('nombre');
+    setClubes(clubesData || []);
+  }, [equipoId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]); // fetchData ahora es una dependencia válida y estable
+
+  const toggleJugadora = (id) => {
+    setSeleccionadas(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const guardarPlanilla = async () => {
+    if (!partidoSeleccionado) return alert("Selecciona un partido");
+    const rows = seleccionadas.map(jId => ({
+      partido_id: partidoSeleccionado,
+      jugadora_id: jId,
+      equipo_id: equipoId
+    }));
+    const { error } = await supabase.from('planillas_citadas').insert(rows);
+    if (!error) alert("¡Planilla enviada al árbitro con éxito!");
+  };
+
+  const manejarEnvioFichaje = async (e) => {
+    e.preventDefault();
+    if (!datosFichaje.equipo_id) return alert("Por favor, selecciona un club");
+    if (!filePerfil) return alert("Por favor, selecciona la foto de perfil");
+    if (!fileDNI) return alert("Por favor, selecciona la foto del DNI para validar");
+    
+    setCargandoFichaje(true);
+    const formData = new FormData();
+    formData.append('foto', filePerfil);
+    formData.append('dni_foto', fileDNI);
+    formData.append('nombre', datosFichaje.nombre);
+    formData.append('apellido', datosFichaje.apellido);
+    formData.append('dni', datosFichaje.dni);
+    formData.append('fecha_nacimiento', datosFichaje.fecha_nacimiento);
+    formData.append('equipo_id', datosFichaje.equipo_id);
+
+    try {
+      const res = await axios.post('http://localhost:5000/fichar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      // Añadimos los datos del club al objeto de respuesta para que el carnet los muestre
+      const jugadoraFull = {
+        ...res.data.jugadora,
+        club_nombre: datosFichaje.club_nombre,
+        club_escudo: datosFichaje.club_escudo
+      };
+      setJugadoraRegistrada(jugadoraFull);
+      alert("✅ Fichaje y Validación completados con éxito");
+      fetchData(); // Recargar plantel después de fichar
+    } catch (err) {
+      console.error(err);
+      alert("❌ Error: " + (err.response?.data?.error || "Servidor desconectado"));
+    } finally {
+      setCargandoFichaje(false);
+    }
+  };
+
+  return (
+    <div className="p-6 bg-slate-950 min-h-screen text-white">
+      <header className="mb-8 border-b border-slate-800 pb-4 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-black uppercase italic text-blue-500">Panel de Delegado</h1>
+          <p className="text-slate-400 text-xs uppercase tracking-widest">Liga NC-S1125</p>
+        </div>
+        
+        {/* NAVEGACIÓN PESTAÑAS */}
+        <div className="flex bg-slate-900 p-1 rounded-2xl border border-slate-800">
+          <button 
+            onClick={() => setActiveTab('planilla')}
+            className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${activeTab === 'planilla' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}
+          >
+            📋 CITACIONES
+          </button>
+          <button 
+            onClick={() => setActiveTab('fichaje')}
+            className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${activeTab === 'fichaje' ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:text-white'}`}
+          >
+            ⚽ NUEVO FICHAJE
+          </button>
+        </div>
+      </header>
+
+      {activeTab === 'planilla' ? (
+        /* VISTA DE PLANILLA/CITACIONES */
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
+          <section className="lg:col-span-1 space-y-6">
+            <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800">
+              <h2 className="text-sm font-bold uppercase mb-4 text-slate-300">1. Seleccionar Partido</h2>
+              <select 
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => setPartidoSeleccionado(e.target.value)}
+              >
+                <option value="">Elegir fecha...</option>
+                {partidos.map(p => (
+                  <option key={p.id} value={p.id}>
+                    Fecha {p.nro_fecha || ''}: {p.local?.nombre} vs {p.visitante?.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="bg-blue-600/10 p-6 rounded-3xl border border-blue-500/20 text-center">
+              <p className="text-xs text-blue-400 font-bold uppercase mb-2">Resumen de Citación</p>
+              <span className="text-4xl font-black">{seleccionadas.length}</span>
+              <p className="text-[10px] text-slate-500 uppercase mt-1">Jugadoras convocadas</p>
+              <button onClick={guardarPlanilla} className="w-full mt-6 bg-blue-600 hover:bg-blue-500 py-3 rounded-xl font-black transition-all shadow-lg">ENVIAR PLANILLA</button>
+            </div>
+          </section>
+
+          <section className="lg:col-span-2 bg-slate-900 p-6 rounded-3xl border border-slate-800">
+            <h2 className="text-sm font-bold uppercase mb-6 text-slate-300">2. Armar Lista de Buena Fe</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {plantel.map(j => (
+                <div key={j.id} onClick={() => toggleJugadora(j.id)} className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition-all border-2 ${seleccionadas.includes(j.id) ? 'bg-blue-600/20 border-blue-500' : 'bg-slate-800/50 border-transparent hover:border-slate-700'}`}>
+                  <img src={j.foto_url || 'https://via.placeholder.com/50'} className="w-12 h-12 rounded-full object-cover shadow-md" alt="perfil" />
+                  <div className="flex-1">
+                    <p className="font-bold text-sm uppercase">{j.apellido}, {j.nombre}</p>
+                    <p className="text-[10px] text-slate-500 font-mono italic">DNI: {j.dni}</p>
+                  </div>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${seleccionadas.includes(j.id) ? 'bg-blue-500' : 'bg-slate-700'}`}>{seleccionadas.includes(j.id) && '✓'}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      ) : (
+        /* VISTA DE FICHAJE DE JUGADORA */
+        <div className="max-w-4xl mx-auto animate-in slide-in-from-bottom-8 duration-500">
+          {jugadoraRegistrada ? (
+            <div className="flex flex-col items-center p-4">
+              <CarnetJugadora jugadora={jugadoraRegistrada} />
+              <button onClick={() => setJugadoraRegistrada(null)} className="mt-8 bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-blue-700 transition-all">FICAR OTRA JUGADORA</button>
+            </div>
+          ) : (
+            <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-2xl flex flex-col md:flex-row gap-8">
+              <div className="flex-1">
+                <h2 className="text-xl font-black uppercase text-emerald-500 mb-6 italic tracking-tight">Alta de Jugadora Oficial</h2>
+                <form onSubmit={manejarEnvioFichaje} className="space-y-4">
+                  {/* SELECTOR DE EQUIPO (INMEDIATO) */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Institución / Club</label>
+                    <select 
+                      className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 outline-none focus:border-emerald-500 text-white text-sm"
+                      required
+                      value={datosFichaje.equipo_id}
+                      onChange={(e) => {
+                        const club = clubes.find(c => c.id === parseInt(e.target.value));
+                        setDatosFichaje({
+                          ...datosFichaje, 
+                          equipo_id: e.target.value,
+                          club_nombre: club?.nombre || '',
+                          club_escudo: club?.escudo_url || ''
+                        });
+                      }}
+                    >
+                      <option value="">-- Seleccionar Club --</option>
+                      {clubes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <input type="text" placeholder="Nombre" className="bg-slate-950 p-3 rounded-xl border border-slate-800 outline-none focus:border-emerald-500" onChange={e => setDatosFichaje({...datosFichaje, nombre: e.target.value})} required />
+                    <input type="text" placeholder="Apellido" className="bg-slate-950 p-3 rounded-xl border border-slate-800 outline-none focus:border-emerald-500" onChange={e => setDatosFichaje({...datosFichaje, apellido: e.target.value})} required />
+                  </div>
+                  <input type="text" placeholder="DNI" className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 outline-none focus:border-emerald-500" onChange={e => setDatosFichaje({...datosFichaje, dni: e.target.value})} required />
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fecha de Nacimiento</label>
+                    <input type="date" className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 outline-none focus:border-emerald-500" onChange={e => setDatosFichaje({...datosFichaje, fecha_nacimiento: e.target.value})} required />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] font-bold text-blue-500 uppercase ml-1">Foto Perfil</label>
+                      <input type="file" className="w-full text-xs text-slate-500 file:bg-blue-600/10 file:text-blue-500 file:border-0 file:rounded-xl file:px-4 file:py-2" onChange={e => setFilePerfil(e.target.files[0])} required />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-emerald-500 uppercase ml-1">Foto DNI</label>
+                      <input type="file" className="w-full text-xs text-slate-500 file:bg-emerald-600/10 file:text-emerald-500 file:border-0 file:rounded-xl file:px-4 file:py-2" onChange={e => setFileDNI(e.target.files[0])} required />
+                    </div>
+                  </div>
+                  <button disabled={cargandoFichaje} className={`w-full font-black py-4 rounded-2xl transition-all shadow-lg ${cargandoFichaje ? 'bg-slate-700' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}>
+                    {cargandoFichaje ? "PROCESANDO BIOMETRÍA..." : "REGISTRAR Y GENERAR CREDENCIAL"}
+                  </button>
+                </form>
+              </div>
+              <div className="md:w-64 bg-slate-950/50 p-6 rounded-3xl border border-dashed border-slate-800 flex flex-col items-center justify-center text-center">
+                <div className="w-16 h-16 bg-emerald-600/10 text-emerald-500 rounded-full flex items-center justify-center mb-4">🪪</div>
+                <p className="text-[10px] text-slate-500 uppercase font-black leading-relaxed">Este proceso valida la identidad mediante IA y genera el carnet digital oficial con QR único.</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+//export default AdminDelegado; 
+//este es el codigo actual creo que omitiste algo con la modificacion de suspendida podes fijarte
+
+
+//import React, { useRef } from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import { QRCodeSVG } from 'qrcode.react';
+
+const CarnetJugadora = ({ jugadora, config }) => {
+  const carnetRef = useRef();
+
+  // 1. CONFIGURACIÓN DE IDENTIDAD
+  const EstilosLiga = {
+    fondo: config?.color_fondo_carnet || '#1e3a8a', 
+    texto: config?.color_texto_carnet || '#ffffff', // Cambiado a blanco por defecto para mejor contraste
+    acento: config?.color_recuadro_carnet || '#2563eb',
+    logo: config?.logo_url || config?.logo_torneo || null 
+  };
+
+  if (!jugadora) return null;
+
+  const urlValidacion = `https://gestor-torneo-ncs1125.vercel.app/verificar/${jugadora.id}`;
+
+  const handleDescargarPDF = async () => {
+    const element = carnetRef.current;
+    const canvas = await html2canvas(element, { 
+      scale: 3, 
+      useCORS: true, 
+      backgroundColor: null // Para mantener transparencias si las hay
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('l', 'mm', [85.6, 54]);
+    pdf.addImage(imgData, 'PNG', 0, 0, 85.6, 54);
+    pdf.save(`Carnet_${jugadora.apellido}_${jugadora.dni}.pdf`);
+  };
+
+  return (
+    <div className="flex flex-col items-center mt-10 animate-fade-in">
+      {/* Contenedor del Carnet */}
+      <div ref={carnetRef} className="p-1 bg-transparent rounded-2xl">
+        <div 
+          style={{ backgroundColor: EstilosLiga.fondo }}
+          className="w-80 h-auto rounded-3xl p-2 shadow-2xl overflow-hidden border-2 border-white/20"
+        >
+          {/* RECUADRO INTERNO: Ahora usa el color de fondo con una opacidad leve para resaltar */}
+          <div 
+            style={{ backgroundColor: EstilosLiga.fondo }}
+            className="rounded-2xl p-4 flex flex-col items-center border border-white/10 shadow-inner"
+          >
+            
+            {/* Cabecera */}
+            <div className="w-full flex justify-between items-center mb-3 border-b border-white/10 pb-2">
+              <div className="flex items-center gap-2">
+                {EstilosLiga.logo ? (
+                  <img src={EstilosLiga.logo} alt="Logo" className="w-6 h-6 object-contain" />
+                ) : (
+                  <div className="w-6 h-6 bg-white/10 rounded-md flex items-center justify-center text-[8px] font-black text-white/50">NC</div>
+                )}
+                <span style={{ color: EstilosLiga.texto }} className="text-[10px] font-black uppercase tracking-tight">
+                  {config?.nombre_liga || 'Liga nc-s1125'}
+                </span>
+              </div>
+              <span 
+                style={{ backgroundColor: EstilosLiga.acento, color: '#fff' }}
+                className="text-[7px] px-2 py-1 rounded-lg font-black uppercase tracking-tighter"
+              >
+                Oficial 2026
+              </span>
+            </div>
+            
+            <div className="flex w-full gap-4 items-center">
+              {/* Foto de Perfil */}
+              <div className="relative">
+                <img 
+                  src={jugadora.foto_url || 'https://via.placeholder.com/150'} 
+                  style={{ borderColor: EstilosLiga.acento }}
+                  className="w-24 h-24 rounded-2xl border-2 object-cover shadow-xl"
+                  alt="Foto"
+                />
+              </div>
+              
+              {/* Información y QR */}
+              <div className="flex-1 flex flex-col items-center">
+                <h3 style={{ color: EstilosLiga.texto }} className="text-lg font-black uppercase leading-none text-center tracking-tighter">
+                  {jugadora.nombre} <br/> {jugadora.apellido}
+                </h3>
+                <p style={{ color: EstilosLiga.acento }} className="font-bold text-[9px] uppercase mt-1 mb-3 tracking-widest bg-white/5 px-2 py-0.5 rounded-md">
+                   {jugadora.categoria_actual || 'Primera División'}
+                </p>
+                
+                {/* Contenedor QR con fondo blanco para asegurar lectura */}
+                <div className="bg-white p-1.5 rounded-xl shadow-lg border border-white/20">
+                  <QRCodeSVG 
+                    value={urlValidacion} 
+                    size={48} 
+                    level={"H"} // Mayor nivel de seguridad para escaneo
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Pie del carnet */}
+            <div className="w-full mt-4 flex justify-between items-end px-1">
+              <div className="text-left">
+                <p className="text-[7px] text-white/40 font-black uppercase leading-none mb-1">Documento de Identidad</p>
+                <p style={{ color: EstilosLiga.texto }} className="text-xs font-black tracking-widest">{jugadora.dni}</p>
+              </div>
+              <div className="text-right bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-xl">
+                <p className="text-[9px] font-black text-emerald-400 uppercase tracking-tighter">BIOMETRÍA OK</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <button 
+        onClick={handleDescargarPDF} 
+        style={{ backgroundColor: EstilosLiga.acento }}
+        className="mt-8 hover:scale-105 active:scale-95 text-white text-[10px] font-black py-4 px-12 rounded-2xl shadow-2xl transition-all flex items-center gap-3 uppercase tracking-[0.2em]"
+      >
+        📥 Descargar Credencial Oficial
+      </button>
+    </div>
+  );
+};
+
+//export default CarnetJugadora;
+
+//--------------------------------------
+//import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+
+// Componentes
+import Navbar from './components/Navbar';
+
+// Páginas
+import DashboardLiga from './pages/DashboardLiga';
+import AdminLiga from './pages/AdminLiga';
+//import AdminDelegado from './pages/AdminDelegado';
+import AdminArbitros from './pages/AdminArbitros';
+import FormularioFichaje from './pages/FormularioFichaje';
+//import AdminConfig from './pages/AdminConfig';
+import FixturePublico from './components/FixturePublico';
+import Contacto from './components/Contacto';
+import AdminConfiguracion from './pages/AdminConfiguracion';
+import VerificacionPublica from './components/VerificacionPublica';
+import AdminTribunal from './pages/AdminTribunal';
+import TablaPosiciones from './components/TablaPosiciones';
+import ListaJugadoras from './components/ListaJugadoras';
+
+
+function App() {
+  return (
+    <Router>
+      <div className="min-h-screen bg-slate-950 text-white selection:bg-blue-500 selection:text-white">
+        {/* EL NAVBAR DEBE ESTAR AQUÍ */}
+        <Navbar />
+        
+        <main className="container mx-auto">
+          <Routes>
+            <Route path="/" element={<DashboardLiga />} />
+            <Route path="/AdminLiga" element={<AdminLiga />} />
+            
+            <Route path="/AdminDelegado" element={<ProtectedRoute rolRequerido="delegado"><AdminDelegado /></ProtectedRoute>}/>
+            <Route path="/AdminArbitros" element={<AdminArbitros />} />
+            <Route path="/registro" element={<FormularioFichaje />} />
+            <Route path="/configuracion" element={<AdminConfig />} /> {/* Nueva ruta libre */}
+            <Route path="/FixturePublico" element={<FixturePublico />} />
+            <Route path="/AdminConfig" element={<AdminConfig />} />
+            <Route path="/contacto" element={<Contacto />} />
+            <Route path="/admin/configuracion" element={<AdminConfiguracion />} />
+            <Route path="/verificar/:id" element={<VerificacionPublica />} />
+            <Route path="/AdminTribunal" element={<AdminTribunal />} />
+            <Route path="/posiciones" element={<TablaPosiciones />} />
+            <Route path='/ListaJugadoras' element={<ListaJugadoras />} />
+            
+
+            {/* Si el usuario escribe cualquier otra cosa, vuelve al inicio */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
+    </Router>
+  );
+}
+
+//export default App;

@@ -32,7 +32,7 @@ const Contacto = () => {
         <div className="space-y-8 relative z-10">
           <header className="border-l-4 border-blue-500 pl-6">
             <h1 className="text-4xl font-black uppercase italic tracking-tighter">Contactanos</h1>
-            <p className="text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em] mt-2">Atención al Propietario nc-s1125</p>
+            <p className="text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em] mt-2">Atención al Usuario</p>
           </header>
 
           <div className="space-y-6">
@@ -105,7 +105,7 @@ const Contacto = () => {
                 type="submit" 
                 className="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-black uppercase text-xs shadow-xl shadow-blue-900/40 transition-all active:scale-95 disabled:opacity-50"
               >
-                {enviando ? 'Enviando...' : '🚀 Enviar Mensaje al Propietario'}
+                {enviando ? 'Enviando...' : '🚀 Enviar Mensaje a la Organización'}
               </button>
             </form>
           )}

@@ -1,573 +1,271 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import PlanillaArbitro from '../components/PlanillaArbitro';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
-const AdminTribunal = () => {
-  // --- ESTADOS DE DATOS Y NAVEGACIÓN ---
-  const [expedientes, setExpedientes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [tabActiva, setTabActiva] = useState('expedientes'); 
-  const [sancionadas, setSancionadas] = useState([]);
-
-  // --- ESTADOS DE CONFIGURACIÓN E IMAGEN ---
-  const [logoBase64, setLogoBase64] = useState(null);
-  const [configLiga, setConfigLiga] = useState(null);
-
-  // --- ESTADOS DEL MODAL DE DICTAMEN ---
-  const [modalAbierto, setModalAbierto] = useState(false);
-  const [incidenteSeleccionado, setIncidenteSeleccionado] = useState(null);
-  const [partidoSeleccionado, setPartidoSeleccionado] = useState(null);
-  const [sancion, setSancion] = useState({ 
-    jugadora_id: '', 
-    tipo_sujeto: 'JUGADORA', 
-    fechas: 1, 
-    modulos: 0, 
-    motivo: '' 
+// --- FUNCIÓN AUXILIAR FUERA DEL COMPONENTE ---
+const getBase64ImageFromURL = (url) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.setAttribute("crossOrigin", "anonymous");
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const extension = url.split('.').pop().toLowerCase();
+      const format = (extension === 'png') ? 'image/png' : 'image/jpeg';
+      resolve({
+        data: canvas.toDataURL(format),
+        format: (extension === 'png') ? 'PNG' : 'JPEG'
+      });
+    };
+    img.onerror = (error) => reject(error);
+    img.src = url;
   });
-  
-  const [jugadorasPartido, setJugadorasPartido] = useState([]);
-  const [guardando, setGuardando] = useState(false);
+};
 
-  // --- FUNCIONES AUXILIARES ---
-
-  /**
-   * Convierte URL a Base64 detectando formato para evitar errores en jsPDF.
-   */
-  const getBase64ImageFromURL = (url) => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.setAttribute("crossOrigin", "anonymous");
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0);
-        
-        const extension = url.split('.').pop().toLowerCase();
-        const format = (extension === 'png') ? 'image/png' : 'image/jpeg';
-        
-        resolve({
-          data: canvas.toDataURL(format),
-          format: (extension === 'png') ? 'PNG' : 'JPEG'
-        });
-      };
-      img.onerror = (error) => reject(error);
-      img.src = url;
-    });
+// --- COMPONENTE DE ACCIONES GENERALES ---
+const AccionesGenerales = ({ equipoNombre, equipoId, onIncidencia }) => {
+  const reportarExtra = (rol) => {
+    const motivo = prompt(`Informe para el Tribunal sobre ${rol} de ${equipoNombre}:`);
+    if (motivo) {
+      onIncidencia(rol, equipoId, { 
+        id: null, 
+        apellido: rol, 
+        nombre: equipoNombre,
+        motivo_extra: motivo 
+      });
+      alert(`Reporte de ${rol} enviado.`);
+    }
   };
 
-  /**
-   * Carga la configuración de la liga y pre-procesa el logo oficial.
-   */
-  const fetchConfiguracion = useCallback(async () => {
+  return (
+    <div className="bg-slate-900 border-2 border-dashed border-slate-800 p-6 rounded-[2.5rem] flex flex-col gap-4">
+      <h4 className="text-[10px] font-black uppercase text-slate-500 text-center tracking-widest">Incidentes de Equipo: {equipoNombre}</h4>
+      <div className="grid grid-cols-2 gap-3">
+        <button 
+          onClick={() => reportarExtra('DELEGADO')}
+          className="bg-slate-800 hover:bg-rose-600/20 hover:border-rose-600 border border-slate-700 py-4 rounded-2xl text-[9px] font-black uppercase text-white transition-all"
+        >
+          🚫 Expulsar Delegado
+        </button>
+        <button 
+          onClick={() => reportarExtra('PUBLICO')}
+          className="bg-slate-800 hover:bg-rose-600/20 hover:border-rose-600 border border-slate-700 py-4 rounded-2xl text-[9px] font-black uppercase text-white transition-all"
+        >
+          ⚠️ Sanción Público
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const AdminArbitros = () => {
+  const [partidos, setPartidos] = useState([]);
+  const [partidoActivo, setPartidoActivo] = useState(null);
+  const [jugadoras, setJugadoras] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(1);
+  const [crucesDisponibles, setCrucesDisponibles] = useState([]);
+  const [cruceActivo, setCruceActivo] = useState(null);
+  const [golesL, setGolesL] = useState(0);
+  const [golesV, setGolesV] = useState(0);
+  // eslint-disable-next-line no-unused-vars
+  const [logoBase64, setLogoBase64] = useState(null);
+  // eslint-disable-next-line no-unused-vars
+  const [configLiga, setConfigLiga] = useState(null);
+  const [incidenciasResumen, setIncidenciasResumen] = useState({ 
+    amarillasL: 0, rojasL: 0, amarillasV: 0, rojasV: 0, detallesSanciones: [] 
+  });
+  const [firmas, setFirmas] = useState({ arb: '', loc: '', vis: '' });
+  const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => { 
+    fetchPartidos(); 
+    cargarConfiguracionYLogo();
+  }, []);
+
+  const cargarConfiguracionYLogo = async () => {
     try {
-      // eslint-disable-next-line no-unused-vars
-      const { data, error } = await supabase
-        .from('configuracion_liga')
-        .select('*')
-        .eq('id', 1)
-        .single();
-      
+      const { data } = await supabase.from('configuracion_liga').select('*').eq('id', 1).single();
       if (data) {
         setConfigLiga(data);
         if (data.logo_torneo) {
-          const logoObj = await getBase64ImageFromURL(data.logo_torneo);
-          setLogoBase64(logoObj);
+          const logoData = await getBase64ImageFromURL(data.logo_torneo);
+          setLogoBase64(logoData);
         }
       }
-    } catch (error) {
-      console.error("Error al cargar configuración:", error);
-    }
-  }, []);
+    } catch (err) { console.error("Error al cargar logo:", err); }
+  };
 
-  /**
-   * Obtiene todos los expedientes pendientes incluyendo los descargos de los delegados.
-   */
-  const fetchExpedientes = async () => {
+  const fetchPartidos = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      // REGLA DE NEGOCIO: Traemos SANCIONES pendientes y todos los datos de partidos/equipos vinculados
-      const { data, error } = await supabase
-        .from('sanciones')
-        .select(`
-          *,
-          jugadora:jugadoras(id, nombre, apellido),
-          partido:partidos(
-            id, 
-            nro_fecha, 
-            firma_arbitro, 
-            created_at,
-            local_id,
-            visitante_id,
-            local:equipos!local_id(nombre),
-            visitante:equipos!visitante_id(nombre)
-          )
-        `)
-        .eq('estado', 'pendiente')
-        .not('motivo', 'ilike', '%GOL%')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setExpedientes(data || []);
-    } catch (err) {
-      console.error("Error en Tribunal:", err.message);
-    } finally {
-      setLoading(false);
-    }
+      const { data } = await supabase.from('partidos').select('*, local:equipos!local_id(nombre), visitante:equipos!visitante_id(nombre)').eq('finalizado', false).order('nro_fecha', { ascending: true });
+      if (data && data.length > 0) {
+        setPartidos(data);
+        const unicos = data.reduce((acc, p) => {
+          const key = `${p.nro_fecha}-${p.local_id}-${p.visitante_id}-${p.zona}`;
+          if (!acc[key]) acc[key] = { nro_fecha: p.nro_fecha, local: p.local, visitante: p.visitante, local_id: p.local_id, visitante_id: p.visitante_id, zona: p.zona };
+          return acc;
+        }, {});
+        setCrucesDisponibles(Object.values(unicos));
+      } else { setCrucesDisponibles([]); }
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  /**
-   * Obtiene la lista de jugadoras sancionadas actualmente.
-   */
-  const fetchSancionadas = async () => {
-    const { data } = await supabase
-      .from('jugadoras')
-      .select('id, nombre, apellido, tiene_deuda, monto_deuda, equipo_id, aclaracion_tribunal, equipos(nombre)')
-      .eq('sancionada', true);
-    setSancionadas(data || []);
-  };
-
-  useEffect(() => {
-    fetchExpedientes();
-    fetchSancionadas();
-    fetchConfiguracion(); 
-  }, [fetchConfiguracion]);
-
-  // --- LÓGICA DE DICTAMEN ---
-
-  const abrirDictamen = async (exp) => {
-    setIncidenteSeleccionado(exp);
-    setPartidoSeleccionado(exp.partido);
-    setSancion({
-        ...sancion,
-        jugadora_id: exp.jugadora_id || '',
-        motivo: exp.motivo || '',
-        tipo_sujeto: exp.jugadora_id ? 'JUGADORA' : 'AUTORIDAD',
-        fechas: 1,
-        modulos: 0
-    });
-
+  const cargarJugadorasCitadas = async (partidoId) => {
     try {
-      // Cargamos jugadoras de ambos equipos involucrados en el partido
-      const { data, error } = await supabase
-        .from('jugadoras')
-        .select(`id, nombre, apellido, equipos!inner(nombre)`)
-        .or(`nombre.eq."${exp.partido.local.nombre}",nombre.eq."${exp.partido.visitante.nombre}"`, { foreignTable: 'equipos' })
-        .order('apellido', { ascending: true });
-
-      if (error) throw error;
-
-      const listaFormateada = data.map(j => ({
-        id: j.id,
-        nombreCompleto: `${j.apellido}, ${j.nombre} (${j.equipos.nombre})`
-      }));
-
-      setJugadorasPartido(listaFormateada);
-      setModalAbierto(true);
-    } catch (err) {
-      console.error("Error cargando jugadoras:", err);
-      alert("No se pudieron cargar las jugadoras del encuentro.");
-    }
-  };
-
-  /**
-   * Genera el PDF del dictamen con estilo institucional.
-   */
-  const generarPDFDictamen = async (datos, jugadoraDirecta = null) => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-
-    // --- 1. ENCABEZADO ---
-    doc.setFillColor(30, 41, 59); // Slate-900
-    doc.rect(0, 0, pageWidth, 45, 'F');
-    
-    if (logoBase64) {
-      try {
-        doc.addImage(logoBase64.data, logoBase64.format, 15, 10, 25, 25, undefined, 'FAST');
       // eslint-disable-next-line no-unused-vars
-      } catch (e) {
-        doc.setFillColor(225, 29, 72);
-        doc.ellipse(30, 22, 12, 12, 'F');
+      const { data, error } = await supabase.from('planillas_citadas').select(`jugadora_id, equipo_id, jugadoras:jugadoras (id, nombre, apellido, dni, foto_url)`).eq('partido_id', partidoId);
+      if (data) {
+        setJugadoras(data.map(item => ({ id: item.jugadoras.id, nombre: item.jugadoras.nombre, apellido: item.jugadoras.apellido, equipo_id: item.equipo_id, foto_url: item.jugadoras.foto_url, dorsal: "S/N" })));
       }
-    } else {
-      doc.setFillColor(225, 29, 72);
-      doc.ellipse(30, 22, 12, 12, 'F'); 
-    }
-    
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    if (!logoBase64) doc.text("NC", 30, 24, { align: 'center' }); 
-
-    doc.setFontSize(18);
-    doc.setTextColor(225, 29, 72); // Rose-600
-    doc.text("BOLETÍN OFICIAL", 110, 20, { align: 'center' });
-    doc.setFontSize(14);
-    doc.text("TRIBUNAL DE DISCIPLINA", 110, 28, { align: 'center' });
-    doc.setFontSize(9);
-    doc.text(`Expediente ${configLiga?.nombre_liga || 'NC-S1125'} | Dictamen: ${new Date().toLocaleDateString()}`, 110, 36, { align: 'center' });
-    
-    // --- 2. DATOS DE IDENTIFICACIÓN ---
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(11);
-    const p = partidoSeleccionado;
-    if (p) {
-        doc.text(`ENCUENTRO: Fecha ${p?.nro_fecha} - ${p?.local?.nombre} vs ${p?.visitante?.nombre}`, 20, 55);
-        doc.line(20, 58, 190, 58);
-    }
-    
-    let nombreSancionado = "";
-    let equipoSancionado = "No aplica";
-
-    if (jugadoraDirecta) {
-        nombreSancionado = `${jugadoraDirecta.apellido}, ${jugadoraDirecta.nombre}`;
-        equipoSancionado = jugadoraDirecta.equipos?.nombre || "Desconocido";
-    } else if (datos.tipo_sujeto === 'JUGADORA' && datos.jugadora_id) {
-        const sujetoObj = jugadorasPartido.find(j => j.id === parseInt(datos.jugadora_id));
-        nombreSancionado = sujetoObj ? sujetoObj.nombreCompleto.split(' (')[0] : "No identificado";
-        equipoSancionado = sujetoObj ? sujetoObj.nombreCompleto.split('(')[1]?.replace(')', '') : "Desconocido";
-    } else {
-        nombreSancionado = datos.tipo_sujeto;
-    }
-
-    doc.setFont("helvetica", "bold");
-    doc.text(`SANCIONADO: ${nombreSancionado}`, 20, 75);
-    doc.text(`CLUB / PERTENENCIA: ${equipoSancionado}`, 20, 85);
-    doc.text(`TIPO DE SUJETO: ${datos.tipo_sujeto || 'JUGADORA'}`, 20, 95);
-
-    // --- 3. SANCIÓN Y CONSIDERANDO ---
-    doc.setFillColor(248, 250, 252);
-    doc.rect(20, 105, 170, 40, 'F');
-    doc.text(`SANCIÓN DEPORTIVA: ${datos.fechas} fecha(s).`, 30, 115);
-    doc.text(`SANCIÓN ECONÓMICA: $${datos.modulos * 1000}.`, 30, 125);
-    
-    doc.text("CONSIDERANDO:", 20, 160);
-    doc.setFont("helvetica", "normal");
-    doc.text(datos.motivo, 20, 170, { maxWidth: 170, align: 'justify' });
-
-    // Pie de página
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/posiciones")}`;
-    doc.addImage(qrUrl, 'PNG', 20, 250, 25, 25);
-    doc.text("__________________________", 140, 260);
-    doc.text("Dirección Tribunal", 145, 265);
-
-    doc.save(`Dictamen_${nombreSancionado.replace(/\s/g, '_')}.pdf`);
+    } catch (err) { console.error("Error cargando citadas:", err.message); }
   };
-  
-  const habilitarJugadora = async (id) => {
+
+  const manejarIncidenciaFija = async (tipo, equipoId, jugadoraInfo) => {
+    const esLocal = equipoId === partidoActivo.local_id;
+    const esExtraCampo = jugadoraInfo.id === null;
+    if (tipo === 'GOL' && !esExtraCampo) {
+      if (esLocal) setGolesL(prev => prev + 1); else setGolesV(prev => prev + 1);
+      await supabase.from('goles').insert({ partido_id: partidoActivo.id, jugadora_id: jugadoraInfo.id, equipo_id: equipoId });
+    }
+    if (tipo === 'GOL' || tipo === 'AMARILLA' || tipo === 'ROJA' || esExtraCampo) {
+      await supabase.from('incidencias_partido').insert({ partido_id: partidoActivo.id, jugadora_id: jugadoraInfo.id, equipo_id: equipoId, tipo: tipo, categoria: partidoActivo.categoria, aclaracion: jugadoraInfo.motivo_extra || '' });
+      setIncidenciasResumen(prev => ({ ...prev, detallesSanciones: [...prev.detallesSanciones, { nombre: esExtraCampo ? jugadoraInfo.apellido : `${jugadoraInfo.apellido}, ${jugadoraInfo.nombre}`, tipo: esExtraCampo ? `EXPULSIÓN ${tipo}` : tipo, club: esLocal ? partidoActivo.local.nombre : partidoActivo.visitante.nombre, foto: jugadoraInfo.foto_url || null }] }));
+    }
+  };
+
+  const cerrarActaFinalConPDF = async () => {
+    if (!firmas.arb || !firmas.loc || !firmas.vis) return alert("Faltan firmas");
+    setEnviando(true);
     try {
-      const { error } = await supabase
-        .from('jugadoras')
-        .update({ sancionada: false, tiene_deuda: false, monto_deuda: 0, aclaracion_tribunal: null })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      await supabase
-        .from('sanciones')
-        .update({ estado: 'cumplida' })
-        .eq('jugadora_id', id)
-        .eq('estado', 'cumpliendo');
-
-      alert("✅ Jugadora rehabilitada exitosamente.");
-      fetchSancionadas();
-    } catch (err) {
-      alert("Error al habilitar: " + err.message);
-    }
+      await supabase.from('partidos').update({ goles_local: golesL, goles_visitante: golesV, resultado_local: golesL, resultado_visitante: golesV, finalizado: true, jugado: true, firma_arbitro: firmas.arb, firma_local: firmas.loc, firma_visitante: firmas.vis }).eq('id', partidoActivo.id);
+      alert("✅ Acta guardada.");
+      setPartidoActivo(null);
+      fetchPartidos();
+    } catch (error) { alert("Error: " + error.message); } finally { setEnviando(false); }
   };
 
-  const guardarSancion = async () => {
-    if ((sancion.tipo_sujeto === 'JUGADORA' && !sancion.jugadora_id) || !sancion.motivo) {
-      return alert("Debe completar todos los campos obligatorios.");
-    }
-    
-    setGuardando(true);
-    try {
-      const jugadoraIdLimpio = sancion.tipo_sujeto === 'JUGADORA' ? parseInt(sancion.jugadora_id) : null;
-
-      // 1. Actualizar sanción
-      const { error: errorSancion } = await supabase
-        .from('sanciones')
-        .update({
-          jugadora_id: jugadoraIdLimpio, 
-          cantidad_fechas: parseInt(sancion.fechas),
-          motivo: sancion.motivo,
-          estado: 'cumpliendo'
-        })
-        .eq('id', incidenteSeleccionado.id);
-
-      if (errorSancion) throw errorSancion;
-
-      // 2. Impactar en jugadora
-      if (sancion.tipo_sujeto === 'JUGADORA') {
-        const montoFinal = sancion.modulos * 1000;
-        await supabase
-          .from('jugadoras')
-          .update({ 
-            sancionada: parseInt(sancion.fechas) > 0,
-            tiene_deuda: parseInt(sancion.modulos) > 0,
-            monto_deuda: montoFinal,
-            aclaracion_tribunal: `Dictamen: ${sancion.fechas} fecha(s). Multa: $${montoFinal}. Motivo: ${sancion.motivo}`
-          })
-          .eq('id', jugadoraIdLimpio);
-      }
-
-      await generarPDFDictamen(sancion);
-      alert("✅ Sanción procesada y Dictamen generado.");
-      setModalAbierto(false);
-      setSancion({ jugadora_id: '', tipo_sujeto: 'JUGADORA', fechas: 1, modulos: 0, motivo: '' });
-      fetchExpedientes();
-      fetchSancionadas();
-      
-    } catch (err) {
-      alert("Error crítico: " + err.message);
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  // --- RENDERIZADO PRINCIPAL ---
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-950 text-rose-600 font-black uppercase animate-pulse tracking-[0.3em]">
-        Sincronizando Tribunal...
-      </div>
-    );
-  }
+  if (loading && !partidoActivo) return <div className="p-20 text-center text-blue-500 font-black animate-pulse uppercase">Cargando...</div>;
 
   return (
-    <div className="p-4 md:p-8 bg-slate-950 min-h-screen text-white font-sans relative">
-      <div className="max-w-6xl mx-auto space-y-10">
-        
-        {/* HEADER */}
-        <header className="border-l-4 border-rose-600 pl-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-          <div>
-            <h1 className="text-4xl font-black uppercase italic tracking-tighter">
-              Tribunal de <span className="text-rose-600">Disciplina</span>
-            </h1>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-2">
-              Gestión de Resoluciones nc-s1125
-            </p>
-          </div>
-          <div className="flex bg-slate-900 p-1.5 rounded-[2rem] border border-slate-800 shadow-2xl">
-            <button 
-              onClick={() => setTabActiva('expedientes')} 
-              className={`px-8 py-3 rounded-2xl text-[10px] font-black transition-all ${tabActiva === 'expedientes' ? 'bg-rose-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
-            >
-              EXPEDIENTES
-            </button>
-            <button 
-              onClick={() => setTabActiva('activas')} 
-              className={`px-8 py-3 rounded-2xl text-[10px] font-black transition-all ${tabActiva === 'activas' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
-            >
-              SANCIONES ACTIVAS
-            </button>
-          </div>
-        </header>
-
-        {/* LISTADO DE EXPEDIENTES */}
-        {tabActiva === 'expedientes' ? (
-          <div className="grid gap-6 animate-in fade-in duration-700">
-            {expedientes.length > 0 ? (
-              expedientes.map((exp) => (
-                <div key={exp.id} className="bg-slate-900 border border-slate-800 p-8 rounded-[3rem] shadow-2xl space-y-6 transition-all hover:border-rose-600/30">
-                  
-                  {/* BARRA TÉCNICA */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 bg-slate-950/50 p-6 rounded-[2rem] border border-slate-800/50">
-                    <div>
-                      <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest">Informante</p>
-                      <p className="text-[10px] font-bold uppercase text-slate-200 mt-1">{exp.partido?.firma_arbitro || 'Árbitro Oficial'}</p>
-                    </div>
-                    <div>
-                      <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest">Fecha Partido</p>
-                      <p className="text-[10px] font-bold uppercase text-slate-200 mt-1">{new Date(exp.created_at).toLocaleDateString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest">Fixture</p>
-                      <p className="text-[10px] font-bold uppercase text-slate-200 mt-1">Fecha {exp.partido?.nro_fecha}</p>
-                    </div>
-                    <div>
-                      <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest">ID Exp.</p>
-                      <p className="text-[10px] font-bold uppercase text-slate-400 mt-1">#{exp.id.slice(0,8)}</p>
-                    </div>
-                  </div>
-
-                  {/* DATOS DEL PARTIDO */}
-                  <div className="flex flex-col md:flex-row justify-between items-center gap-8">
-                    <div className="flex-1">
-                      <h3 className="text-2xl font-black uppercase italic text-slate-100">
-                        {exp.partido?.local?.nombre} <span className="text-slate-700 mx-2">VS</span> {exp.partido?.visitante?.nombre}
-                      </h3>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">En espera de dictamen definitivo</p>
-                    </div>
-                    <button 
-                      onClick={() => abrirDictamen(exp)} 
-                      className="w-full md:w-auto bg-rose-600 hover:bg-rose-500 px-10 py-4 rounded-2xl text-[11px] font-black uppercase shadow-xl shadow-rose-900/30 transition-all active:scale-95"
-                    >
-                      Dictar Sanción
-                    </button>
-                  </div>
-
-                  {/* RELATO DEL ÁRBITRO */}
-                  <div className="bg-slate-950/50 rounded-[2rem] p-6 border border-slate-800">
-                    <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest mb-3">Relato de Incidencia:</p>
-                    <p className="text-xs font-bold uppercase text-slate-200 mb-1">
-                      {exp.jugadora ? `${exp.jugadora.apellido}, ${exp.jugadora.nombre}` : `EXTRA: ${exp.motivo?.split(':')[0]}`}
-                      <span className="text-[8px] text-rose-400 ml-3 italic">({exp.jugadora ? 'JUGADORA' : 'AUTORIDAD'})</span>
-                    </p>
-                    <p className="text-[11px] text-slate-400 italic leading-relaxed">"{exp.motivo}"</p>
-                  </div>
-
-                  {/* NUEVA SECCIÓN: ALEGATOS DE LOS DELEGADOS (REGLA DE NEGOCIO) */}
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-slate-800/50 pt-6">
-                    <div className={`p-5 rounded-2xl border ${exp.descargo_local ? 'bg-emerald-600/5 border-emerald-500/30' : 'bg-slate-950/50 border-slate-800'}`}>
-                      <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                        🛡️ Alegato Local ({exp.partido?.local?.nombre}):
-                      </p>
-                      <p className="text-[11px] italic text-slate-300 leading-relaxed">
-                        {exp.descargo_local ? `"${exp.descargo_local}"` : "El delegado no ha presentado descargo formal."}
-                      </p>
-                    </div>
-                    <div className={`p-5 rounded-2xl border ${exp.descargo_visitante ? 'bg-emerald-600/5 border-emerald-500/30' : 'bg-slate-950/50 border-slate-800'}`}>
-                      <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                        🛡️ Alegato Visitante ({exp.partido?.visitante?.nombre}):
-                      </p>
-                      <p className="text-[11px] italic text-slate-300 leading-relaxed">
-                        {exp.descargo_visitante ? `"${exp.descargo_visitante}"` : "El delegado no ha presentado descargo formal."}
-                      </p>
-                    </div>
-                  </div>
-
-                </div>
-              ))
-            ) : (
-              <div className="py-28 text-center text-slate-700 font-black uppercase italic tracking-[0.5em] border-4 border-dashed border-slate-900 rounded-[4rem]">
-                Sin expedientes pendientes
-              </div>
-            )}
-          </div>
-        ) : (
-          /* PESTAÑA SANCIONES ACTIVAS */
-          <div className="grid gap-4 animate-in slide-in-from-bottom-5">
-            {sancionadas.map(j => (
-              <div key={j.id} className="bg-slate-900 p-8 rounded-[3rem] flex flex-col md:flex-row justify-between items-center border border-slate-800 gap-8 shadow-xl">
-                <div className="flex-1">
-                  <p className="font-black uppercase text-xl text-slate-100">{j.apellido}, {j.nombre}</p>
-                  <p className="text-[11px] text-blue-500 font-black uppercase tracking-widest mt-1">{j.equipos?.nombre}</p>
-                  <div className="mt-4 p-4 bg-slate-950 rounded-2xl border border-slate-800 shadow-inner">
-                    <p className="text-[8px] font-black text-rose-500 uppercase mb-1">Sentencia Vigente:</p>
-                    <p className="text-xs text-slate-300 italic">"{j.aclaracion_tribunal || 'Cumpliendo sanción automática'}"</p>
-                  </div>
-                </div>
-                
-                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                  <button 
-                    onClick={() => {
-                      const datosRecu = {
-                        jugadora_id: j.id,
-                        tipo_sujeto: 'JUGADORA',
-                        fechas: j.aclaracion_tribunal?.match(/\d+/)?.[0] || 0,
-                        modulos: j.monto_deuda / 1000,
-                        motivo: j.aclaracion_tribunal
-                      };
-                      generarPDFDictamen(datosRecu, j);
-                    }}
-                    className="bg-slate-800 hover:bg-slate-700 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase transition-all flex-1"
-                  >
-                    📄 Descargar Comprobante
-                  </button>
-                  <button 
-                    onClick={() => habilitarJugadora(j.id)} 
-                    className="bg-emerald-600 hover:bg-emerald-500 px-8 py-4 rounded-2xl text-[10px] font-black uppercase shadow-lg shadow-emerald-900/20 transition-all flex-1"
-                  >
-                    Habilitar Jugadora
-                  </button>
-                </div>
-              </div>
+    <div className="p-4 md:p-8 bg-slate-950 min-h-screen text-white font-sans">
+      {!partidoActivo ? (
+        <div className="max-w-5xl mx-auto space-y-8">
+          <header className="border-l-4 border-amber-500 pl-4"><h1 className="text-3xl font-black uppercase italic tracking-tighter">Planilla de <span className="text-amber-500">Juego</span></h1></header>
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
+              <button key={n} onClick={() => { setFechaSeleccionada(n); setCruceActivo(null); }} className={`px-6 py-3 rounded-2xl text-xs font-black transition-all flex-shrink-0 ${fechaSeleccionada === n ? 'bg-amber-500 text-slate-950' : 'bg-slate-900 text-slate-500 border border-slate-800'}`}>FECHA {n}</button>
             ))}
           </div>
-        )}
-      </div>
-
-      {/* MODAL DE DICTAMEN FINAL */}
-      {modalAbierto && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-xl rounded-[4rem] p-10 shadow-2xl space-y-8 animate-in zoom-in duration-300">
-            <div className="text-center">
-              <h3 className="text-2xl font-black uppercase italic text-rose-500">Dictamen Institucional</h3>
-              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-2">Expediente #{incidenteSeleccionado?.id.slice(0,8)}</p>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-1 space-y-4">
+              <h2 className="text-[10px] font-black uppercase text-blue-500 ml-2 tracking-widest">Encuentros</h2>
+              {crucesDisponibles.filter(c => c.nro_fecha === fechaSeleccionada).map((c, i) => (
+                <div key={i} onClick={() => setCruceActivo(c)} className={`p-5 rounded-[2rem] border cursor-pointer transition-all relative overflow-hidden ${cruceActivo?.local_id === c.local_id && cruceActivo?.visitante_id === c.visitante_id ? 'bg-blue-600 border-blue-400 shadow-lg' : 'bg-slate-900 border-slate-800'}`}>
+                   {c.local.nombre} VS {c.visitante.nombre}
+                </div>
+              ))}
             </div>
-            
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Tipo de Sujeto</label>
-                  <select 
-                    onChange={(e) => setSancion({...sancion, tipo_sujeto: e.target.value})} 
-                    className="w-full bg-slate-950 border border-slate-800 p-5 rounded-2xl text-xs font-bold text-white outline-none focus:border-rose-500" 
-                    value={sancion.tipo_sujeto}
-                  >
-                    <option value="JUGADORA">JUGADORA</option>
-                    <option value="AUTORIDAD">AUTORIDAD</option>
-                    <option value="DELEGADO">DELEGADO</option>
-                    <option value="PUBLICO">PÚBLICO</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Persona Identificada</label>
-                  <select 
-                    disabled={sancion.tipo_sujeto !== 'JUGADORA'} 
-                    onChange={(e) => setSancion({...sancion, jugadora_id: e.target.value})} 
-                    className="w-full bg-slate-950 border border-slate-800 p-5 rounded-2xl text-xs font-bold outline-none text-white focus:border-rose-500 disabled:opacity-30" 
-                    value={sancion.jugadora_id}
-                  >
-                    <option value="">-- Buscar en el Acta --</option>
-                    {jugadorasPartido.map(j => (
-                      <option key={j.id} value={j.id}>{j.nombreCompleto}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Fechas Suspensión</label>
-                  <input type="number" min="0" value={sancion.fechas} onChange={(e) => setSancion({...sancion, fechas: e.target.value})} className="w-full bg-slate-950 border border-slate-800 p-5 rounded-2xl text-sm font-black text-rose-500 outline-none" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Multa (Unidades)</label>
-                  <input type="number" min="0" value={sancion.modulos} onChange={(e) => setSancion({...sancion, modulos: e.target.value})} className="w-full bg-slate-950 border border-slate-800 p-5 rounded-2xl text-sm font-black text-emerald-500 outline-none" />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Resolución / Considerando Final</label>
-                <textarea 
-                  placeholder="Detalle los motivos de la sanción basados en el acta y descargos..." 
-                  value={sancion.motivo} 
-                  onChange={(e) => setSancion({...sancion, motivo: e.target.value})} 
-                  className="w-full bg-slate-950 border border-slate-800 p-5 rounded-2xl text-xs outline-none h-32 focus:border-rose-500 text-white transition-all" 
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-4 pt-6">
-              <button onClick={() => setModalAbierto(false)} className="flex-1 bg-slate-800 hover:bg-slate-700 py-5 rounded-3xl text-[11px] font-black uppercase tracking-widest transition-all">Cancelar</button>
-              <button 
-                onClick={guardarSancion} 
-                disabled={guardando} 
-                className="flex-2 bg-rose-600 hover:bg-rose-500 py-5 rounded-3xl text-[11px] font-black uppercase shadow-xl shadow-rose-900/40 transition-all active:scale-95"
-              >
-                {guardando ? 'Firmando Dictamen...' : 'Emitir Sentencia Oficial'}
-              </button>
+            <div className="lg:col-span-2 space-y-4">
+              <h2 className="text-[10px] font-black uppercase text-amber-500 ml-2 tracking-widest">Categorías</h2>
+              {cruceActivo ? <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in">
+                {partidos.filter(p => p.nro_fecha === cruceActivo.nro_fecha && p.local_id === cruceActivo.local_id && p.visitante_id === cruceActivo.visitante_id).map(p => (
+                  <div key={p.id} onClick={() => { setPartidoActivo(p); setGolesL(0); setGolesV(0); setIncidenciasResumen({ amarillasL: 0, rojasL: 0, amarillasV: 0, rojasV: 0, detallesSanciones: [] }); cargarJugadorasCitadas(p.id); }} className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 flex justify-between items-center group cursor-pointer hover:border-emerald-500 shadow-xl transition-all relative overflow-hidden">
+                    <div>
+                      <span className="text-[9px] font-black text-emerald-500 uppercase">{p.categoria}</span>
+                      <p className="text-xs font-bold text-slate-400 mt-1 uppercase">Pendiente</p>
+                    </div>
+                    <div className="bg-emerald-600/10 text-emerald-500 p-3 rounded-full">📝</div>
+                  </div>
+                ))}
+              </div> : <div className="h-40 flex items-center justify-center border-2 border-dashed border-slate-900 rounded-[2rem] text-slate-700 font-black uppercase text-xs">Selecciona un encuentro</div>}
             </div>
           </div>
+        </div>
+      ) : (
+        <div className="max-w-6xl mx-auto space-y-10 pb-20 animate-in fade-in duration-500">
+          <button onClick={() => setPartidoActivo(null)} className="text-[10px] font-black uppercase text-slate-500 bg-slate-900 px-4 py-2 rounded-xl border border-slate-800">← Volver</button>
+          
+          <div className="text-center bg-slate-900 p-8 rounded-[3rem] border border-slate-800 shadow-2xl relative overflow-hidden">
+            <div className="flex justify-around items-center gap-4 mt-6">
+              <div className="flex flex-col items-center gap-2">
+                 <button onClick={() => setGolesL(v => v + 1)} className="bg-slate-800 p-2 rounded-lg hover:bg-slate-700">▲</button>
+                 <span className="text-5xl font-black text-blue-500 leading-none">{golesL}</span>
+                 <button onClick={() => setGolesL(v => Math.max(0, v - 1))} className="bg-slate-800 p-2 rounded-lg hover:bg-slate-700">▼</button>
+                 <p className="text-[10px] font-black uppercase text-slate-400">{partidoActivo.local?.nombre}</p>
+              </div>
+              <div className="text-2xl font-black text-slate-700 italic">VS</div>
+              <div className="flex flex-col items-center gap-2">
+                 <button onClick={() => setGolesV(v => v + 1)} className="bg-slate-800 p-2 rounded-lg hover:bg-slate-700">▲</button>
+                 <span className="text-5xl font-black text-white leading-none">{golesV}</span>
+                 <button onClick={() => setGolesV(v => Math.max(0, v - 1))} className="bg-slate-800 p-2 rounded-lg hover:bg-slate-700">▼</button>
+                 <p className="text-[10px] font-black uppercase text-slate-400">{partidoActivo.visitante?.nombre}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <AccionesGenerales equipoNombre={partidoActivo.local?.nombre} equipoId={partidoActivo.local_id} onIncidencia={manejarIncidenciaFija} />
+            <AccionesGenerales equipoNombre={partidoActivo.visitante?.nombre} equipoId={partidoActivo.visitante_id} onIncidencia={manejarIncidenciaFija} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {jugadoras.map(j => (
+              <PlanillaArbitro key={j.id} jugadora={j} partidoId={partidoActivo.id} categoria={partidoActivo.categoria} onIncidencia={manejarIncidenciaFija} />
+            ))}
+          </div>
+
+          <section className="bg-slate-900 p-8 md:p-12 rounded-[3.5rem] border-t-4 border-amber-500 shadow-2xl max-w-2xl mx-auto space-y-8 relative">
+            <h3 className="text-center text-xl font-black uppercase italic text-amber-500 tracking-tighter">Resumen Oficial para Firmas</h3>
+            <div className="bg-slate-950 p-8 rounded-[2.5rem] border border-slate-800 shadow-inner">
+               <div className="flex justify-between items-center mb-8 border-b border-slate-800 pb-6 text-center">
+                <div className="flex-1">
+                  <div className="text-6xl font-black text-white">{golesL}</div>
+                  <p className="text-[10px] font-black text-blue-500 uppercase mt-2">{partidoActivo.local?.nombre}</p>
+                </div>
+                <div className="text-2xl font-black text-slate-800 italic px-6">FINAL</div>
+                <div className="flex-1">
+                  <div className="text-6xl font-black text-white">{golesV}</div>
+                  <p className="text-[10px] font-black text-white uppercase mt-2">{partidoActivo.visitante?.nombre}</p>
+                </div>
+              </div>
+
+              <div className="mb-8 space-y-3">
+                <h4 className="text-[10px] font-black uppercase text-slate-500 italic mb-2 tracking-widest">Desglose de Sanciones:</h4>
+                {incidenciasResumen.detallesSanciones.map((s, i) => (
+                  <div key={i} className="flex items-center gap-3 bg-slate-900 p-3 rounded-2xl border border-slate-800">
+                    <div className="flex-1">
+                      <span className="block text-[10px] font-black uppercase leading-none">{s.nombre}</span>
+                      <span className="text-[8px] text-slate-500 uppercase font-bold">{s.club}</span>
+                    </div>
+                    <span className={`text-[10px] font-black px-3 py-1 rounded-lg ${s.tipo.includes('ROJA') || s.tipo.includes('EXPULSIÓN') ? 'bg-rose-500/20 text-rose-500' : 'bg-amber-500/20 text-amber-500'}`}>{s.tipo}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-4">
+                <input placeholder="✍️ FIRMA ÁRBITRO PRINCIPAL" onChange={(e) => setFirmas({...firmas, arb: e.target.value})} className="w-full bg-slate-900 border border-slate-800 p-4 rounded-2xl text-[11px] font-black uppercase text-blue-400 outline-none focus:border-amber-500 transition-all" />
+                <div className="grid grid-cols-2 gap-4">
+                  <input placeholder="FIRMA LOCAL" onChange={(e) => setFirmas({...firmas, loc: e.target.value})} className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-[10px] font-black uppercase text-slate-400 outline-none focus:border-amber-500 transition-all" />
+                  <input placeholder="FIRMA VISITA" onChange={(e) => setFirmas({...firmas, vis: e.target.value})} className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-[10px] font-black uppercase text-slate-400 outline-none focus:border-amber-500 transition-all" />
+                </div>
+              </div>
+            </div>
+
+            <button onClick={cerrarActaFinalConPDF} disabled={enviando} className={`w-full py-6 rounded-[2rem] font-black uppercase text-xs shadow-xl transition-all ${enviando ? 'bg-slate-800 text-slate-600' : 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-900/40'}`}>
+              {enviando ? 'GUARDANDO...' : '🚀 VALIDAR Y FIRMAR ACTA FINAL'}
+            </button>
+          </section>
         </div>
       )}
     </div>
   );
 };
 
-export default AdminTribunal;
+export default AdminArbitros;

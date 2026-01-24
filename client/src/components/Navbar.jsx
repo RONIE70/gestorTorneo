@@ -23,13 +23,13 @@ const Navbar = ({ session }) => {
         {/* IZQUIERDA: LOGO */}
         <Link to="/" className="flex-shrink-0" onClick={() => setMenuAbierto(false)}>
           <span className="text-xl md:text-2xl font-black italic tracking-tighter text-white uppercase leading-none">
-            Liga <span className="text-blue-500">NC-S1125</span>
+           Gestor Torneo <span className="text-blue-500">SC-1225</span>
           </span>
         </Link>
 
         {/* CENTRO: BUSCADOR (Visible en md) */}
         <form onSubmit={handleSearch} className="flex-1 max-w-sm relative hidden md:block">
-          <input 
+          <input id="buscar"
             type="text" 
             placeholder="Buscar equipo..." 
             value={busqueda}

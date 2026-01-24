@@ -1,14 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
 
 const DashboardLiga = () => {
   const [data, setData] = useState(null);
+  const [userRol, setUserRol] = useState('jugadora');
 
   useEffect(() => {
+    // 1. Obtener datos públicos del Dashboard
     fetch('http://localhost:5000/dashboard-resumen')
       .then(res => res.json())
       .then(json => setData(json))
       .catch(err => console.error("Error:", err));
+
+    // 2. Obtener el rol del usuario autenticado
+    const getPerfil = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: perfil } = await supabase
+          .from('perfiles')
+          .select('rol')
+          .eq('id', session.user.id)
+          .single();
+        if (perfil) setUserRol(perfil.rol);
+      }
+    };
+    getPerfil();
   }, []);
 
   if (!data) return <div className="text-white p-10 text-center animate-pulse uppercase font-black tracking-widest">Sincronizando Liga nc-s1125...</div>;
@@ -28,7 +45,7 @@ const DashboardLiga = () => {
         {/* --- SECCIÓN 1: HUB DE PANELES (6 CARDS - LÓGICA DE NEGOCIO) --- */}
         <section>
           <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-8 text-center italic">
-            Ecosistema de Gestión Integral nc-s1125
+            Ecosistema de Gestión Integral
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -42,38 +59,47 @@ const DashboardLiga = () => {
             </Link>
 
             {/* 2. DELEGADOS */}
+            {(userRol === 'delegado' || userRol === 'superadmin') && (
             <Link to="/AdminDelegado" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-emerald-500 shadow-2xl hover:-translate-y-1">
               <span className="text-3xl mb-3 block">🛡️</span>
               <h3 className="text-lg font-black uppercase italic tracking-tighter">Delegados</h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Fichajes, gestión de plantel y lista de buena fe.</p>
               <div className="mt-4 text-emerald-400 text-[9px] font-black uppercase tracking-widest">Gestionar Club →</div>
             </Link>
+            )}
 
             {/* 3. LIGA (COLABORADORES) */}
+            {(userRol === 'colaborador' || userRol === 'superadmin') && (
             <Link to="/AdminLiga" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-purple-500 shadow-2xl hover:-translate-y-1">
               <span className="text-3xl mb-3 block">📢</span>
               <h3 className="text-lg font-black uppercase italic tracking-tighter">Panel Liga</h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Comunicados oficiales, noticias y prensa del torneo.</p>
               <div className="mt-4 text-purple-400 text-[9px] font-black uppercase tracking-widest">Redactar Info →</div>
             </Link>
+            )}
 
             {/* 4. ÁRBITROS */}
+            {(userRol === 'arbitro' || userRol === 'superadmin') && (
             <Link to="/AdminArbitros" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-amber-500 shadow-2xl hover:-translate-y-1">
               <span className="text-3xl mb-3 block">🏁</span>
               <h3 className="text-lg font-black uppercase italic tracking-tighter">Árbitros</h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Carga de actas, resultados de partidos y planillas.</p>
               <div className="mt-4 text-amber-500 text-[9px] font-black uppercase tracking-widest">Cargar Actas →</div>
             </Link>
+            )}
 
             {/* 5. TRIBUNAL DE DISCIPLINA */}
+            {(userRol === 'tribunal' || userRol === 'superadmin') && (
             <Link to="/AdminTribunal" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-rose-600 shadow-2xl hover:-translate-y-1">
               <span className="text-3xl mb-3 block">⚖️</span>
               <h3 className="text-lg font-black uppercase italic tracking-tighter">Tribunal</h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Sanciones, multas, quita de puntos y suspensiones.</p>
               <div className="mt-4 text-rose-500 text-[9px] font-black uppercase tracking-widest">Ver Expedientes →</div>
             </Link>
+            )}
 
             {/* 6. ORGANIZACIÓN (ADMIN PROPIETARIO) */}
+            {userRol === 'superadmin' && (
             <Link to="/AdminConfig" className="group relative overflow-hidden bg-slate-950 border border-blue-500/30 p-6 rounded-[2rem] transition-all hover:border-blue-500 shadow-2xl hover:-translate-y-1 shadow-blue-500/5">
               <div className="absolute -right-4 -top-4 w-16 h-16 bg-blue-500/5 rounded-full blur-xl"></div>
               <span className="text-3xl mb-3 block">🏢</span>
@@ -81,9 +107,11 @@ const DashboardLiga = () => {
               <p className="text-[10px] text-slate-500 font-bold uppercase mt-2 leading-relaxed">Sorteo de fixture y configuración base del torneo.</p>
               <div className="mt-4 text-blue-300 text-[9px] font-black uppercase tracking-widest">Maestro →</div>
             </Link>
+            )}
 
           </div>
         </section>
+
 
         {/* --- SECCIÓN 2: RESUMEN DINÁMICO (PRÓXIMA FECHA Y ESTRUCTURA) --- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-10 border-t border-slate-900">

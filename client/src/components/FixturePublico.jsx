@@ -63,6 +63,14 @@ const FixturePublico = () => {
         <h1 className="text-4xl font-black uppercase italic tracking-tighter">Calendario de Partidos</h1>
         <p className="text-blue-500 font-bold text-[10px] uppercase tracking-[0.3em]">Seguimiento Oficial • Temporada 2026</p>
       </div>
+      <div className="flex justify-center mb-8">
+  <button 
+    onClick={() => window.location.href = '/ListaJugadoras'} 
+    className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-900/20 transition-all flex items-center gap-3"
+  >
+    <span>👤 Ver Galería de Jugadoras y Goleadoras</span>
+  </button>
+</div>
 
       {/* BARRA DE HERRAMIENTAS (ZONAS + BUSCADOR) */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-slate-900/30 p-6 rounded-[3rem] border border-slate-900 shadow-2xl">

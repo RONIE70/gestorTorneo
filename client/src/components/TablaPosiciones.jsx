@@ -1,10 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const TablaPosiciones = () => {
   const [datosEstructurados, setDatosEstructurados] = useState({});
   const [tablaGeneral, setTablaGeneral] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Colores de identidad definidos
+  const identidad = {
+    fondo: '#000000',
+    texto: '#d90082',
+    acento: '#000000',
+    textoSecundario: '#ffffff'
+  };
 
   useEffect(() => {
     fetchResultados();
@@ -16,7 +26,7 @@ const TablaPosiciones = () => {
       const { data: partidos, error } = await supabase
         .from('partidos')
         .select(`
-          id, resultado_local, resultado_visitante, local_id, visitante_id, zona, categoria,
+          resultado_local, resultado_visitante, local_id, visitante_id, zona, categoria,
           local:equipos!local_id(nombre, escudo_url),
           visitante:equipos!visitante_id(nombre, escudo_url)
         `)
@@ -25,9 +35,9 @@ const TablaPosiciones = () => {
       if (error) throw error;
 
       const estructura = {}; 
-      const gen = {};        
+      const gen = {};         
 
-      const procesarFila = (contenedor, id, info, golesFavor, golesContra) => {
+      const procesarFila = (contenedor, id, info, gF, gC) => {
         if (!contenedor[id]) {
           contenedor[id] = { 
             nombre: info.nombre, escudo: info.escudo_url, 
@@ -36,19 +46,17 @@ const TablaPosiciones = () => {
         }
         const s = contenedor[id];
         s.pj += 1;
-        s.gf += (golesFavor || 0);
-        s.gc += (golesContra || 0);
+        s.gf += (gF || 0);
+        s.gc += (gC || 0);
         s.dif = s.gf - s.gc;
-
-        if (golesFavor > golesContra) { s.pg += 1; s.pts += 3; }
-        else if (golesFavor === golesContra) { s.pe += 1; s.pts += 1; }
+        if (gF > gC) { s.pg += 1; s.pts += 3; }
+        else if (gF === gC) { s.pe += 1; s.pts += 1; }
         else { s.pp += 1; }
       };
 
       partidos.forEach(p => {
         const cat = p.categoria || "Única";
         const zona = p.zona || "Zona Única";
-
         if (!estructura[cat]) estructura[cat] = {};
         if (!estructura[cat][zona]) estructura[cat][zona] = {};
 
@@ -58,9 +66,7 @@ const TablaPosiciones = () => {
         procesarFila(gen, p.visitante_id, p.visitante, p.resultado_visitante, p.resultado_local);
       });
 
-      const ordenar = (obj) => Object.values(obj).sort((a, b) => 
-        b.pts - a.pts || b.dif - a.dif || b.gf - a.gf
-      );
+      const ordenar = (obj) => Object.values(obj).sort((a, b) => b.pts - a.pts || b.dif - a.dif || b.gf - a.gf);
 
       const finalEstructura = {};
       Object.keys(estructura).forEach(cat => {
@@ -72,54 +78,99 @@ const TablaPosiciones = () => {
 
       setDatosEstructurados(finalEstructura);
       setTablaGeneral(ordenar(gen));
-    } catch (error) {
-      console.error("Error en Tabla:", error.message);
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
+  const descargarPDF = (datos, titulo) => {
+    const doc = new jsPDF();
+    
+    // Configuración visual del PDF igual a la identidad solicitada
+    doc.setFillColor(identidad.fondo); // Fondo Negro
+    doc.rect(0, 0, 210, 40, 'F');
+    
+    doc.setTextColor(identidad.texto); // Letras Rosas
+    doc.setFontSize(22);
+    doc.setFont("helvetica", "bold");
+    doc.text("POSICIONES OFICIALES", 105, 20, { align: 'center' });
+    
+    doc.setTextColor(255, 255, 255); // Blanco para el subtítulo
+    doc.setFontSize(12);
+    doc.text(titulo, 105, 32, { align: 'center' });
+
+    const body = datos.map((c, i) => [i + 1, c.nombre, c.pj, c.gf, c.gc, c.dif, c.pts]);
+    autoTable(doc, {
+      startY: 45,
+      head: [['Pos', 'Club', 'PJ', 'GF', 'GC', 'DIF', 'PTS']],
+      body: body,
+      theme: 'grid',
+      headStyles: { 
+        fillColor: identidad.fondo, 
+        textColor: identidad.texto,
+        lineColor: identidad.acento,
+        lineWidth: 0.1
+      },
+      styles: { fontSize: 10, cellPadding: 3 },
+      columnStyles: {
+        6: { fontStyle: 'bold' } // Columna PTS en negrita
+      }
+    });
+    doc.save(`Posiciones_${titulo.replace(" ", "_")}.pdf`);
+  };
+
   const ComponenteTabla = ({ datos, titulo, esGeneral = false }) => (
-    <div className="space-y-3 mb-8 animate-in fade-in duration-700">
-      <h3 className={`text-[10px] md:text-sm font-black uppercase tracking-[0.2em] ml-2 ${esGeneral ? 'text-amber-500' : 'text-slate-500'}`}>
-        {titulo}
-      </h3>
+    <div className="space-y-3 mb-8">
+      <div className="flex justify-between items-end px-2">
+        <h3 className={`text-[10px] md:text-sm font-black uppercase tracking-[0.2em] ${esGeneral ? 'text-amber-500' : 'text-slate-400'}`}>
+          {titulo}
+        </h3>
+        <button 
+            onClick={() => descargarPDF(datos, titulo)} 
+            className="text-[8px] font-black px-3 py-1 rounded-full border border-pink-500/30 text-pink-500 hover:bg-pink-500 hover:text-white transition-all uppercase italic"
+        >
+            Descargar Reporte ↓
+        </button>
+      </div>
       <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
         <table className="w-full text-left table-fixed">
           <thead>
-            <tr className="bg-slate-950/50 text-[7px] md:text-[9px] font-black uppercase text-slate-500 border-b border-slate-800">
-              <th className="w-[10%] py-3 text-center">Pos</th>
+            <tr className="bg-black text-[7px] md:text-[9px] font-black uppercase text-pink-500 border-b border-slate-800">
+              <th className="w-[10%] py-4 text-center">Pos</th>
               <th className="w-[35%] px-1">Club</th>
               <th className="w-[9%] text-center">PJ</th>
               <th className="w-[9%] text-center">GF</th>
               <th className="w-[9%] text-center">GC</th>
-              <th className="w-[12%] text-center">DIF</th>
-              <th className="w-[16%] text-center text-blue-400 bg-blue-500/5">PTS</th>
+              <th className="w-[12%] text-center text-white">DIF</th>
+              <th className="w-[16%] text-center bg-pink-500/10">PTS</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/50">
             {datos.map((club, index) => {
               const clasifica = !esGeneral && index < 2;
               return (
-                <tr key={index} className="hover:bg-slate-800/30 transition-colors">
-                  <td className={`py-3 font-black italic text-center text-[9px] md:text-xs ${clasifica ? 'text-emerald-500' : 'text-slate-600'}`}>
+                <tr key={index} className="hover:bg-slate-800/30 transition-all">
+                  <td className={`py-4 font-black italic text-center text-[9px] md:text-xs ${clasifica ? 'text-pink-500' : 'text-slate-600'}`}>
                     {index + 1}º
                   </td>
-                  <td className="px-1 py-3">
+                  <td className="px-1 py-4">
                     <div className="flex items-center gap-1 md:gap-2">
-                      <img src={club.escudo} alt="" className="w-4 h-4 md:w-6 md:h-6 object-contain flex-shrink-0" />
+                      <div className="relative">
+                        <img src={club.escudo} alt="" className={`w-4 h-4 md:w-6 md:h-6 object-contain z-10 relative`} />
+                        <div className={`absolute inset-0 rounded-full blur-[6px] opacity-40 ${clasifica ? 'bg-pink-500' : 'bg-blue-500'}`}></div>
+                      </div>
                       <span className={`text-[8px] md:text-[10px] font-black uppercase truncate ${clasifica ? 'text-white' : 'text-slate-400'}`}>
-                        {club.nombre}{clasifica && '⭐'}
+                        {club.nombre}
                       </span>
                     </div>
                   </td>
                   <td className="text-center text-[9px] md:text-xs font-bold text-slate-300">{club.pj}</td>
                   <td className="text-center text-[9px] md:text-xs font-bold text-emerald-500/60">{club.gf}</td>
                   <td className="text-center text-[9px] md:text-xs font-bold text-rose-500/60">{club.gc}</td>
-                  <td className={`text-center text-[9px] md:text-xs font-black ${club.dif > 0 ? 'text-blue-400' : club.dif < 0 ? 'text-rose-600' : 'text-slate-600'}`}>
-                    {club.dif > 0 ? `+${club.dif}` : club.dif}
-                  </td>
-                  <td className="text-center text-[10px] md:text-sm font-black text-white bg-blue-500/5">{club.pts}</td>
+                  <td className={`text-center text-[9px] md:text-xs font-black ${club.dif > 0 ? 'text-blue-400' : club.dif < 0 ? 'text-rose-600' : 'text-slate-600'}`}>{club.dif > 0 ? `+${club.dif}` : club.dif}</td>
+                  <td className="text-center text-[10px] md:text-sm font-black text-pink-500 bg-pink-500/5">{club.pts}</td>
                 </tr>
               );
             })}
@@ -129,19 +180,26 @@ const TablaPosiciones = () => {
     </div>
   );
 
-  if (loading) return <div className="p-10 text-center text-emerald-500 font-black animate-pulse uppercase tracking-[0.3em] bg-slate-950 min-h-screen flex items-center justify-center">Generando Tablas...</div>;
+  if (loading) return (
+    <div className="p-10 text-center bg-slate-950 min-h-screen flex items-center justify-center">
+        <div className="space-y-4">
+            <div className="w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="text-pink-500 font-black uppercase tracking-[0.3em] text-xs">Sincronizando Estadísticas...</p>
+        </div>
+    </div>
+  );
 
   return (
-    <div className="max-w-6xl mx-auto p-2 md:p-4 bg-slate-950 min-h-screen text-white pb-20">
-      <header className="text-center space-y-2 mb-10 mt-6">
-        <h1 className="text-2xl md:text-4xl font-black uppercase italic tracking-tighter">Posiciones <span className="text-blue-500">Oficiales</span></h1>
-        <p className="text-slate-500 font-bold text-[8px] md:text-[10px] uppercase tracking-[0.3em]">Criterio de desempate: PTS / DIF / GF</p>
+    <div className="max-w-6xl mx-auto p-2 md:p-4 bg-slate-950 min-h-screen text-white pb-20 font-sans">
+      <header className="text-center space-y-2 mb-10 mt-6 animate-in zoom-in duration-500">
+        <h1 className="text-3xl md:text-5xl font-black uppercase italic tracking-tighter">Posiciones <span className="text-pink-500">Oficiales</span></h1>
+        <p className="text-slate-500 font-bold text-[8px] md:text-[10px] uppercase tracking-[0.3em]">• Resumen de Temporada •</p>
       </header>
 
       {Object.keys(datosEstructurados).sort().map(cat => (
         <div key={cat} className="mb-12">
-          <div className="border-l-4 border-blue-600 pl-3 mb-6">
-            <h2 className="text-lg md:text-2xl font-black uppercase italic text-white">Cat. {cat}</h2>
+          <div className="border-l-4 border-pink-500 pl-3 mb-6 bg-gradient-to-r from-pink-500/10 to-transparent py-2">
+            <h2 className="text-lg md:text-2xl font-black uppercase italic text-white tracking-tight">Categoría {cat}</h2>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
             {Object.keys(datosEstructurados[cat]).sort().map(zona => (
@@ -151,12 +209,12 @@ const TablaPosiciones = () => {
         </div>
       ))}
 
-      <div className="mt-20 pt-10 border-t border-slate-800">
+      <div className="mt-20 pt-10 border-t border-slate-800 bg-black/40 rounded-[3rem] p-8">
         <div className="text-center mb-8">
-            <h2 className="text-xl md:text-3xl font-black uppercase italic text-amber-500">Ranking Institucional</h2>
-            <p className="text-[7px] md:text-[9px] text-slate-500 uppercase font-bold tracking-widest mt-1">Sumatoria total de puntos todas las categorías</p>
+            <h2 className="text-xl md:text-3xl font-black uppercase italic text-rose-500">Ranking Institucional</h2>
+            <p className="text-[7px] md:text-[9px] text-slate-500 uppercase font-bold tracking-widest mt-1">Sumatoria total por club</p>
         </div>
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto text-rose-500">
             <ComponenteTabla datos={tablaGeneral} titulo="Tabla General Acumulada" esGeneral={true} />
         </div>
       </div>

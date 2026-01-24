@@ -11,7 +11,8 @@ const CarnetJugadora = ({ jugadora, config }) => {
     fondo: config?.color_fondo_carnet || '#d90082', // Rosa fuerte por defecto como la imagen
     texto: config?.color_texto_carnet || '#ffffff',
     acento: config?.color_recuadro_carnet || '#000000', // Negro para los recuadros
-    logo: config?.logo_url || config?.logo_torneo || null 
+    logoLiga: config?.logo_torneo || config?.logo_url ||  null,
+    escudoClub: jugadora?.club_escudo || null
   };
 
   if (!jugadora) return null;
@@ -23,6 +24,7 @@ const CarnetJugadora = ({ jugadora, config }) => {
     const canvas = await html2canvas(element, { 
       scale: 3, 
       useCORS: true, 
+      allowTaint: true,
       backgroundColor: null 
     });
     
@@ -43,73 +45,95 @@ const CarnetJugadora = ({ jugadora, config }) => {
             background: `linear-gradient(180deg, ${EstilosLiga.fondo} 0%, #000000 100%)`,
             color: EstilosLiga.texto 
           }}
-          className="w-[350px] h-[210px] rounded-lg p-4 shadow-2xl relative overflow-hidden border border-white/20 flex flex-col justify-between"
+          className="w-[350px] h-[210px] rounded-lg p-2 shadow-2xl relative overflow-hidden border border-white/20 flex flex-col justify-between"
         >
           {/* Header Estilo Imagen */}
-          <div className="text-center z-10">
-            <h2 className="text-xl font-black italic uppercase tracking-tighter leading-none">
-                {config?.nombre_liga || 'LA LIGA DE LAS NENAS'}
+          <div className="z-10 flex justify-between items-start ">
+            <div className="flex-1">
+            <h2 className="text-2xl font-black italic uppercase tracking-tighter leading-none">
+                {config?.nombre_liga || 'LIGA DE LAS NENAS'}
             </h2>
-            <p className="text-[7px] font-bold uppercase tracking-widest mt-1 opacity-90">
-                FUTSAL FEMENINO INFANTIL - LANUS - 2026
-            </p>
+            <p className="text-[5px] font-bold uppercase tracking-[0.3em] mt-0 opacity-80">
+        TEMPORADA OFICIAL 2026
+      </p>
+            </div>
           </div>
 
-          <div className="flex gap-3 mt-2 z-10">
-            {/* Foto de Perfil Enmarcada */}
-            <div className="w-32 h-40 bg-black border-2 border-black overflow-hidden rounded-sm shadow-xl">
-               <img 
-                  src={jugadora.foto_url || 'https://via.placeholder.com/150'} 
-                  className="w-full h-full object-cover"
-                  alt="Foto"
-                />
-            </div>
+          <div className="flex gap-4 mt-1 z-10">
+    {/* Foto de Perfil Enmarcada (TAMAÑO CARNET) */}
+    <div className="w-[100px] h-[122px] bg-slate-900 border-2 border-white overflow-hidden rounded-md shadow-2xl flex-shrink-1">
+       <img 
+          src={jugadora.foto_url || 'https://via.placeholder.com/150'} 
+          className="w-full h-full object-cover"
+          alt="Foto"
+          crossOrigin="anonymous"
+        />
+    </div>
 
             {/* Datos Derecha con Recuadros */}
             <div className="flex-1 space-y-2">
                 <div className="space-y-0.5">
-                    <p className="text-[8px] font-black uppercase italic">INSTITUCIÓN:</p>
-                    <div style={{ backgroundColor: EstilosLiga.fondo }} className="h-6 rounded-sm border border-black/50 flex items-center px-2">
+                    <p className="text-[8px] font-black uppercase italic">CLUB:</p>
+                    <div style={{ backgroundColor: EstilosLiga.fondo }} className="h-6 rounded-sm border border-black/130 flex items-center px-2">
                         <span className="text-[10px] font-bold truncate uppercase">{jugadora.club_nombre || 'S/D'}</span>
                     </div>
                 </div>
 
                 <div className="flex gap-2">
                     <div className="flex-1 space-y-0.5">
-                        <p className="text-[8px] font-black uppercase italic">FECHA DE NACIMIENTO:</p>
-                        <div style={{ backgroundColor: EstilosLiga.fondo }} className="h-6 rounded-sm border border-black/50 flex items-center px-2">
+                        <p className="text-[8px] font-black uppercase italic">F. NACIMIENTO:</p>
+                        <div style={{ backgroundColor: EstilosLiga.fondo }} className="h-6 rounded-sm border border-black/130 flex items-center px-1">
                             <span className="text-[10px] font-bold uppercase">{jugadora.fecha_nacimiento || 'XX/XX/XXXX'}</span>
                         </div>
                     </div>
                     <div className="w-24 space-y-0.5">
                         <p className="text-[8px] font-black uppercase italic">CATEGORÍA:</p>
-                        <div style={{ backgroundColor: EstilosLiga.fondo }} className="h-6 rounded-sm border border-black/50 flex items-center px-2">
+                        <div style={{ backgroundColor: EstilosLiga.fondo }} className="h-6 rounded-sm border border-black/130 flex items-center px-2">
                             <span className="text-[10px] font-bold uppercase truncate">{jugadora.categoria_actual || '2026'}</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-0">
                     <h3 className="text-lg font-black uppercase italic tracking-tighter text-white leading-none">
                         {jugadora.nombre} {jugadora.apellido}
                     </h3>
-                    <p className="text-xs font-bold tracking-widest mt-1 opacity-80">
-                        D.N.I. {jugadora.dni}
-                    </p>
+                    
                 </div>
+                <div className="bg-black/140 px-0 py-0.5 rounded border border-white/10 w-full text-center">
+            <p className="text-[13px] font-black tracking-widest text-white">
+                D.N.I. {jugadora.dni}
+            </p>
+        </div>
             </div>
           </div>
 
           {/* Logo Circular Acento */}
-          <div className="absolute top-8 right-2 w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
-             {EstilosLiga.logo ? (
-                <img src={EstilosLiga.logo} className="w-10 h-10 object-contain" alt="Logo"/>
+          <div className="absolute top-2 right-6 w-18 h-10 bg-white/20 
+           flex items-center justify-center backdrop-blur-sm border border-white/130">
+             {EstilosLiga.escudoClub ? (
+                <img src={EstilosLiga.escudoClub} className="w-14 h-10 object-contain" alt="escudo club"/>
              ) : (
-                <div className="text-white text-[8px] font-black">LOGO</div>
+                <div className="text-white text-[8px] font-black"></div>
              )}
           </div>
-          <span className="absolute bottom-2 right-4 text-[8px] font-mono opacity-60">23:17</span>
-        </div>
+       {/* Sello Dinámico de Validación */}
+<div className={`absolute bottom-2 left-4 border px-3 py-1 rounded-xl z-20 ${
+  jugadora.verificacion_manual || (jugadora.distancia_biometrica > 0.6)
+    ? 'bg-amber-500/10 border-amber-500/20' 
+    : 'bg-emerald-500/10 border-emerald-500/20'
+}`}>
+  <p className={`text-[8px] font-black uppercase tracking-tighter leading-none ${
+    jugadora.verificacion_manual || (jugadora.distancia_biometrica > 0.6)
+      ? 'text-amber-500' 
+      : 'text-emerald-400'
+  }`}>
+    {jugadora.verificacion_manual || (jugadora.distancia_biometrica > 0.6) 
+      ? 'VERIFICACIÓN PENDIENTE' 
+      : 'BIOMETRÍA OK'}
+  </p>
+</div>
+          </div>
 
         {/* VISTA TRASERA (DORSO) */}
         <div 
@@ -124,14 +148,14 @@ const CarnetJugadora = ({ jugadora, config }) => {
            
            <div className="z-10 w-1/2 flex flex-col items-center justify-center">
                 <div className="w-32 h-32 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center shadow-inner relative">
-                    {EstilosLiga.logo ? (
-                        <img src={EstilosLiga.logo} className="w-24 h-24 object-contain opacity-80" alt="Logo"/>
+                    {EstilosLiga.logoLiga ? (
+                        <img src={EstilosLiga.logoLiga} className="w-24 h-24 object-contain opacity-80" alt="Marca de Agua" crossOrigin="anonymous"/>
                     ) : (
-                        <div className="text-white/30 text-xs font-black italic">MARCA AGUA</div>
+                        <div className="text-white/30 text-xs font-black italic">sin logo</div>
                     )}
                 </div>
                 <h2 className="text-xs font-black italic uppercase tracking-tighter mt-4 text-center">
-                    {config?.nombre_liga || 'LA LIGA DE LAS NENAS'}
+                    {config?.nombre_liga || 'L   D   L   N  - LANUS'}
                 </h2>
            </div>
 
@@ -145,11 +169,11 @@ const CarnetJugadora = ({ jugadora, config }) => {
                     />
                 </div>
                 <p className="text-[7px] font-black uppercase mt-4 tracking-widest opacity-80 text-center">
-                    FUTSAL FEMENINO INFANTIL - LANUS - 2026
+                    •FUTSAL FEMENINO INFANTIL•
                 </p>
            </div>
            
-           <span className="absolute bottom-2 right-4 text-[8px] font-mono opacity-60">23:17</span>
+           <span className="absolute bottom-2 right-4 text-[8px] font-mono opacity-60">DIGITAL SC</span>
         </div>
 
       </div>

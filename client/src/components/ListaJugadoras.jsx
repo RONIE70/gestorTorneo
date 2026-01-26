@@ -1,126 +1,153 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import FichaJugadora from '../components/FichaJugadora';
+import { useNavigate } from 'react-router-dom';
 
 const ListaJugadoras = () => {
   const [jugadoras, setJugadoras] = useState([]);
-  const [filtroClub, setFiltroClub] = useState('');
+  const [filtroNombre, setFiltroNombre] = useState('');
   const [loading, setLoading] = useState(true);
-  
-  // ESTADO PARA MANEJAR EL MODAL
+  const [perfilUsuario, setPerfilUsuario] = useState(null);
   const [jugadoraSeleccionadaId, setJugadoraSeleccionadaId] = useState(null);
+  
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchJugadoras();
-  }, []);
-
-  const fetchJugadoras = async () => {
+  // Función de carga de datos memorizada
+  const cargarInformacion = useCallback(async (userId) => {
     try {
-      const { data, error } = await supabase
+      const { data: perfil, error: pError } = await supabase
+        .from('perfiles')
+        .select('equipo_id, organizacion_id, equipos(nombre)')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (pError || !perfil) {
+        console.error("Perfil no encontrado o error:", pError);
+        return;
+      }
+
+      setPerfilUsuario(perfil);
+
+      const { data: lista, error: jError } = await supabase
         .from('jugadoras')
         .select('*, equipos(nombre)')
+        .eq('organizacion_id', perfil.organizacion_id)
+        .eq('equipo_id', perfil.equipo_id)
         .order('apellido', { ascending: true });
+      
+      if (jError) throw jError;
+      setJugadoras(lista || []);
 
-      if (error) throw error;
-      setJugadoras(data || []);
-    } catch (error) {
-      console.error("Error:", error);
+    } catch (err) {
+      console.error("Error cargando datos:", err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
+  useEffect(() => {
+    let montado = true;
+
+    const inicializarAutenticacion = async () => {
+      // Intentamos recuperar la sesión
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session && montado) {
+        cargarInformacion(session.user.id);
+      } else {
+        // Si no hay sesión, preguntamos al servidor directamente
+        // eslint-disable-next-line no-unused-vars
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        if (user && montado) {
+          cargarInformacion(user.id);
+        } else {
+          // SOLO redirigimos si pasaron 3 segundos y no hay rastro del usuario
+          // Esto evita el rebote por lentitud de internet
+          setTimeout(async () => {
+            const { data: { user: finalCheck } } = await supabase.auth.getUser();
+            if (!finalCheck && montado) {
+              console.log("Sesión definitivamente inexistente.");
+              navigate('/login');
+            }
+          }, 3000);
+        }
+      }
+    };
+
+    inicializarAutenticacion();
+    return () => { montado = false; };
+  }, [navigate, cargarInformacion]);
+
+  // Filtro por texto
   const jugadorasFiltradas = jugadoras.filter(j => 
-    j.equipo_id?.toString().includes(filtroClub) || 
-    j.equipos?.nombre.toLowerCase().includes(filtroClub.toLowerCase())
+    `${j.nombre} ${j.apellido}`.toLowerCase().includes(filtroNombre.toLowerCase()) ||
+    j.dni?.includes(filtroNombre)
   );
 
-  if (loading) return <div className="p-20 text-center text-blue-500 font-black animate-pulse uppercase tracking-widest">Sincronizando Planteles...</div>;
+  // MIENTRAS CARGA, NO DEJAMOS PASAR NADA
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 text-white">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">
+          Verificando Identidad SaaS...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-slate-950 min-h-screen text-white font-sans">
       <div className="max-w-6xl mx-auto">
-        
-        {/* BOTÓN PARA VOLVER AL FIXTURE */}
-        <button 
-          onClick={() => window.location.href = '/FixturePublico'}
-          className="mb-6 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors"
-        >
-          ← Volver al Calendario
+        <button onClick={() => navigate(-1)} className="mb-6 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors">
+          ← Volver
         </button>
 
-        <h2 className="text-3xl font-black mb-8 uppercase italic tracking-tighter text-white">
-          Galería de <span className="text-blue-500">Jugadoras</span>
-        </h2>
-        
-        {/* FILTRO POR CLUB */}
-        <div className="mb-10 bg-slate-900 border border-slate-800 p-6 rounded-[2.5rem] flex flex-col md:flex-row gap-4 items-center shadow-2xl">
-          <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Filtrar por Club:</label>
+        <header className="mb-10">
+          <h2 className="text-3xl font-black uppercase italic tracking-tighter">
+            Plantel: <span className="text-blue-500">{perfilUsuario?.equipos?.nombre || 'Mi Club'}</span>
+          </h2>
+          <p className="text-slate-500 text-[9px] font-bold mt-2 uppercase tracking-widest">
+            Visualización restringida a delegados y compañeras
+          </p>
+        </header>
+
+        <div className="mb-10 bg-slate-900/50 border border-slate-800 p-2 rounded-2xl shadow-2xl">
           <input 
             type="text" 
-            placeholder="NOMBRE DEL CLUB O ID..."
-            className="bg-slate-950 border border-slate-800 p-3 rounded-2xl flex-1 focus:border-blue-500 outline-none text-xs font-bold uppercase text-white"
-            value={filtroClub}
-            onChange={(e) => setFiltroClub(e.target.value)}
+            placeholder="Buscar por nombre o DNI..."
+            className="bg-transparent w-full p-4 outline-none text-xs font-bold uppercase text-white"
+            value={filtroNombre}
+            onChange={(e) => setFiltroNombre(e.target.value)}
           />
         </div>
 
-        {/* GRILLA DE TARJETAS */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {jugadorasFiltradas.map((j) => (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {jugadorasFiltradas.map(j => (
             <div 
               key={j.id} 
-              // AL HACER CLICK EN CUALQUIER PARTE DE LA TARJETA SE ABRE EL PERFIL
               onClick={() => setJugadoraSeleccionadaId(j.id)}
-              className="bg-slate-900 rounded-[2rem] p-4 border border-slate-800 hover:border-blue-500/50 transition-all cursor-pointer group shadow-xl"
+              className="bg-slate-900 p-4 rounded-[2rem] border border-slate-800 hover:border-blue-500 transition-all cursor-pointer group shadow-xl"
             >
               <div className="relative overflow-hidden rounded-2xl mb-4">
-                <img 
-                  src={j.foto_url || 'https://via.placeholder.com/150'} 
-                  className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500" 
-                  alt={`${j.nombre} ${j.apellido}`} 
-                />
-                {!j.verificacion_manual && (
-                   <div className="absolute top-2 right-2 bg-green-500 text-white text-[8px] font-black px-2 py-1 rounded-lg shadow-lg">
-                      VERIFICADA
-                   </div>
-                )}
+                <img src={j.foto_url || 'https://via.placeholder.com/150'} className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500" alt="j" />
               </div>
-
-              <h3 className="text-sm font-black uppercase truncate text-slate-100">
-                {j.apellido} {j.nombre}
-              </h3>
-              <p className="text-[9px] text-blue-500 font-bold uppercase mt-1 italic">
-                {j.equipos?.nombre || 'Club no asignado'}
-              </p>
-
-              <div className="mt-4 pt-4 border-t border-slate-800 flex justify-between items-center group-hover:border-blue-500/30">
-                 <span className="text-[8px] font-black text-slate-600 group-hover:text-blue-400 uppercase transition-colors">Ver Perfil Completo</span>
-                 <span className="text-xs group-hover:translate-x-1 transition-transform">➡️</span>
-              </div>
+              <h3 className="text-xs font-black uppercase truncate">{j.apellido}, {j.nombre}</h3>
+              <p className="text-[9px] text-blue-500 font-bold uppercase mt-1">DNI: {j.dni}</p>
             </div>
           ))}
         </div>
 
-        {/* SI NO HAY RESULTADOS */}
-        {jugadorasFiltradas.length === 0 && (
-          <div className="text-center py-20 border-2 border-dashed border-slate-900 rounded-[3rem]">
-            <p className="text-slate-600 font-black uppercase italic tracking-widest text-xs">No se encontraron jugadoras</p>
-          </div>
-        )}
-
-        {/* MODAL DE FICHA (Puntos 3 y 4 de Reglas de Negocio) */}
         {jugadoraSeleccionadaId && (
-          <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <FichaJugadora 
-              jugadoraId={jugadoraSeleccionadaId} 
-              onClose={() => setJugadoraSeleccionadaId(null)} 
-              // REGLA: false para que NO vean las sanciones en esta vista pública
-              esTribunal={false} 
+               jugadoraId={jugadoraSeleccionadaId} 
+               onClose={() => setJugadoraSeleccionadaId(null)} 
+               esTribunal={false} 
             />
           </div>
         )}
-
       </div>
     </div>
   );

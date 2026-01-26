@@ -1,3 +1,4 @@
+/* MANTENEMOS TODO TU ESTILO ORIGINAL */
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -19,12 +20,8 @@
 }
 
 @keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -39,4 +36,28 @@
 
 .read-the-docs {
   color: #888;
+}
+
+/* --- ESTO ES LO ÚNICO QUE AGREGAMOS PARA LA VENTA (No afecta tus colores) --- */
+:root {
+  /* Por defecto dejamos el azul de React/Vite que ya te gusta */
+  --color-liga: #0b0f57; 
+}
+
+/* Clases auxiliares que usaremos solo donde tú quieras */
+.text-liga {
+  color: var(--color-liga) !important;
+}
+
+.bg-liga {
+  background-color: var(--color-liga) !important;
+}
+
+.border-liga {
+  border-color: var(--color-liga) !important;
+}
+
+/* Si quieres que el resplandor del logo también sea dinámico */
+.logo-dinamico:hover {
+  filter: drop-shadow(0 0 2em var(--color-liga));
 }

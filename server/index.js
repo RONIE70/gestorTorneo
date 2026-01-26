@@ -41,8 +41,10 @@ app.post('/fichar', upload.fields([
             dni, 
             fecha_nacimiento, 
             equipo_id, 
+            organizacion_id,
             verificacion_manual, 
-            distancia_biometrica 
+            distancia_biometrica,
+            observaciones_ia 
         } = req.body;
 
         const foto_url = req.files['foto'] ? req.files['foto'][0].path : null;
@@ -99,11 +101,13 @@ app.post('/fichar', upload.fields([
                 dni,
                 fecha_nacimiento,
                 equipo_id: Number(equipo_id),
+                organizacion_id,
                 foto_url,
                 dni_foto_url,
                 categoria_actual: categoria,
                 verificacion_manual: flagRevision, // Se guarda para que el propietario lo vea
-                distancia_biometrica: distanciaNum
+                distancia_biometrica: distanciaNum,
+                observaciones_ia: observaciones_ia
             }])
             .select();
 

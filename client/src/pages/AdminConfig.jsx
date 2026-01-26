@@ -11,7 +11,28 @@ const [clubes, setClubes] = useState([]);
 const [filtroClub, setFiltroClub] = useState('');
 const [loading, setLoading] = useState(true);
 const [torneoModo, setTorneoModo] = useState('todos_contra_todos');
+const [userOrgId, setUserOrgId] = useState(null);
 
+// Función para obtener la organización del perfil logueado
+useEffect(() => {
+  const obtenerContextoOrg = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: perfil } = await supabase
+          .from('perfiles')
+          .select('organizacion_id')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (perfil) setUserOrgId(perfil.organizacion_id);
+      }
+    } catch (err) {
+      console.error("Error obteniendo organización:", err.message);
+    }
+  };
+  obtenerContextoOrg();
+}, []);
 
 // eslint-disable-next-line no-unused-vars
 const [tipoPlayOff, setTipoPlayOff] = useState('eliminacion_directa'); // ESTA ES LA QUE FALTA
@@ -93,97 +114,75 @@ return Object.values(tabla).sort((a, b) => b.pts - a.pts || b.dg - a.dg || b.gf 
 }, []);
 
 // --- FUNCIÓN fetchData FUSIONADA Y CORREGIDA PARA PERSISTENCIA TOTAL ---
+// --- FUNCIÓN fetchData FUSIONADA Y CORREGIDA ---
 const fetchData = useCallback(async () => {
-setLoading(true);
-try {
-const [
-{ data: catData },
-{ data: clubData },
-{ data: perfilData },
-{ data: msgData },
-{ data: tData },
-{ data: partidosDB }
-] = await Promise.all([
-supabase.from('categorias').select('*').order('orden_correlativo', { ascending: true }),
-supabase.from('equipos').select('*').order('nombre'),
-supabase.from('configuracion_liga').select('*').eq('id', 1).single(),
-supabase.from('mensajes_contacto').select('*').order('created_at', { ascending: false }),
-supabase.from('configuracion_torneo').select('*').order('id', { ascending: false }),
-supabase.from('partidos').select('*, local:equipos!local_id(id, nombre, zona), visitante:equipos!visitante_id(id, nombre, zona)')
-]);
+  if (!userOrgId) return;
 
-if (partidosDB && partidosDB.length > 0) {
-const agrupados = partidosDB.reduce((acc, p) => {
-// Llave única por fecha y zona para evitar que se pisen
-const key = `${p.nro_fecha}-${p.zona || 'General'}`;
-if (!acc[key]) {
-acc[key] = {
-numero: p.nro_fecha,
-fechaReal: p.fecha_calendario || 'S/D',
-zona: p.zona,
-encuentros: []
-};
-}
+  setLoading(true);
+  try {
+    const [
+      { data: catData },
+      { data: clubData },
+      { data: perfilData },
+      { data: msgData },
+      { data: tData },
+      { data: partidosDB }
+    ] = await Promise.all([
+      supabase.from('categorias').select('*').eq('organizacion_id', userOrgId).order('orden_correlativo', { ascending: true }),
+      supabase.from('equipos').select('*').eq('organizacion_id', userOrgId).order('nombre'),
+      supabase.from('configuracion_liga').select('*').eq('organizacion_id', userOrgId).single(),
+      supabase.from('mensajes_contacto').select('*').eq('organizacion_id', userOrgId).order('created_at', { ascending: false }),
+      supabase.from('configuracion_torneo').select('*').eq('organizacion_id', userOrgId).order('id', { ascending: false }),
+      supabase.from('partidos').select('*, local:equipos!local_id(id, nombre, zona), visitante:equipos!visitante_id(id, nombre, zona)').eq('organizacion_id', userOrgId)
+    ]);
 
-// LÓGICA DE PERSISTENCIA PARA PLAY-OFFS:
-// Si no hay equipo (p.local es null), reconstruimos el objeto con el nombre del cruce
-let localData = p.local;
-let visitanteData = p.visitante;
+    // Procesamiento de Partidos
+    if (partidosDB) {
+      const agrupados = partidosDB.reduce((acc, p) => {
+        const key = `${p.nro_fecha}-${p.zona || 'General'}`;
+        if (!acc[key]) {
+          acc[key] = { numero: p.nro_fecha, fechaReal: p.fecha_calendario || 'S/D', zona: p.zona, encuentros: [] };
+        }
+        acc[key].encuentros.push({
+          id: p.id,
+          loc: p.local || { id: null, nombre: "A DEFINIR" },
+          vis: p.visitante || { id: null, nombre: "A DEFINIR" },
+          categoria: p.categoria || 'Primera',
+          horario: p.horario || '16:00',
+          goles_loc: p.goles_local,
+          goles_vis: p.goles_visitante,
+          jugado: p.jugado,
+          finalizado: p.finalizado
+        });
+        return acc;
+      }, {});
+      setFixtureTemporal(Object.values(agrupados).sort((a, b) => a.numero - b.numero));
+    }
 
-if (!localData && p.zona === 'PLAY-OFFS') {
-// Aquí reconstruimos el nombre según la etapa que guardamos en 'categoria'
-if (p.categoria === 'GRAN FINAL') {
-localData = { id: null, nombre: "1° ZONA A" };
-visitanteData = { id: null, nombre: "1° ZONA B" };
-} else if (p.categoria === '3° PUESTO') {
-localData = { id: null, nombre: "2° ZONA A" };
-visitanteData = { id: null, nombre: "2° ZONA B" };
-} else if (p.categoria === 'SEMIFINAL 1') {
-localData = { id: null, nombre: "1° ZONA A" };
-visitanteData = { id: null, nombre: "2° ZONA B" };
-} else if (p.categoria === 'SEMIFINAL 2') {
-localData = { id: null, nombre: "1° ZONA B" };
-visitanteData = { id: null, nombre: "2° ZONA A" };
-}
-}
+    // Seteo de Estados
+    if (catData) setCategorias(catData);
+    if (clubData) {
+        setClubes(clubData);
+        if (partidosDB) setTablaPosiciones(calcularTablaPosiciones(partidosDB, clubData));
+    }
+    if (perfilData) setPerfil(perfilData);
+    if (msgData) setMensajes(msgData);
+    if (tData) {
+        setTorneos(tData);
+        // Si no hay torneo seleccionado, seleccionamos el activo o el primero
+        const activo = tData.find(t => t.activo === true) || tData[0];
+        if (activo) setTorneoActivoId(activo.id);
+    }
 
-acc[key].encuentros.push({
-id: p.id,
-loc: localData || { id: null, nombre: "A DEFINIR" },
-vis: visitanteData || { id: null, nombre: "A DEFINIR" },
-categoria: p.categoria || 'Primera',
-horario: p.horario || '16:00',
-goles_loc: p.goles_local,
-goles_vis: p.goles_visitante,
-jugado: p.jugado,
-finalizado: p.finalizado
-});
-
-return acc;
-}, {});
-
-const fixtureOrdenado = Object.values(agrupados).sort((a, b) => a.numero - b.numero);
-setFixtureTemporal(fixtureOrdenado);
-if (clubData && clubData.length > 0) {
-setTablaPosiciones(calcularTablaPosiciones(partidosDB, clubData));
-}
-}
-
-if (catData) setCategorias(catData);
-if (clubData) setClubes(clubData);
-if (perfilData) setPerfil(perfilData);
-if (msgData) setMensajes(msgData);
-if (tData) setTorneos(tData);
-
-} catch (err) {
-console.error('Error en fetchData:', err);
-} finally {
-setLoading(false);
-}
-}, [calcularTablaPosiciones]);// Incluimos la dependencia de la función de cálculo
+  } catch (err) {
+    console.error('Error en fetchData:', err);
+  } finally {
+    setLoading(false);
+  }
+}, [userOrgId, calcularTablaPosiciones]);
 
 useEffect(() => {
-fetchData();
+  fetchData();
 }, [fetchData]);
 
 
@@ -235,7 +234,7 @@ const nuevoEstado = !perfil.inscripciones_abiertas;
 const { error } = await supabase
 .from('configuracion_liga')
 .update({ inscripciones_abiertas: nuevoEstado })
-.eq('id', 1);
+.eq('organizacion_id', userOrgId);
 if (error) {
 alert("Error al cambiar estado: " + error.message);
 } else {
@@ -291,23 +290,24 @@ return fechaEncontrada.toLocaleDateString('es-AR', { day: '2-digit', month: '2-d
 };
 
 const actualizarPerfil = async () => {
-setGuardandoPerfil(true);
-const { error } = await supabase
-.from('configuracion_liga')
-.update({
-email_contacto: perfil.email_contacto,
-whatsapp_contacto: perfil.whatsapp_contacto,
-nombre_liga: perfil.nombre_liga,
-nombre_torneo: perfil.nombre_torneo,
-logo_torneo: perfil.logo_torneo,
-inscripciones_abiertas: perfil.inscripciones_abiertas
-})
-.eq('id', 1);
-if (error) alert("Error al actualizar perfil: " + error.message);
-else alert("✅ Perfil e Identidad de nc-s1125 actualizados correctamente.");
-setGuardandoPerfil(false);
-};
+  setGuardandoPerfil(true);
+  // Aquí guardamos los colores y logo que usará TODA la liga
+  const { error } = await supabase
+    .from('configuracion_liga')
+    .update({
+      nombre_liga: perfil.nombre_liga,     // Ej: "AFA"
+      logo_url: perfil.logo_torneo,        // Logo que va en el carnet
+      color_fondo_carnet: perfil.color_fondo_carnet,
+      color_texto_carnet: perfil.color_texto_carnet,
+      whatsapp_contacto: perfil.whatsapp_contacto,
+      organizacion_id: userOrgId // Aseguramos que sea para ESTA liga
+    })
+    .eq('organizacion_id', userOrgId); // Ya no usamos .eq('id', 1)
 
+  if (error) alert("Error: " + error.message);
+  else alert("✅ Identidad de la Liga (Marca) actualizada.");
+  setGuardandoPerfil(false);
+};
 
 
 const toggleCabezaSerie = async (id, estadoActual) => {
@@ -358,17 +358,34 @@ setLoading(false);
 };
 
 const handleNuevoTorneo = async () => {
-const nombre = prompt("Nombre del nuevo torneo (Ej: Clausura 2026):");
-if (!nombre) return;
-const { error } = await supabase.from('torneos').insert({
-nombre,
-config_json: { modo: torneoModo, zonas: cantidadZonas, clasifican: clasificanPorZona }
-});
+  const nombre = prompt("Nombre del nuevo torneo (Ej: Clausura 2026):");
+  if (!nombre) return;
 
-if (!error) {
-alert("✅ Nuevo torneo inicializado correctamente.");
-fetchData();
-}
+  // IMPORTANTE: Asegúrate de que userOrgId esté disponible en el componente
+  if (!userOrgId) {
+    return alert("❌ Error: No se puede crear el torneo porque no se identificó tu organización.");
+  }
+
+  const { error } = await supabase
+    .from('configuracion_torneo') // Usamos la tabla SaaS
+    .insert({
+      nombre_edicion: nombre,
+      organizacion_id: userOrgId, // <--- VINCULACIÓN VITAL
+      modelo_torneo: 'todos_contra_todos', // Valor por defecto para cumplir el CHECK
+      año_lectivo: 2026,
+      sorteo_realizado: false,
+      dias_juego: []
+    })
+    .select();
+
+  if (error) {
+    console.error("Error al crear torneo:", error);
+    alert("❌ Error: " + error.message);
+  } else {
+    alert("✅ Nuevo torneo '" + nombre + "' creado y vinculado a tu liga.");
+    // Si tienes una función para refrescar la lista de torneos:
+    fetchData(); 
+  }
 };
 
 
@@ -610,7 +627,7 @@ return (
 <header className="border-l-4 border-amber-500 pl-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
 <div>
 <h1 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-white">
-Panel Maestro <span className="text-amber-500">nc-s1125</span>
+Panel Maestro <span className="text-amber-500">SC1225</span>
 </h1>
 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1 italic">
 Organización e Identidad del Torneo
@@ -618,7 +635,7 @@ Organización e Identidad del Torneo
 </div>
 <div className="flex gap-2">
 <button onClick={handleNuevoTorneo} className="bg-emerald-600 hover:bg-emerald-500 px-6 py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg transition-all">+ Nuevo Torneo</button>
-<button onClick={() => window.location.href = '/admin/configuracion'} className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 px-8 py-4 rounded-2xl font-black uppercase text-[10px] transition-all shadow-lg border border-white/10 flex items-center gap-2">
+<button onClick={() => window.location.href = '/AdminConfiguracion'} className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 px-8 py-4 rounded-2xl font-black uppercase text-[10px] transition-all shadow-lg border border-white/10 flex items-center gap-2">
 <span>🎨 Estilos y Carnet</span>
 </button>
 </div>
@@ -787,18 +804,7 @@ ACTUALIZAR PARÁMETROS
 </div>
 </div>
 
-<section className="bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-2xl flex flex-col justify-center text-center">
-<h3 className="text-[10px] font-black uppercase text-amber-500 mb-3 tracking-widest italic">Ejecución del Sorteo</h3>
-<div className="space-y-4">
-<div className="text-left">
-<p className="text-[9px] font-black uppercase text-slate-600 mb-1 ml-2 tracking-widest">Fecha de Inicio General</p>
-<input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-bold text-blue-400 outline-none" />
-</div>
-<button onClick={handleSorteo} className={`w-full py-6 rounded-[2rem] font-black uppercase text-xs shadow-xl active:scale-95 transition-all ${perfil.inscripciones_abiertas ? 'bg-slate-800 text-slate-600 cursor-not-allowed opacity-50' : 'bg-blue-600 hover:bg-blue-500 text-white animate-pulse'}`}>
-{perfil.inscripciones_abiertas ? '🔒 Cierra inscripciones' : '🚀 Generar Fixture Completo'}
-</button>
-</div>
-</section>
+
 </div>
 
 

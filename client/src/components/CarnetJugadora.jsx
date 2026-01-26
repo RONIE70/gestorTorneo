@@ -6,19 +6,29 @@ import { QRCodeSVG } from 'qrcode.react';
 const CarnetJugadora = ({ jugadora, config }) => {
   const carnetRef = useRef();
 
-  // Mantenemos la lógica de edición de colores
+  // --- SOLUCIÓN: Si config es null, creamos un objeto seguro ---
+  const safeConfig = config || {
+    color_fondo_carnet: '#de1777', // Rosa SC-1225
+    color_texto_carnet: '#ffffff',
+    color_recuadro_carnet: '#000000',
+    nombre_liga: 'CARGANDO...',
+    logo_url: null
+  };
+
   const EstilosLiga = {
-    fondo: config?.color_fondo_carnet || '#d90082', // Rosa fuerte por defecto como la imagen
-    texto: config?.color_texto_carnet || '#ffffff',
-    acento: config?.color_recuadro_carnet || '#000000', // Negro para los recuadros
-    logoLiga: config?.logo_torneo || config?.logo_url ||  null,
+    fondo: safeConfig.color_fondo_carnet,
+    texto: safeConfig.color_texto_carnet,
+    acento: safeConfig.color_recuadro_carnet,
+    logoLiga: safeConfig.logo_url || safeConfig.logo_torneo || null,
     escudoClub: jugadora?.club_escudo || null
   };
 
-  if (!jugadora) return null;
+  // Si no hay jugadora, mostramos un mensaje pequeño en lugar de nada
+  if (!jugadora) return <div className="text-slate-500 text-[10px]">Esperando datos de jugadora...</div>;
 
-  const urlValidacion = `https://gestor-torneo-ncs1125.vercel.app/verificar/${jugadora.id}`;
-
+  const urlValidacion = `https://gestor-torneo-ncs1125.vercel.app/verificar/${jugadora?.id || 'demo'}`;
+  
+  // ... (aquí sigue el resto de tu código usando EstilosLiga y safeConfig)
   const handleDescargarPDF = async () => {
     const element = carnetRef.current;
     const canvas = await html2canvas(element, { 
@@ -181,9 +191,9 @@ const CarnetJugadora = ({ jugadora, config }) => {
       <button 
         onClick={handleDescargarPDF} 
         style={{ backgroundColor: EstilosLiga.fondo }}
-        className="mt-8 hover:scale-105 active:scale-95 text-white text-[10px] font-black py-4 px-12 rounded-2xl shadow-2xl transition-all flex items-center gap-3 uppercase tracking-[0.2em] border border-white/20"
+        className="mt-4 hover:scale-105 active:scale-90 text-white text-[9px] font-black py-5 px-9 rounded-2xl shadow-2xl transition-all flex items-center gap-3 uppercase tracking-[0.2em] border border-white/20"
       >
-        📥 Descargar Credencial Completa (Frente y Dorso)
+        📥 Descargar Carnet 
       </button>
     </div>
   );

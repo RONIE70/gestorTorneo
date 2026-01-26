@@ -37,6 +37,8 @@ const AdminDelegado = () => {
   const [datosFichaje, setDatosFichaje] = useState({ 
     nombre: '', apellido: '', dni: '', fecha_nacimiento: '', equipo_id: '', club_nombre: '', club_escudo: ''   
   });
+  const [logoBase64, setLogoBase64] = useState(null);
+
 
 const fetchData = useCallback(async () => {
     try {
@@ -45,7 +47,7 @@ const fetchData = useCallback(async () => {
 
       const { data: perfil, error: perfilError } = await supabase
         .from('perfiles')
-        .select('equipo_id, rol')
+        .select('organizacion_id, equipo_id, rol')
         .eq('id', session.user.id)
         .single();
 
@@ -58,13 +60,18 @@ const fetchData = useCallback(async () => {
       setEquipoIdActual(idParaFiltrar);
 
       // 2. Cargar configuración
-      const { data: config } = await supabase.from('configuracion_liga').select('*').eq('id', 1).single();
+      const { data: config } = await supabase
+      .from('configuracion_liga')
+      .select('*')
+      .eq('organizacion_id', perfil.organizacion_id)
+      .single();
       setConfigLiga(config);
 
       // 3. Plantel (Filtrado por ID Directo)
       const { data: jugadorasData } = await supabase
         .from('jugadoras')
         .select(`*, sanciones(id, motivo, estado)`)
+        .eq('organizacion_id', perfil.organizacion_id)
         .eq('equipo_id', idParaFiltrar);
       
       setPlantel(jugadorasData?.map(j => ({
@@ -78,7 +85,7 @@ const fetchData = useCallback(async () => {
         .from('sanciones')
         .select(`
           *,
-          jugadora:jugadoras!inner(nombre, apellido, dni, equipo_id),
+          jugadora:jugadoras!inner(nombre, apellido, dni, equipo_id, organizacion_id),
           partido:partidos(
             nro_fecha, 
             local:equipos!local_id(nombre), 
@@ -90,15 +97,35 @@ const fetchData = useCallback(async () => {
       
       setExpedientes(sancData || []);
 
+      //recibo la imagen
+      if (config?.logo_url) {
+  const img = new Image();
+  img.crossOrigin = 'Anonymous';
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    setLogoBase64(canvas.toDataURL('image/png'));
+  };
+  img.src = config.logo_url;
+}
+
       // 5. Partidos y Clubes
       const { data: partidosData } = await supabase
         .from('partidos')
         .select('*, local:equipos!local_id(nombre), visitante:equipos!visitante_id(nombre)')
         .or(`local_id.eq.${idParaFiltrar},visitante_id.eq.${idParaFiltrar}`)
+        .eq('organizacion_id', perfil.organizacion_id)
         .eq('finalizado', false); 
       setPartidos(partidosData || []);
 
-      const { data: clubesData } = await supabase.from('equipos').select('*').order('nombre');
+      const { data: clubesData } = await supabase
+      .from('equipos')
+      .select('*')
+      .eq('organizacion_id', perfil.organizacion_id)
+      .order('nombre');
       setClubes(clubesData || []);
 
     } catch (error) {
@@ -159,55 +186,99 @@ const fetchData = useCallback(async () => {
   };
 
   // FUNCIÓN PARA GENERAR EL PDF DEL DICTAMEN CON IDENTIDAD VISUAL NUEVA
-  const generarPDFDictamenDelegado = (jugadora, config) => {
+ const generarPDFDictamenDelegado = (jugadora, config) => {
     const doc = new jsPDF();
-    
-    // Configuración de Colores basada en Regla de Estilo
-    const colores = {
-        fondo: '#000000', // Negro
-        textoPrincipal: '#d90082', // Rosa fuerte
-        subtitulo: '#ffffff', // Blanco
-        divisor: '#000000'
-    };
+    const pageWidth = doc.internal.pageSize.getWidth();
 
-    // Cabecera Estilo Carnet/Reporte
-    doc.setFillColor(colores.fondo);
-    doc.rect(0, 0, 210, 45, 'F');
+    // --- 1. ENCABEZADO ESTILO PREMIUM ---
+    doc.setFillColor(30, 41, 59); // Color Slate-800
+    doc.rect(0, 0, pageWidth, 45, 'F');
     
-    doc.setTextColor(colores.textoPrincipal);
-    doc.setFontSize(22);
+    // Inserción de Logo Dinámico
+    if (logoBase64) {
+      try {
+        doc.addImage(logoBase64, 'PNG', 15, 10, 25, 25);
+      // eslint-disable-next-line no-unused-vars
+      } catch (e) {
+        doc.setFillColor(217, 0, 130); // Rosa de respaldo
+        doc.ellipse(27, 22, 12, 12, 'F');
+      }
+    } else {
+      doc.setFillColor(217, 0, 130);
+      doc.ellipse(27, 22, 12, 12, 'F'); 
+    }
+    
+    // Títulos del Encabezado
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
-    doc.text(config?.nombre_liga || "LIGA OFICIAL", 105, 20, { align: 'center' });
+    doc.text(config?.nombre_liga?.toUpperCase() || "LIGA OFICIAL", 105, 20, { align: 'center' });
     
-    doc.setTextColor(colores.subtitulo);
-    doc.setFontSize(14);
-    doc.text("NOTIFICACIÓN DE SANCIÓN VIGENTE", 105, 35, { align: 'center' });
     
-    // Cuerpo del documento
-    doc.setTextColor(colores.divisor);
-    doc.line(20, 50, 190, 50);
-
     doc.setFontSize(12);
-    doc.text(`Jugadora: ${jugadora.apellido}, ${jugadora.nombre}`, 20, 70);
-    doc.text(`Documento: ${jugadora.dni || 'N/A'}`, 20, 80);
-    doc.text(`Estado Disciplinario: INHABILITADA`, 20, 90);
+    doc.setTextColor(217, 0, 130); // Rosa fuerte
+    doc.text("NOTIFICACIÓN DE SANCIÓN VIGENTE", 105, 28, { align: 'center' });
     
+    doc.setFontSize(8);
+    doc.setTextColor(200, 200, 200);
+    doc.text(`Expediente Electrónico Tribunal | Fecha de Emisión: ${new Date().toLocaleDateString()}`, 105, 36, { align: 'center' });
+
+    // --- 2. CUERPO DE DATOS PRINCIPALES ---
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
-    doc.text(`Resolución del Tribunal:`, 20, 110);
+    doc.text("DATOS DE LA JUGADORA INHABILITADA:", 20, 60);
+    doc.line(20, 62, 190, 62);
+
+    doc.setFont("helvetica", "normal");
+    doc.text(`APELLIDO Y NOMBRE: ${jugadora.apellido}, ${jugadora.nombre}`, 20, 75);
+    doc.text(`DOCUMENTO (DNI): ${jugadora.dni || 'N/A'}`, 20, 85);
+    doc.text(`CLUB PERTENECIENTE: ${clubes.find(c => c.id === equipoIdActual)?.nombre || 'S/D'}`, 20, 95);
+
+    // Recuadro de Estado
+    doc.setFillColor(254, 242, 242); // Rojo muy claro
+    doc.setDrawColor(239, 68, 68); // Rojo borde
+    doc.rect(20, 105, 170, 25, 'FD');
+    
+    doc.setTextColor(185, 28, 28); // Rojo oscuro
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("ESTADO: INHABILITADA PARA COMPETIR", 105, 121, { align: 'center' });
+
+    // --- 3. RESOLUCIÓN DEL TRIBUNAL ---
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("FUNDAMENTOS DE LA SANCIÓN:", 20, 150);
     
     doc.setFont("helvetica", "italic");
-    doc.setFontSize(11);
-    const motivo = jugadora.aclaracion_tribunal || "Sanción aplicada por el Tribunal de Disciplina según informe arbitral correspondiente.";
-    const lineasMotivo = doc.splitTextToSize(motivo, 170);
-    doc.text(lineasMotivo, 20, 120);
+    doc.setFontSize(10);
+    const motivo = jugadora.aclaracion_tribunal || "Sanción aplicada por el Tribunal de Disciplina según informe arbitral. La jugadora no podrá participar de encuentros oficiales hasta cumplir la totalidad de la pena o recibir amnistía.";
+    const lineasMotivo = doc.splitTextToSize(motivo, 160);
+    doc.text(lineasMotivo, 25, 160);
 
-    // Pie de página con QR simbólico y firma
-    doc.setFont("helvetica", "normal");
+    // --- 4. PIE DE PÁGINA, QR Y FIRMA ---
+    // QR de validación (apunta a la verificación pública)
+    const urlQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/verificar/" + jugadora.id)}`;
+    try {
+      doc.addImage(urlQR, 'PNG', 20, 245, 30, 30);
+    // eslint-disable-next-line no-unused-vars
+    } catch (err) {
+      console.warn("QR no disponible");
+    }
+
     doc.setFontSize(8);
-    doc.text("Este documento es una notificación oficial para el delegado del club.", 105, 270, { align: 'center' });
-    doc.text(`ID Equipo de Gestión: ${equipoIdActual} | `, 105, 275, { align: 'center' });
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    doc.text("Escanee el código para verificar la vigencia de esta sanción en tiempo real.", 55, 260);
+    doc.text(`Identificador Único Org: ${perfilUsuario?.organizacion_id || 'N/A'}`, 55, 265);
+
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    doc.text("__________________________", 140, 260);
+    doc.text("Secretaría de Competencia", 142, 265);
     
-    doc.save(`Dictamen_${jugadora.apellido}.pdf`);
+    doc.save(`Dictamen_Oficial_${jugadora.apellido}.pdf`);
   };
 
   // FUNCIÓN PARA ENVIAR DESCARGO
@@ -225,28 +296,6 @@ const fetchData = useCallback(async () => {
       alert("✅ Tu descargo ha sido registrado. El Tribunal lo revisará antes de dictar sentencia.");
       fetchData();
     }
-  };
-
-  const descargarInformeSancion = (sancion) => {
-    const doc = new jsPDF();
-    const colores = { fondo: '#000000', texto: '#d90082' };
-    
-    doc.setFillColor(colores.fondo);
-    doc.rect(0, 0, 210, 40, 'F');
-    doc.setTextColor(colores.texto);
-    doc.setFontSize(18);
-    doc.text("BOLETÍN OFICIAL - TRIBUNAL", 105, 25, { align: 'center' });
-    
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(12);
-    doc.text(`Expediente: #${sancion.id}`, 20, 55);
-    doc.text(`Sancionada: ${sancion.jugadora?.apellido}, ${sancion.jugadora?.nombre}`, 20, 65);
-    doc.text(`Penalidad: ${sancion.cantidad_fechas || 'Pendiente'} fecha(s)`, 20, 75);
-    doc.text(`Considerandos:`, 20, 90);
-    doc.setFontSize(10);
-    doc.text(sancion.aclaracion_tribunal || sancion.motivo, 20, 100, { maxWidth: 170 });
-    
-    doc.save(`Resolucion_Tribunal_${sancion.id}.pdf`);
   };
 
   const toggleJugadora = (jugadora) => {
@@ -301,7 +350,7 @@ const preprocesarImagenIA = async (archivo) => {
 const manejarEnvioFichaje = async (e) => {
     e.preventDefault();
     if (!equipoIdActual || !filePerfil || !fileDNI) return alert("⚠️ Faltan datos obligatorios");
-    // Verificación de seguridad: ¿Está cargado el modelo Tiny?
+    
     if (!faceapi.nets.tinyFaceDetector.params) {
         return alert("⏳ La IA todavía se está cargando. Espera un segundo e intenta de nuevo.");
     }
@@ -311,34 +360,41 @@ const manejarEnvioFichaje = async (e) => {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
 
+        // --- AGREGADO: ANÁLISIS FORENSE ---
+        // Analizamos los archivos antes de procesarlos
+        const analisisPerfil = await analizarImagen(filePerfil);
+        const analisisDNI = await analizarImagen(fileDNI);
+
         const imgPerfilLimpa = await preprocesarImagenIA(filePerfil);
         const imgDNILimpia = await preprocesarImagenIA(fileDNI);
 
         const opcionesIA = new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.3 });
 
-        // Variables para la biometría
-        let distanciaFinal = 1.0; // Valor por defecto (máxima duda)
+        let distanciaFinal = 1.0; 
         let requiereRevisionBiometrica = false;
 
         const detPerfil = await faceapi.detectSingleFace(imgPerfilLimpa, opcionesIA).withFaceLandmarks().withFaceDescriptor();
         const detDNI = await faceapi.detectSingleFace(imgDNILimpia, opcionesIA).withFaceLandmarks().withFaceDescriptor();
 
         if (!detPerfil || !detDNI) {
-            // CAMBIO CLAVE: En lugar de lanzar Error, avisamos y marcamos para revisión
             console.warn("IA no detectó rostro.");
             requiereRevisionBiometrica = true;
-            distanciaFinal = 1.1; // Usamos 1.1 para indicar que ni siquiera hubo detección
+            distanciaFinal = 1.1; 
         } else {
             distanciaFinal = faceapi.euclideanDistance(detPerfil.descriptor, detDNI.descriptor);
             if (distanciaFinal > 0.6) {
-                // Si detectó pero son distintos, podrías elegir bloquear o mandar a revisión
-                // Aquí elegimos mandar a revisión con alerta
                 requiereRevisionBiometrica = true;
             }
         }
 
-        const analisisDNI = await analizarImagen(fileDNI);
-        
+        // --- AGREGADO: CONSOLIDACIÓN DE MOTIVOS ---
+        // Creamos el texto explicativo para la columna 'observaciones_ia'
+        const motivos = [
+            requiereRevisionBiometrica ? "Fallo/Duda Biometría" : null,
+            analisisPerfil.sospechosa ? `Perfil: ${analisisPerfil.motivo}` : null,
+            analisisDNI.sospechosa ? `DNI: ${analisisDNI.motivo}` : null
+        ].filter(Boolean).join(" | ");
+
         const formData = new FormData();
         formData.append('foto', filePerfil);
         formData.append('dni_foto', fileDNI);
@@ -346,11 +402,16 @@ const manejarEnvioFichaje = async (e) => {
         formData.append('apellido', datosFichaje.apellido);
         formData.append('dni', datosFichaje.dni);
         formData.append('fecha_nacimiento', datosFichaje.fecha_nacimiento);
+        formData.append('organizacion_id', perfilUsuario?.organizacion_id);
         formData.append('equipo_id', equipoIdActual);
         
-        // Marcamos revisión manual si falló la IA o el análisis forense
-        formData.append('verificacion_manual', requiereRevisionBiometrica || analisisDNI.sospechosa);
+        // --- AQUÍ ESTÁ EL CAMBIO IMPORTANTE ---
+        // Marcamos revisión si falló la IA O si la forense detectó algo
+        const esSospechosa = requiereRevisionBiometrica || analisisPerfil.sospechosa || analisisDNI.sospechosa;
+        
+        formData.append('verificacion_manual', esSospechosa);
         formData.append('distancia_biometrica', distanciaFinal);
+        formData.append('observaciones_ia', motivos || "Sin observaciones"); // Enviamos la columna nueva
 
         const res = await axios.post('http://localhost:5000/fichar', formData, { 
             headers: { 'Authorization': `Bearer ${token}` } 
@@ -358,7 +419,7 @@ const manejarEnvioFichaje = async (e) => {
         
         const { mensaje } = res.data;
 
-        if (requiereRevisionBiometrica) {
+        if (esSospechosa) {
             alert(`⚠️ ATENCIÓN: ${mensaje}\n Se ha enviado una ALERTA AL ADMINISTRADOR para su revisión manual.`);
         } else {
             alert("✅ Fichaje completado y validado correctamente.");
@@ -617,7 +678,7 @@ const manejarEnvioFichaje = async (e) => {
                           <div className="space-y-4">
                              <div className="flex justify-between items-center bg-slate-900 p-4 rounded-xl border border-slate-800">
                                 <p className="text-xs font-black uppercase text-slate-300 italic">{exp.aclaracion_tribunal || 'Sanción Confirmada'}</p>
-                                <button onClick={() => descargarInformeSancion(exp)} className="bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white px-4 py-2 rounded-lg text-[9px] font-black uppercase border border-blue-500/30 transition-all shadow-xl shadow-blue-900/40">📥 Informe PDF</button>
+                                <button onClick={() => generarPDFDictamenDelegado(exp.jugadora, configLiga)} className="bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white px-4 py-2 rounded-lg text-[9px] font-black uppercase border border-blue-500/30 transition-all shadow-xl shadow-blue-900/40">📥 Informe PDF</button>
                              </div>
                           </div>
                         )}

@@ -5,7 +5,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 
-// Páginas y Componentes de Funcionalidad
+// Páginas y Componentes
 import DashboardLiga from './pages/DashboardLiga';
 import AdminLiga from './pages/AdminLiga';
 import AdminDelegado from './pages/AdminDelegado';
@@ -22,13 +22,12 @@ import ListaJugadoras from './components/ListaJugadoras';
 import Login from './components/Login';
 import GestionPerfiles from './components/GestionPerfiles'; 
 import VerificacionJugadoras from './components/VerificacionJugadoras';
-import ConfiguracionPerfilPropietario from './components/ConfiguracionPerfilPropietario';
+import SuperAdminDashboard from './components/SuperAdminDashboard';
 
 function App() {
   return (
     <Router>
       <div className="min-h-screen bg-slate-950 text-white selection:bg-blue-500 selection:text-white">
-        {/* EL NAVBAR PERMANECE VISIBLE */}
         <Navbar />
         
         <main className="container mx-auto">
@@ -41,40 +40,47 @@ function App() {
             <Route path="/contacto" element={<Contacto />} />
             <Route path="/verificar/:id" element={<VerificacionPublica />} />
             
-            {/* --- RUTAS PROTEGIDAS - NIVEL: SUPERADMIN --- */}
-            {/* Configuración Visual de la Liga */}
+            {/* --- NIVEL 1: CONTROL MAESTRO (Solo Tú) --- */}
             <Route 
-              path="/AdminConfig" 
+              path="/master-control" 
               element={
-                <ProtectedRoute rolRequerido="superadmin">
-                  <AdminConfig />
-                </ProtectedRoute>
-              } 
-            />
-            {/* Gestión de Roles de Usuarios */}
-            <Route 
-              path="/admin-perfiles" 
-              element={
-                <ProtectedRoute rolRequerido="superadmin">
-                  <GestionPerfiles />
-                </ProtectedRoute>
-              } 
-            />
-            {/* Configuración de Datos de Contacto de la Organización */}
-            <Route 
-              path="/AdminConfiguracion" 
-              element={
-                <ProtectedRoute rolRequerido="superadmin">
-                  <ConfiguracionPerfilPropietario />
+                <ProtectedRoute rolesPermitidos={['superadmin']}>
+                  <SuperAdminDashboard />
                 </ProtectedRoute>
               } 
             />
 
-            {/* --- RUTAS PROTEGIDAS - NIVEL: COLABORADOR --- */}
+            {/* --- NIVEL 2: ADMIN DE LIGA (Tus Clientes) --- */}
+            <Route 
+              path="/AdminConfig" 
+              element={
+                <ProtectedRoute rolesPermitidos={['superadmin', 'admin_liga']}>
+                  <AdminConfig />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin-perfiles" 
+              element={
+                <ProtectedRoute rolesPermitidos={['superadmin', 'admin_liga']}>
+                  <GestionPerfiles />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/verificar-jugadoras" 
+              element={
+                <ProtectedRoute rolesPermitidos={['superadmin', 'admin_liga', 'colaborador']}>
+                  <VerificacionJugadoras />
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* --- NIVEL 3: OPERATIVOS (Colaboradores / Tribunal) --- */}
             <Route 
               path="/AdminLiga" 
               element={
-                <ProtectedRoute rolRequerido="colaborador">
+                <ProtectedRoute rolesPermitidos={['superadmin', 'admin_liga', 'colaborador']}>
                   <AdminLiga />
                 </ProtectedRoute>
               } 
@@ -82,33 +88,17 @@ function App() {
             <Route 
               path="/AdminTribunal" 
               element={
-                <ProtectedRoute rolRequerido="colaborador">
+                <ProtectedRoute rolesPermitidos={['superadmin', 'admin_liga', 'colaborador']}>
                   <AdminTribunal />
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/admin/verificar-jugadoras" 
-              element={
-                <ProtectedRoute rolRequerido="superadmin">
-                  <VerificacionJugadoras />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/ListaJugadoras" 
-              element={
-                <ProtectedRoute rolRequerido="colaborador">
-                  <ListaJugadoras />
-                </ProtectedRoute>
-              } 
-            />
 
-            {/* --- RUTAS PROTEGIDAS - NIVEL: DELEGADO --- */}
+            {/* --- NIVEL 4: DELEGADOS DE CLUB --- */}
             <Route 
               path="/AdminDelegado" 
               element={
-                <ProtectedRoute rolRequerido="delegado">
+                <ProtectedRoute rolesPermitidos={['delegado']}>
                   <AdminDelegado />
                 </ProtectedRoute>
               } 
@@ -116,23 +106,31 @@ function App() {
             <Route 
               path="/registro" 
               element={
-                <ProtectedRoute rolRequerido="delegado">
+                <ProtectedRoute rolesPermitidos={['delegado']}>
                   <FormularioFichaje />
                 </ProtectedRoute>
               } 
             />
+            <Route 
+              path="/ListaJugadoras" 
+              element={
+                <ProtectedRoute rolesPermitidos={['delegado', 'colaborador', 'superadmin', 'admin_liga']}>
+                  <ListaJugadoras />
+                </ProtectedRoute>
+              } 
+            />
 
-            {/* --- RUTAS PROTEGIDAS - NIVEL: ÁRBITRO --- */}
+            {/* --- NIVEL 5: ÁRBITROS --- */}
             <Route 
               path="/AdminArbitros" 
               element={
-                <ProtectedRoute rolRequerido="arbitro">
+                <ProtectedRoute rolesPermitidos={['arbitro', 'superadmin']}>
                   <AdminArbitros />
                 </ProtectedRoute>
               } 
             />
 
-            {/* REDIRECCIÓN POR DEFECTO A LA RAÍZ */}
+            {/* REDIRECCIÓN POR DEFECTO */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

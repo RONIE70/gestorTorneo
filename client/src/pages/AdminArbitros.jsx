@@ -73,9 +73,9 @@ const AdminArbitros = () => {
   const [cruceActivo, setCruceActivo] = useState(null);
   const [golesL, setGolesL] = useState(0);
   const [golesV, setGolesV] = useState(0);
-  // eslint-disable-next-line no-unused-vars
+ 
   const [logoBase64, setLogoBase64] = useState(null);
-  // eslint-disable-next-line no-unused-vars
+  
   const [configLiga, setConfigLiga] = useState(null);
   const [incidenciasResumen, setIncidenciasResumen] = useState({ 
     amarillasL: 0, rojasL: 0, amarillasV: 0, rojasV: 0, detallesSanciones: [] 
@@ -140,16 +140,145 @@ const AdminArbitros = () => {
     }
   };
 
-  const cerrarActaFinalConPDF = async () => {
-    if (!firmas.arb || !firmas.loc || !firmas.vis) return alert("Faltan firmas");
-    setEnviando(true);
+  const generarPDFResultado = (partido, golesL, golesV, incidencias, firmas) => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  // --- 1. ENCABEZADO ESTILO PREMIUM (Igual al Dictamen) ---
+  doc.setFillColor(30, 41, 59); // Color Slate-800
+  doc.rect(0, 0, pageWidth, 45, 'F');
+  
+  // Inserción de Logo Dinámico (SaaS)
+  if (logoBase64 && logoBase64.data) {
     try {
-      await supabase.from('partidos').update({ goles_local: golesL, goles_visitante: golesV, resultado_local: golesL, resultado_visitante: golesV, finalizado: true, jugado: true, firma_arbitro: firmas.arb, firma_local: firmas.loc, firma_visitante: firmas.vis }).eq('id', partidoActivo.id);
-      alert("✅ Acta guardada.");
-      setPartidoActivo(null);
-      fetchPartidos();
-    } catch (error) { alert("Error: " + error.message); } finally { setEnviando(false); }
-  };
+      doc.addImage(logoBase64.data, logoBase64.format, 15, 10, 25, 25);
+    // eslint-disable-next-line no-unused-vars
+    } catch (e) {
+      doc.setFillColor(217, 0, 130); // Rosa de respaldo
+      doc.ellipse(27, 22, 12, 12, 'F');
+    }
+  } else {
+    doc.setFillColor(217, 0, 130);
+    doc.ellipse(27, 22, 12, 12, 'F'); 
+  }
+  
+  // Títulos
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text(configLiga?.nombre_liga?.toUpperCase() || "LIGA OFICIAL", 105, 20, { align: 'center' });
+  
+  doc.setFontSize(12);
+  doc.setTextColor(217, 0, 130); // Rosa SC-1225
+  doc.text("ACTA OFICIAL DE PARTIDO", 105, 28, { align: 'center' });
+  
+  doc.setFontSize(8);
+  doc.setTextColor(200, 200, 200);
+  doc.text(`Sistema de Gestión Arbitral | Fecha: ${new Date().toLocaleDateString()}`, 105, 36, { align: 'center' });
+
+  // --- 2. CUERPO DE DATOS DEL ENCUENTRO ---
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("SÍNTESIS DEL PARTIDO:", 20, 60);
+  doc.line(20, 62, 190, 62);
+
+  doc.setFont("helvetica", "normal");
+  doc.text(`CATEGORÍA: ${partido.categoria}`, 20, 70);
+  doc.text(`FECHA NRO: ${partido.nro_fecha}`, 20, 75);
+  doc.text(`ZONA: ${partido.zona || 'Única'}`, 20, 80);
+
+  // Marcador Centralizado
+  doc.setFillColor(248, 250, 252); // Fondo gris muy suave
+  doc.rect(20, 90, 170, 30, 'F');
+  doc.setFontSize(24);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${partido.local.nombre} ${golesL} - ${golesV} ${partido.visitante.nombre}`, 105, 110, { align: 'center' });
+
+  // --- 3. TABLA DE INCIDENCIAS (Sanciones y Goles) ---
+  doc.setFontSize(11);
+  doc.text("DETALLE DE INCIDENCIAS Y SANCIONES:", 20, 135);
+  
+  const bodyIncidencias = incidencias.detallesSanciones.map(s => [
+    s.nombre.toUpperCase(),
+    s.club.toUpperCase(),
+    s.tipo.toUpperCase()
+  ]);
+
+  autoTable(doc, {
+    startY: 140,
+    head: [['SUJETO', 'CLUB / EQUIPO', 'TIPO DE INCIDENCIA']],
+    body: bodyIncidencias.length > 0 ? bodyIncidencias : [['SIN INCIDENCIAS', '-', '-']],
+    theme: 'grid',
+    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255] },
+    styles: { fontSize: 9, cellPadding: 3 }
+  });
+
+  // --- 4. QR Y FIRMAS ---
+  const finalY = doc.lastAutoTable.finalY + 15;
+
+  // QR de validación (redirige a la tabla de posiciones o verificación)
+  const urlQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/posiciones")}`;
+ 
+  try {
+    // Si hay mucho espacio, lo ponemos al final; si no, en una posición segura
+    const qrY = Math.max(finalY, 240); 
+    doc.addImage(urlQR, 'PNG', 20, qrY, 30, 30);
+  } catch (errQR) {
+    console.warn("No se pudo cargar el QR en el PDF:", errQR);
+  }
+
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  doc.text("Este documento certifica el resultado final del encuentro.", 55, 260);
+  doc.text(`ID Org: ${configLiga?.organizacion_id || 'N/A'}`, 55, 265);
+
+  // Espacio para firmas
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(9);
+  doc.text("___________________", 145, 250, { align: 'center' });
+  doc.text(`Árbitro: ${firmas.arb}`, 145, 255, { align: 'center' });
+  
+  doc.text("___________________", 145, 270, { align: 'center' });
+  doc.text("Firma Delegados", 145, 275, { align: 'center' });
+
+  doc.save(`Acta_${partido.local.nombre}_vs_${partido.visitante.nombre}.pdf`);
+};
+
+  const cerrarActaFinalConPDF = async () => {
+  if (!firmas.arb || !firmas.loc || !firmas.vis) return alert("Faltan firmas");
+  setEnviando(true);
+  try {
+    // 1. Actualizamos la Base de Datos
+    const { error } = await supabase
+      .from('partidos')
+      .update({ 
+        goles_local: golesL, 
+        goles_visitante: golesV, 
+        resultado_local: golesL, 
+        resultado_visitante: golesV, 
+        finalizado: true, 
+        jugado: true, 
+        firma_arbitro: firmas.arb, 
+        firma_local: firmas.loc, 
+        firma_visitante: firmas.vis 
+      })
+      .eq('id', partidoActivo.id);
+
+    if (error) throw error;
+
+    // 2. DISPARAMOS EL PDF (Lo que faltaba)
+    generarPDFResultado(partidoActivo, golesL, golesV, incidenciasResumen, firmas);
+
+    alert("✅ Acta guardada y PDF generado.");
+    setPartidoActivo(null);
+    fetchPartidos();
+  } catch (error) { 
+    alert("Error: " + error.message); 
+  } finally { 
+    setEnviando(false); 
+  }
+};
 
   if (loading && !partidoActivo) return <div className="p-20 text-center text-blue-500 font-black animate-pulse uppercase">Cargando...</div>;
 

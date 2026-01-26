@@ -1,26 +1,65 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 
 const AdminMaestro = () => {
-  // --- ESTADOS PARA LA CONFIGURACIÓN ACTUAL (IMAGEN 2) ---
+  // --- 2.1. ESTADO GLOBAL DE IDENTIDAD (SaaS) ---
+  const [userOrgId, setUserOrgId] = useState(null);
+  
+  // Estado para forzar el refresco del historial cuando guardamos
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // --- ESTADOS PARA LA CONFIGURACIÓN ACTUAL ---
   const [configActual, setConfigActual] = useState({
     id: null,
     modelo_torneo: 'todos_contra_todos',
     año_lectivo: 2026,
     valor_modulo: 1000,
-    dias_juego: []
+    dias_juego: [],
+    nombre_edicion: '',
   });
-  // eslint-disable-next-line no-unused-vars
+
   const [cargandoConfig, setCargandoConfig] = useState(true);
 
-  // --- CARGA INICIAL DE CONFIGURACIÓN ---
+  // --- 1. FUNCIÓN PARA OBTENER EL CONTEXTO DE ORGANIZACIÓN ---
+useEffect(() => {
+  const obtenerContextoOrg = async () => {
+    // Si ya tenemos el ID, no lo buscamos de nuevo (Freno 1)
+    if (userOrgId) return; 
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: perfil, error } = await supabase
+          .from('perfiles')
+          .select('organizacion_id')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (error) throw error;
+        
+        // Solo actualizamos si el valor es diferente al que ya tenemos (Freno 2)
+        if (perfil && perfil.organizacion_id !== userOrgId) {
+          setUserOrgId(perfil.organizacion_id);
+        }
+      }
+    } catch (err) {
+      console.error("Error obteniendo organización:", err.message);
+    }
+  };
+  obtenerContextoOrg();
+}, [userOrgId]); // Añadimos la dependencia aquí
+
+  // --- 2. CARGA DE CONFIGURACIÓN FILTRADA POR ORGANIZACIÓN ---
   useEffect(() => {
+    if (!userOrgId) return;
+
     const cargarConfiguracion = async () => {
       try {
         // eslint-disable-next-line no-unused-vars
         const { data, error } = await supabase
           .from('configuracion_torneo')
           .select('*')
+          .eq('organizacion_id', userOrgId)
           .order('id', { ascending: false })
           .limit(1)
           .single();
@@ -28,141 +67,212 @@ const AdminMaestro = () => {
         if (data) setConfigActual(data);
       // eslint-disable-next-line no-unused-vars
       } catch (err) {
-        console.log("No hay configuración previa o es un torneo nuevo");
+        console.log("No hay configuración previa para esta liga.");
       } finally {
         setCargandoConfig(false);
       }
     };
     cargarConfiguracion();
-  }, []);
+  }, [userOrgId]);
 
-  // --- FUNCIÓN PARA GUARDAR CAMBIOS (PUNTO 1: VALOR MÓDULO) ---
+
+  // --- 3. FUNCIÓN PARA GUARDAR (USANDO UPSERT PARA CREAR/ACTUALIZAR) ---
   const guardarCambiosTorneo = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!userOrgId || !session) return alert("❌ Error de sesión.");
+
+    setCargandoConfig(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('configuracion_torneo')
-        .update({ 
-          valor_modulo: parseInt(configActual.valor_modulo),
+        .upsert({
+          id: configActual.id || undefined, 
+          nombre_edicion: configActual.nombre_edicion,
           modelo_torneo: configActual.modelo_torneo,
+          año_lectivo: configActual.año_lectivo,
+          valor_modulo: parseInt(configActual.valor_modulo),
+          organizacion_id: userOrgId,
+          configurado_por: session.user.id,
           dias_juego: configActual.dias_juego
         })
-        .eq('id', configActual.id);
+        .select().single();
 
       if (error) throw error;
-      alert("✅ Parámetros económicos actualizados correctamente");
+      alert("✅ Torneo registrado bajo la identidad de tu Liga.");
+      
+      setConfigActual(data);
+      // Incrementamos el trigger para que el Historial detecte el cambio y se recargue
+      setRefreshTrigger(prev => prev + 1);
     } catch (err) {
-      alert("❌ Error al guardar: " + err.message);
+      alert("❌ Error: " + err.message);
+    } finally {
+      setCargandoConfig(false);
     }
   };
 
   return (
     <div className="p-6 bg-slate-950 min-h-screen text-white space-y-10">
-      <header className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-black uppercase italic text-blue-500">Panel Maestro de Control</h1>
-        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">Configuración Global y Archivo Histórico</p>
+      <header className="max-w-6xl mx-auto flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-black uppercase italic text-blue-500">Panel Maestro de Control</h1>
+          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">
+            Gestión Multi-Torneo para Organizadores
+          </p>
+        </div>
+        <div className="bg-blue-600/10 border border-blue-500/20 px-4 py-2 rounded-2xl">
+           <p className="text-[8px] font-black text-blue-400 uppercase">ID Organización</p>
+           <p className="text-[10px] font-mono text-white">{userOrgId || 'Verificando...'}</p>
+        </div>
       </header>
 
       <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10">
-        
-        {/* COLUMNA IZQUIERDA: HISTORIAL (IMAGEN 1) */}
         <div className="space-y-6">
-           <HistorialTorneos />
+           <HistorialTorneos 
+             userOrgId={userOrgId} 
+             refreshTrigger={refreshTrigger}
+             onEdit={(torneo) => setConfigActual(torneo)} 
+           />
         </div>
 
-        {/* COLUMNA DERECHA: PARÁMETROS ACTUALES (IMAGEN 2) */}
         <div className="space-y-6">
           <div className="bg-slate-900 border border-slate-800 p-8 rounded-[3rem] shadow-xl space-y-8">
-            <div>
-              <h3 className="text-[10px] font-black text-orange-500 uppercase tracking-[0.2em] mb-2">Parámetros Económicos</h3>
-              <p className="text-xs text-slate-400">Define el valor base para las multas del Tribunal de Disciplina.</p>
-            </div>
+            <h3 className="text-[10px] font-black text-orange-500 uppercase tracking-[0.2em] mb-2">Configuración Activa</h3>
             
-            <div className="bg-slate-950 p-6 rounded-[2rem] border border-slate-800">
-              <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Valor Multa por Módulo</label>
-              <div className="flex items-center gap-4 mt-3">
-                <span className="text-3xl font-black text-slate-800">$</span>
-                <input 
-                  type="number" 
-                  className="w-full bg-transparent text-emerald-500 text-4xl font-black outline-none tabular-nums"
-                  value={configActual.valor_modulo}
-                  onChange={(e) => setConfigActual({...configActual, valor_modulo: e.target.value})}
-                />
-              </div>
-              <div className="mt-6 pt-4 border-t border-slate-900 flex items-center gap-3">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                <p className="text-[9px] text-slate-600 italic">Este valor actualiza automáticamente los nuevos expedientes del Tribunal.</p>
-              </div>
+            <div className="space-y-4">
+               <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                  <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Nombre de la Edición (Ej: Femenino Apertura)</label>
+                  <input 
+                    type="text" 
+                    className="w-full bg-transparent text-white text-lg font-bold outline-none mt-1"
+                    value={configActual.nombre_edicion}
+                    onChange={(e) => setConfigActual({...configActual, nombre_edicion: e.target.value})}
+                    placeholder="Ingrese nombre del torneo"
+                  />
+               </div>
+
+               <div className="bg-slate-950 p-6 rounded-[2rem] border border-slate-800">
+                  <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Valor Multa por Módulo</label>
+                  <div className="flex items-center gap-4 mt-3">
+                    <span className="text-3xl font-black text-slate-800">$</span>
+                    <input 
+                      type="number" 
+                      className="w-full bg-transparent text-emerald-500 text-4xl font-black outline-none tabular-nums"
+                      value={configActual.valor_modulo}
+                      onChange={(e) => setConfigActual({...configActual, valor_modulo: e.target.value})}
+                    />
+                  </div>
+               </div>
             </div>
 
             <button 
               onClick={guardarCambiosTorneo}
-              className="w-full bg-orange-600 hover:bg-orange-500 text-white font-black py-5 rounded-2xl text-xs uppercase tracking-widest transition-all shadow-lg shadow-orange-900/20 active:scale-95"
+              disabled={cargandoConfig}
+              className="w-full bg-orange-600 hover:bg-orange-500 text-white font-black py-5 rounded-2xl text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:opacity-50"
             >
-              Aplicar Cambios en la Liga
+              {configActual.id ? 'Actualizar Torneo' : 'Crear Nuevo Torneo'}
             </button>
           </div>
         </div>
-
       </main>
     </div>
   );
 };
 
-// --- SUB-COMPONENTE: HISTORIAL DE TORNEOS (IMAGEN 1) ---
-const HistorialTorneos = () => {
+// --- SUB-COMPONENTE: HISTORIAL DE TORNEOS ---
+const HistorialTorneos = ({ userOrgId, onEdit, refreshTrigger }) => {
   const [historial, setHistorial] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
+  // Función para cargar el historial (ahora definida dentro para ser accesible)
+  const fetchHistorial = useCallback(async () => {
+    if (!userOrgId) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('configuracion_torneo')
+        .select('*')
+        .eq('organizacion_id', userOrgId)
+        .order('id', { ascending: false });
+
+      if (error) throw error;
+      setHistorial(data || []);
+    } catch (err) {
+      console.error("Error cargando historial:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [userOrgId]);
+
+  // Se dispara al cargar el componente, cuando cambia la Org o cuando se activa el refreshTrigger
   useEffect(() => {
-    const fetchHistorial = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('configuracion_torneo')
-          .select('*')
-          .order('año_lectivo', { ascending: false });
-
-        if (error) throw error;
-        setHistorial(data || []);
-      } catch (err) {
-        console.error("Error cargando historial:", err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchHistorial();
-  }, []);
+  }, [fetchHistorial, refreshTrigger]);
 
-  if (loading) return <div className="text-center py-10 animate-pulse text-slate-600 text-[10px] font-black uppercase">Sincronizando Archivos...</div>;
+  // Función para activar un torneo (definida aquí donde se usa el botón)
+  const activarTorneo = async (torneoId) => {
+  try {
+    // 1. Apagamos todos (importante usar el filtro de org)
+    const { error: errorOff } = await supabase
+      .from('configuracion_torneo')
+      .update({ activo: false })
+      .eq('organizacion_id', userOrgId);
+    
+    if (errorOff) throw errorOff;
+
+    // 2. Encendemos el elegido
+    const { error: errorOn } = await supabase
+      .from('configuracion_torneo')
+      .update({ activo: true })
+      .eq('id', torneoId);
+
+    if (errorOn) throw errorOn;
+
+    alert("🚀 Torneo activado correctamente");
+    
+    // Llamamos a la función estable para refrescar la vista
+    fetchHistorial(); 
+  } catch (err) {
+    console.error("Error al activar:", err.message);
+    alert("No se pudo activar el torneo");
+  }
+};
+
+  if (loading) return <div className="text-center py-10 animate-pulse text-slate-600 text-[10px] font-black">Sincronizando con la Liga...</div>;
 
   return (
     <div className="bg-slate-900/50 border border-slate-800 p-8 rounded-[3rem] shadow-2xl">
-      <header className="flex justify-between items-center mb-8 px-2">
-        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">HISTORIAL Y ESTADOS DE LIGA</h3>
-        <span className="bg-blue-600/10 text-blue-500 text-[8px] font-black px-3 py-1 rounded-full border border-blue-500/20">
-          {historial.length} REGISTROS
-        </span>
-      </header>
-      
+      <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-8">ARCHIVO DE TORNEOS</h3>
       <div className="grid gap-4 max-h-[550px] overflow-y-auto pr-2 custom-scrollbar">
         {historial.map((torneo) => (
-          <div key={torneo.id} className="bg-slate-950 p-6 rounded-2xl border border-slate-800 flex justify-between items-center group hover:border-blue-500/50 transition-all">
-            <div className="space-y-1">
+          <div 
+            key={torneo.id} 
+            className="bg-slate-950 p-6 rounded-2xl border border-slate-800 flex justify-between items-center group hover:border-blue-500/50 transition-all"
+          >
+            <div className="space-y-1 cursor-pointer" onClick={() => onEdit(torneo)}>
               <div className="flex items-center gap-3">
+                <span className={`w-2 h-2 rounded-full ${torneo.activo ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-slate-800'}`}></span>
                 <span className="text-blue-500 font-black italic text-xs">#{torneo.id}</span>
                 <h4 className="font-bold uppercase text-slate-200 text-sm">
-                  {torneo.modelo_torneo ? torneo.modelo_torneo.replace(/_/g, ' ') : 'S/D'}
+                  {torneo.nombre_edicion || 'Sin Nombre'}
                 </h4>
-                <span className="bg-slate-800 text-[8px] px-2 py-1 rounded text-slate-400 font-black border border-slate-700">{torneo.año_lectivo}</span>
               </div>
-              <p className="text-[10px] text-slate-500 font-medium italic">
-                Inicio: {torneo.fecha_inicio || 'Pendiente'} | Valor Módulo: ${torneo.valor_modulo || '0'}
+              <p className="text-[10px] text-slate-500 font-medium tracking-tight">
+                Año: {torneo.año_lectivo} | Módulo: ${torneo.valor_modulo}
               </p>
             </div>
             
-            <button className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${torneo.sorteo_realizado ? 'bg-blue-600/10 text-blue-500 border border-blue-500/20' : 'bg-slate-800 text-slate-600 cursor-not-allowed'}`}>
-              {torneo.sorteo_realizado ? '📂 Ver Fixture' : '⏳ Pendiente'}
-            </button>
+            <div className="flex items-center gap-4">
+              {!torneo.activo && (
+                <button 
+                  onClick={() => activarTorneo(torneo.id)}
+                  className="bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white px-3 py-1.5 rounded-xl text-[8px] font-black uppercase border border-blue-500/20 transition-all"
+                >
+                  Activar
+                </button>
+              )}
+              <span className="text-[18px] cursor-pointer" onClick={() => onEdit(torneo)}>📂</span>
+            </div>
           </div>
         ))}
       </div>

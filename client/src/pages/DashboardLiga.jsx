@@ -5,6 +5,8 @@ import { supabase } from '../supabaseClient';
 const DashboardLiga = () => {
   const [data, setData] = useState(null);
   const [userRol, setUserRol] = useState('jugadora');
+  // --- NUEVO ESTADO PARA IDENTIDAD ---
+  const [ligaNombre, setLigaNombre] = useState('SISTEMA GESTOR');
 
   useEffect(() => {
     // 1. Obtener datos públicos del Dashboard
@@ -13,19 +15,31 @@ const DashboardLiga = () => {
       .then(json => setData(json))
       .catch(err => console.error("Error:", err));
 
-    // 2. Obtener el rol del usuario autenticado
-    const getPerfil = async () => {
+    // 2. Obtener el rol del usuario Y los datos de la LIGA
+    const getPerfilYIdentidad = async () => {
       const { data: { session } } = await supabase.auth.getSession();
+      
       if (session) {
+        // Traemos el rol del perfil Y los datos de su organizacion vinculada
         const { data: perfil } = await supabase
           .from('perfiles')
-          .select('rol')
+          .select('rol, organizaciones(nombre, color_principal)')
           .eq('id', session.user.id)
           .single();
-        if (perfil) setUserRol(perfil.rol);
+
+        if (perfil) {
+          setUserRol(perfil.rol);
+          
+          // Si tiene organización vinculada, aplicamos su nombre y color
+          if (perfil.organizaciones) {
+            setLigaNombre(perfil.organizaciones.nombre);
+            const color = perfil.organizaciones.color_principal || '#3b82f6';
+            document.documentElement.style.setProperty('--color-liga', color);
+          }
+        }
       }
     };
-    getPerfil();
+    getPerfilYIdentidad();
   }, []);
 
   if (!data) return <div className="text-white p-10 text-center animate-pulse uppercase font-black tracking-widest">Sincronizando Liga nc-s1125...</div>;
@@ -41,6 +55,20 @@ const DashboardLiga = () => {
   return (
     <div className="p-4 md:p-8 bg-slate-950 min-h-screen text-slate-100 font-sans">
       <div className="max-w-6xl mx-auto space-y-12">
+
+        {/* --- SECCIÓN NUEVA: BIENVENIDA IMPACTANTE --- */}
+        <header className="text-center py-10 space-y-4">
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 w-64 h-64 bg-liga opacity-10 blur-[100px] -z-10"></div>
+          <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 animate-in fade-in duration-700">
+            Plataforma de Gestión Deportiva
+          </h2>
+          <h1 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter leading-none">
+            BIENVENIDO A <br />
+            <span className="text-liga filter brightness-125">
+               {ligaNombre}
+            </span>
+          </h1>
+        </header>
         
         {/* --- SECCIÓN 1: HUB DE PANELES (6 CARDS - LÓGICA DE NEGOCIO) --- */}
         <section>
@@ -51,11 +79,11 @@ const DashboardLiga = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
             {/* 1. JUGADORAS (PÚBLICO) */}
-            <Link to="/FixturePublico" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-blue-500 shadow-2xl hover:-translate-y-1">
+            <Link to="/FixturePublico" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-liga shadow-2xl hover:-translate-y-1">
               <span className="text-3xl mb-3 block">⚽</span>
               <h3 className="text-lg font-black uppercase italic tracking-tighter">Jugadoras</h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Fixture oficial, resultados y tablas de posiciones.</p>
-              <div className="mt-4 text-blue-400 text-[9px] font-black uppercase tracking-widest">Ver Resultados →</div>
+              <div className="mt-4 text-liga text-[9px] font-black uppercase tracking-widest">Ver Resultados →</div>
             </Link>
 
             {/* 2. DELEGADOS */}
@@ -121,7 +149,7 @@ const DashboardLiga = () => {
             {/* A. PRÓXIMA FECHA */}
             <div className="space-y-4">
               <div className="flex justify-between items-end">
-                <h2 className="text-xl font-black uppercase italic text-blue-500 tracking-tighter">
+                <h2 className="text-xl font-black uppercase italic text-liga tracking-tighter">
                   {data.proximos?.length > 0 ? 'Próxima Fecha' : 'Estado del Torneo'}
                 </h2>
                 <Link to="/FixturePublico" className="text-[10px] font-black text-slate-500 uppercase hover:text-white transition-colors underline decoration-blue-500/50 underline-offset-4 tracking-widest">👉 Calendario Completo</Link>
@@ -131,7 +159,7 @@ const DashboardLiga = () => {
                 {data.proximos && data.proximos.length > 0 ? (
                    data.proximos.slice(0, 4).map(p => (
                     <div key={p.id} className="bg-slate-900/40 border border-slate-800 p-4 rounded-2xl flex items-center justify-between group relative overflow-hidden hover:bg-slate-900 transition-all">
-                      {p.zona && <span className="absolute top-0 left-0 bg-blue-600 text-[6px] font-black px-2 py-0.5 rounded-br-lg uppercase">{p.zona}</span>}
+                      {p.zona && <span className="absolute top-0 left-0 bg-liga text-[6px] font-black px-2 py-0.5 rounded-br-lg uppercase text-white">{p.zona}</span>}
                       
                       <div className="flex flex-col items-center w-1/3 gap-1">
                         <img src={p.local_info?.escudo_url} className="w-8 h-8 object-contain group-hover:scale-130 transition-transform" alt="" />
@@ -139,7 +167,7 @@ const DashboardLiga = () => {
                       </div>
 
                       <div className="flex flex-col items-center">
-                        <span className="text-[14px] font-black text-blue-500 italic uppercase">{p.horario} HS</span>
+                        <span className="text-[14px] font-black text-liga italic uppercase">{p.horario} HS</span>
                         <span className="text-[7px] text-slate-500 font-bold uppercase">{p.fecha_calendario}</span>
                       </div>
 
@@ -197,7 +225,8 @@ const DashboardLiga = () => {
           </div>
 
           <aside className="space-y-6">
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-900 rounded-[2.5rem] p-6 shadow-2xl relative overflow-hidden border border-white/10">
+            {/* GRADIENTE DINÁMICO PARA TOP GOLEADORAS */}
+            <div className="bg-gradient-to-br from-liga to-slate-900 rounded-[2.5rem] p-6 shadow-2xl relative overflow-hidden border border-white/10">
               <h2 className="text-xl font-black uppercase italic text-white mb-6 relative z-10 tracking-tighter text-center">Top Goleadoras</h2>
               <div className="space-y-4 relative z-10">
                 {data.goleadoras?.slice(0, 4).map((g, i) => (
@@ -205,7 +234,7 @@ const DashboardLiga = () => {
                     <img src={g.foto_url} className="w-10 h-10 rounded-xl object-cover border border-white/20" alt="Jugadora" />
                     <div className="flex-1">
                       <p className="text-[10px] font-black uppercase text-white leading-none tracking-tighter">{g.apellido}, {g.nombre}</p>
-                      <p className="text-[8px] text-blue-200 uppercase font-bold mt-1">{g.club_nombre}</p>
+                      <p className="text-[8px] text-slate-300 uppercase font-bold mt-1">{g.club_nombre}</p>
                     </div>
                     <div className="text-right text-lg font-black text-white">{g.goles_totales}</div>
                   </div>

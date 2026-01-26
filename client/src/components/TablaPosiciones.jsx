@@ -7,6 +7,10 @@ const TablaPosiciones = () => {
   const [datosEstructurados, setDatosEstructurados] = useState({});
   const [tablaGeneral, setTablaGeneral] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // --- NUEVOS ESTADOS PARA IDENTIDAD SAAS ---
+  const [ligaNombre, setLigaNombre] = useState('LIGA OFICIAL');
+  const [logoBase64, setLogoBase64] = useState(null);
 
   // Colores de identidad definidos
   const identidad = {
@@ -18,7 +22,42 @@ const TablaPosiciones = () => {
 
   useEffect(() => {
     fetchResultados();
+    cargarIdentidadSaaS();
   }, []);
+
+  // Función para cargar nombre y logo de la liga para el PDF
+  const cargarIdentidadSaaS = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      const { data: perfil } = await supabase
+        .from('perfiles')
+        .select('organizaciones(nombre, logo_url)')
+        .eq('id', session.user.id)
+        .single();
+
+      if (perfil?.organizaciones) {
+        setLigaNombre(perfil.organizaciones.nombre);
+        
+        // Convertir logo a Base64 para el PDF si existe
+        if (perfil.organizaciones.logo_url) {
+          const img = new Image();
+          img.crossOrigin = 'Anonymous';
+          img.src = perfil.organizaciones.logo_url;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            setLogoBase64({
+              data: canvas.toDataURL('image/png'),
+              format: 'PNG'
+            });
+          };
+        }
+      }
+    }
+  };
 
   const fetchResultados = async () => {
     try {
@@ -87,40 +126,68 @@ const TablaPosiciones = () => {
 
   const descargarPDF = (datos, titulo) => {
     const doc = new jsPDF();
-    
-    // Configuración visual del PDF igual a la identidad solicitada
-    doc.setFillColor(identidad.fondo); // Fondo Negro
-    doc.rect(0, 0, 210, 40, 'F');
-    
-    doc.setTextColor(identidad.texto); // Letras Rosas
-    doc.setFontSize(22);
-    doc.setFont("helvetica", "bold");
-    doc.text("POSICIONES OFICIALES", 105, 20, { align: 'center' });
-    
-    doc.setTextColor(255, 255, 255); // Blanco para el subtítulo
-    doc.setFontSize(12);
-    doc.text(titulo, 105, 32, { align: 'center' });
+    const pageWidth = doc.internal.pageSize.getWidth();
 
-    const body = datos.map((c, i) => [i + 1, c.nombre, c.pj, c.gf, c.gc, c.dif, c.pts]);
+    // 1. ENCABEZADO
+    doc.setFillColor(identidad.fondo);;
+    doc.rect(0, 0, pageWidth, 45, 'F');
+    
+    if (logoBase64?.data) {
+      try {
+        doc.addImage(logoBase64.data, logoBase64.format, 15, 10, 25, 25);
+      // eslint-disable-next-line no-unused-vars
+      } catch (e) {
+        doc.setFillColor(identidad.fondo); // Fondo Negro
+        doc.ellipse(27, 22, 12, 12, 'F');
+      }
+    } else {
+      doc.setFillColor(59, 130, 246);
+      doc.ellipse(27, 22, 12, 12, 'F'); 
+    }
+    
+    doc.setTextColor(identidad.texto);
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text(ligaNombre.toUpperCase(), 105, 20, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.setTextColor(59, 130, 246); 
+    doc.text("TABLA DE POSICIONES OFICIAL", 105, 28, { align: 'center' });
+    
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`${titulo} | Generado el: ${new Date().toLocaleDateString()}`, 105, 36, { align: 'center' });
+
+    // 2. TABLA
+    const body = datos.map((c, i) => [i + 1, c.nombre.toUpperCase(), c.pj, c.gf, c.gc, c.dif, c.pts]);
+
     autoTable(doc, {
-      startY: 45,
-      head: [['Pos', 'Club', 'PJ', 'GF', 'GC', 'DIF', 'PTS']],
+      startY: 55,
+      head: [['POS', 'CLUB / EQUIPO', 'PJ', 'GF', 'GC', 'DIF', 'PTS']],
       body: body,
       theme: 'grid',
-      headStyles: { 
+       headStyles: { 
         fillColor: identidad.fondo, 
         textColor: identidad.texto,
         lineColor: identidad.acento,
         lineWidth: 0.1
-      },
-      styles: { fontSize: 10, cellPadding: 3 },
-      columnStyles: {
-        6: { fontStyle: 'bold' } // Columna PTS en negrita
-      }
+      }, styles: { fontSize: 9, cellPadding: 4 },
+      columnStyles: { 6: { fontStyle: 'bold', fillColor: [248, 250, 252] } }
     });
-    doc.save(`Posiciones_${titulo.replace(" ", "_")}.pdf`);
+
+    // 3. PIE Y QR
+    const urlQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/posiciones")}`;
+    try {
+      doc.addImage(urlQR, 'PNG', 20, 250, 25, 25);
+    } catch (err) { console.warn(err); }
+
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text("Este documento es una exportación oficial del sistema.", 50, 260);
+    doc.save(`Posiciones_${titulo.replace(/\s+/g, '_')}.pdf`);
   };
 
+  // --- SUB-COMPONENTE DE TABLA ---
   const ComponenteTabla = ({ datos, titulo, esGeneral = false }) => (
     <div className="space-y-3 mb-8">
       <div className="flex justify-between items-end px-2">
@@ -158,7 +225,7 @@ const TablaPosiciones = () => {
                   <td className="px-1 py-4">
                     <div className="flex items-center gap-1 md:gap-2">
                       <div className="relative">
-                        <img src={club.escudo} alt="" className={`w-4 h-4 md:w-6 md:h-6 object-contain z-10 relative`} />
+                        <img src={club.escudo} alt="" className="w-4 h-4 md:w-6 md:h-6 object-contain z-10 relative" />
                         <div className={`absolute inset-0 rounded-full blur-[6px] opacity-40 ${clasifica ? 'bg-pink-500' : 'bg-blue-500'}`}></div>
                       </div>
                       <span className={`text-[8px] md:text-[10px] font-black uppercase truncate ${clasifica ? 'text-white' : 'text-slate-400'}`}>
@@ -181,19 +248,16 @@ const TablaPosiciones = () => {
   );
 
   if (loading) return (
-    <div className="p-10 text-center bg-slate-950 min-h-screen flex items-center justify-center">
-        <div className="space-y-4">
-            <div className="w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p className="text-pink-500 font-black uppercase tracking-[0.3em] text-xs">Sincronizando Estadísticas...</p>
-        </div>
+    <div className="p-10 text-center bg-slate-950 min-h-screen flex items-center justify-center text-white font-black uppercase tracking-[0.3em]">
+      Sincronizando Estadísticas...
     </div>
   );
 
   return (
     <div className="max-w-6xl mx-auto p-2 md:p-4 bg-slate-950 min-h-screen text-white pb-20 font-sans">
-      <header className="text-center space-y-2 mb-10 mt-6 animate-in zoom-in duration-500">
+      <header className="text-center space-y-2 mb-10 mt-6">
         <h1 className="text-3xl md:text-5xl font-black uppercase italic tracking-tighter">Posiciones <span className="text-pink-500">Oficiales</span></h1>
-        <p className="text-slate-500 font-bold text-[8px] md:text-[10px] uppercase tracking-[0.3em]">• Resumen de Temporada •</p>
+        <p className="text-slate-500 font-bold text-[8px] md:text-[10px] uppercase tracking-[0.3em]">{ligaNombre}</p>
       </header>
 
       {Object.keys(datosEstructurados).sort().map(cat => (
@@ -214,7 +278,7 @@ const TablaPosiciones = () => {
             <h2 className="text-xl md:text-3xl font-black uppercase italic text-rose-500">Ranking Institucional</h2>
             <p className="text-[7px] md:text-[9px] text-slate-500 uppercase font-bold tracking-widest mt-1">Sumatoria total por club</p>
         </div>
-        <div className="max-w-2xl mx-auto text-rose-500">
+        <div className="max-w-2xl mx-auto">
             <ComponenteTabla datos={tablaGeneral} titulo="Tabla General Acumulada" esGeneral={true} />
         </div>
       </div>

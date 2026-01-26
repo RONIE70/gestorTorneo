@@ -162,3 +162,5 @@ app.patch('/jugadoras/:id/aprobar', async (req, res) => {
 
 const PORT = 5000;
 app.listen(PORT, () => console.log(`🚀 Servidor nc-s1125 INTELIGENTE en puerto ${PORT}`));
+
+module.exports = app;

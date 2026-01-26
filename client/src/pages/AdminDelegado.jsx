@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import EXIF from 'exif-js';
 import * as faceapi from 'face-api.js';
+import confetti from 'canvas-confetti';
 
 const URL_MODELOS = 'models';
 
@@ -347,19 +348,21 @@ const preprocesarImagenIA = async (archivo) => {
 
 const manejarEnvioFichaje = async (e) => {
     e.preventDefault();
+    
+    // 1. Validaciones iniciales
     if (!equipoIdActual || !filePerfil || !fileDNI) return alert("⚠️ Faltan datos obligatorios");
     
     if (!faceapi.nets.tinyFaceDetector.params) {
         return alert("⏳ La IA todavía se está cargando. Espera un segundo e intenta de nuevo.");
     }
-    setCargandoFichaje(true);
+
+    setCargandoFichaje(true); // Usamos tu estado de carga
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
 
-        // --- AGREGADO: ANÁLISIS FORENSE ---
-        // Analizamos los archivos antes de procesarlos
+        // 2. Análisis Forense e IA Biométrica
         const analisisPerfil = await analizarImagen(filePerfil);
         const analisisDNI = await analizarImagen(fileDNI);
 
@@ -385,14 +388,16 @@ const manejarEnvioFichaje = async (e) => {
             }
         }
 
-        // --- AGREGADO: CONSOLIDACIÓN DE MOTIVOS ---
-        // Creamos el texto explicativo para la columna 'observaciones_ia'
+        // 3. Consolidación de motivos de sospecha
         const motivos = [
             requiereRevisionBiometrica ? "Fallo/Duda Biometría" : null,
             analisisPerfil.sospechosa ? `Perfil: ${analisisPerfil.motivo}` : null,
             analisisDNI.sospechosa ? `DNI: ${analisisDNI.motivo}` : null
         ].filter(Boolean).join(" | ");
 
+        const esSospechosa = requiereRevisionBiometrica || analisisPerfil.sospechosa || analisisDNI.sospechosa;
+
+        // 4. Preparación de FormData
         const formData = new FormData();
         formData.append('foto', filePerfil);
         formData.append('dni_foto', fileDNI);
@@ -402,31 +407,69 @@ const manejarEnvioFichaje = async (e) => {
         formData.append('fecha_nacimiento', datosFichaje.fecha_nacimiento);
         formData.append('organizacion_id', perfilUsuario?.organizacion_id);
         formData.append('equipo_id', equipoIdActual);
-        
-        // --- AQUÍ ESTÁ EL CAMBIO IMPORTANTE ---
-        // Marcamos revisión si falló la IA O si la forense detectó algo
-        const esSospechosa = requiereRevisionBiometrica || analisisPerfil.sospechosa || analisisDNI.sospechosa;
-        
         formData.append('verificacion_manual', esSospechosa);
         formData.append('distancia_biometrica', distanciaFinal);
-        formData.append('observaciones_ia', motivos || "Sin observaciones"); // Enviamos la columna nueva
+        formData.append('observaciones_ia', motivos || "Sin observaciones");
 
+        // 5. Envío al Servidor
         const res = await axios.post(`${import.meta.env.VITE_API_URL}/fichar`, formData, { 
-        headers: { 'Authorization': `Bearer ${token}` } 
-         }); 
-        
-        const { mensaje } = res.data;
+            headers: { 'Authorization': `Bearer ${token}` } 
+        }); 
 
-        if (esSospechosa) {
-            alert(`⚠️ ATENCIÓN: ${mensaje}\n Se ha enviado una ALERTA AL ADMINISTRADOR para su revisión manual.`);
-        } else {
-            alert("✅ Fichaje completado y validado correctamente.");
+        // 6. ÉXITO: EFECTOS Y LIMPIEZA
+        if (res.status === 200 || res.status === 201) {
+            const { mensaje } = res.data;
+
+            // --- EFECTO DE SONIDO ---
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
+            audio.volume = 0.5;
+            // eslint-disable-next-line no-unused-vars
+            audio.play().catch(e => console.log("Audio bloqueado por el navegador"));
+
+            // --- EFECTO DE CONFETI ---
+            const duracion = 3 * 1000;
+            const final = Date.now() + duracion;
+
+            const intervalo = setInterval(function() {
+                const tiempoRestante = final - Date.now();
+                if (tiempoRestante <= 0) return clearInterval(intervalo);
+
+                const particleCount = 50 * (tiempoRestante / duracion);
+                
+                confetti({
+                    particleCount,
+                    spread: 70,
+                    origin: { x: 0.1, y: 0.7 },
+                    colors: ['#3b82f6', '#10b981', '#ffffff']
+                });
+                confetti({
+                    particleCount,
+                    spread: 70,
+                    origin: { x: 0.9, y: 0.7 },
+                    colors: ['#3b82f6', '#10b981', '#ffffff']
+                });
+            }, 250);
+
+            // Alerta personalizada según sospecha
+            if (esSospechosa) {
+                alert(`⚠️ ATENCIÓN: ${mensaje}\n\nEl sistema detectó inconsistencias: (${motivos}). El administrador revisará el fichaje.`);
+            } else {
+                alert("✅ Fichaje completado y validado correctamente.");
+            }
+
+            // Reset de formulario
+            setDatosFichaje({ nombre: '', apellido: '', dni: '', fecha_nacimiento: '' });
+            setFilePerfil(null);
+            setFileDNI(null);
+            
+            // Recargar datos (si tienes estas funciones)
+            if (typeof fetchData === 'function') fetchData();
+            if (typeof cargarJugadoras === 'function') fetchData();
+
         }
 
-        setJugadoraRegistrada({ ...res.data.jugadora });
-        fetchData();
-
     } catch (err) { 
+        console.error("Error en fichaje:", err);
         alert("🚨 Error: " + (err.response?.data?.error || err.message));
     } finally { 
         setCargandoFichaje(false); 

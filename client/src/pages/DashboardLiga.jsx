@@ -57,6 +57,7 @@ const DashboardLiga = () => {
           // Si no hay sesión, nos aseguramos que sea 'jugadora'
           setUserRol('jugadora');
         }
+      // eslint-disable-next-line no-unused-vars
       } catch (error) {
         setUserRol('jugadora');
       } finally {

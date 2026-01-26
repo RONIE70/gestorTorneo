@@ -27,12 +27,6 @@ const DashboardLiga = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const { data: { session } } = supabase.auth.getSession();
-if (!session) {
-    setUserRol('jugadora'); // <--- Esto asegura que si no hay nadie, el rol sea el mínimo
-    setLoadingSession(false);
-    return;
-}
     // 1. Obtener datos públicos del Dashboard
     fetch(`${import.meta.env.VITE_API_URL}/dashboard-resumen`)
       .then(res => res.json())

@@ -9,7 +9,21 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const Tesseract = require('tesseract.js'); // Librería de OCR
 
 const app = express();
-app.use(cors());
+
+const corsOptions = {
+    origin: [
+        'https://gestor-torneo.vercel.app', // Tu URL de frontend
+        'http://localhost:5173',            // Para que te siga funcionando en tu PC
+        'http://localhost:3000'
+    ],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+};
+app.use(cors(corsOptions));
+
+app.options('*', cors(corsOptions));
+
 app.use(express.json());
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);

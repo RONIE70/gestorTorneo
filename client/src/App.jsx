@@ -98,7 +98,7 @@ function App() {
             <Route 
               path="/AdminDelegado" 
               element={
-                <ProtectedRoute rolesPermitidos={['delegado']}>
+                <ProtectedRoute rolesPermitidos={['superadmin','delegado']}>
                   <AdminDelegado />
                 </ProtectedRoute>
               } 
@@ -106,7 +106,7 @@ function App() {
             <Route 
               path="/registro" 
               element={
-                <ProtectedRoute rolesPermitidos={['delegado']}>
+                <ProtectedRoute rolesPermitidos={['superadmin','delegado']}>
                   <FormularioFichaje />
                 </ProtectedRoute>
               } 

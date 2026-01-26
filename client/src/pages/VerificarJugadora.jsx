@@ -7,14 +7,21 @@ const VerificarJugadora = () => {
     const [error, setError] = useState(false);
 
     useEffect(() => {
-        fetch(`http://localhost:5000/validar-jugadora/${id}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.error) setError(true);
-                else setJugadora(data);
-            })
-            .catch(() => setError(true));
-    }, [id]);
+    // REEMPLAZO: 'http://localhost:5000' por '${import.meta.env.VITE_API_URL}'
+    fetch(`${import.meta.env.VITE_API_URL}/validar-jugadora/${id}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                setError(true);
+            } else {
+                setJugadora(data);
+            }
+        })
+        .catch((err) => {
+            console.error("Error en validación:", err);
+            setError(true);
+        });
+}, [id]);
 
     if (error) return <div className="text-white text-center p-10">❌ Jugadora no encontrada o ID inválido.</div>;
     if (!jugadora) return <div className="text-white text-center p-10">Cargando datos...</div>;

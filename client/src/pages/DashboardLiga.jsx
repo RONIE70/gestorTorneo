@@ -9,11 +9,14 @@ const DashboardLiga = () => {
   const [ligaNombre, setLigaNombre] = useState('SISTEMA GESTOR');
 
   useEffect(() => {
+    
     // 1. Obtener datos públicos del Dashboard
-    fetch('http://localhost:5000/dashboard-resumen')
+    // REEMPLAZO: 'http://localhost:5000' por '${import.meta.env.VITE_API_URL}'
+    fetch(`${import.meta.env.VITE_API_URL}/dashboard-resumen`)
       .then(res => res.json())
       .then(json => setData(json))
-      .catch(err => console.error("Error:", err));
+      .catch(err => console.error("Error al cargar resumen:", err));
+
 
     // 2. Obtener el rol del usuario Y los datos de la LIGA
     const getPerfilYIdentidad = async () => {

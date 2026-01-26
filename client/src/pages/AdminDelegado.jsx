@@ -413,9 +413,9 @@ const manejarEnvioFichaje = async (e) => {
         formData.append('distancia_biometrica', distanciaFinal);
         formData.append('observaciones_ia', motivos || "Sin observaciones"); // Enviamos la columna nueva
 
-        const res = await axios.post('http://localhost:5000/fichar', formData, { 
-            headers: { 'Authorization': `Bearer ${token}` } 
-        });
+        const res = await axios.post(`${import.meta.env.VITE_API_URL}/fichar`, formData, { 
+        headers: { 'Authorization': `Bearer ${token}` } 
+         }); 
         
         const { mensaje } = res.data;
 

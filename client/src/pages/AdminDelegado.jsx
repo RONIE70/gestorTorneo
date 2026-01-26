@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import EXIF from 'exif-js';
 import * as faceapi from 'face-api.js';
-import confetti from 'canvas-confetti';
+
 
 const URL_MODELOS = 'models';
 
@@ -419,36 +419,6 @@ const manejarEnvioFichaje = async (e) => {
         // 6. ÉXITO: EFECTOS Y LIMPIEZA
         if (res.status === 200 || res.status === 201) {
             const { mensaje } = res.data;
-
-            // --- EFECTO DE SONIDO ---
-            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
-            audio.volume = 0.5;
-            // eslint-disable-next-line no-unused-vars
-            audio.play().catch(e => console.log("Audio bloqueado por el navegador"));
-
-            // --- EFECTO DE CONFETI ---
-            const duracion = 3 * 1000;
-            const final = Date.now() + duracion;
-
-            const intervalo = setInterval(function() {
-                const tiempoRestante = final - Date.now();
-                if (tiempoRestante <= 0) return clearInterval(intervalo);
-
-                const particleCount = 50 * (tiempoRestante / duracion);
-                
-                confetti({
-                    particleCount,
-                    spread: 70,
-                    origin: { x: 0.1, y: 0.7 },
-                    colors: ['#3b82f6', '#10b981', '#ffffff']
-                });
-                confetti({
-                    particleCount,
-                    spread: 70,
-                    origin: { x: 0.9, y: 0.7 },
-                    colors: ['#3b82f6', '#10b981', '#ffffff']
-                });
-            }, 250);
 
             // Alerta personalizada según sospecha
             if (esSospechosa) {

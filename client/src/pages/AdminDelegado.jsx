@@ -15,6 +15,7 @@ const AdminDelegado = () => {
   const [errorDni, setErrorDni] = useState(""); // Estado para el mensaje de error
   const [perfilUsuario, setPerfilUsuario] = useState(null);
   const [equipoIdActual, setEquipoIdActual] = useState(null);
+  
 
   // --- ESTADOS DE INTERFAZ ---
   const [activeTab, setActiveTab] = useState('planilla'); 
@@ -35,40 +36,73 @@ const AdminDelegado = () => {
   const [fileDNI, setFileDNI] = useState(null);
   const [jugadoraRegistrada, setJugadoraRegistrada] = useState(null);
   const [cargandoFichaje, setCargandoFichaje] = useState(false);
+
+  // eslint-disable-next-line no-unused-vars
+  const [loadingSession, setLoadingSession] = useState(true);
   const [datosFichaje, setDatosFichaje] = useState({ 
     nombre: '', apellido: '', dni: '', fecha_nacimiento: '', equipo_id: '', club_nombre: '', club_escudo: ''   
   });
   const [logoBase64, setLogoBase64] = useState(null);
+  
 
 
 const fetchData = useCallback(async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+  setLoadingSession(true);
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      // setUserRol('publico'); <--- BORRÁ ESTO
+      setLoadingSession(false);
+      return;
+    }
 
-      const { data: perfil, error: perfilError } = await supabase
-        .from('perfiles')
-        .select('organizacion_id, equipo_id, rol')
-        .eq('id', session.user.id)
-        .single();
+    const { data: perfil, error: perfilError } = await supabase
+      .from('perfiles')
+      .select('organizacion_id, equipo_id, rol')
+      .eq('id', session.user.id)
+      .single();
 
-      if (perfilError || !perfil) return;
+    if (perfilError || !perfil) {
+      // setUserRol('publico'); <--- BORRÁ ESTO
+      setLoadingSession(false);
+      return;
+    }
 
-      setPerfilUsuario(perfil);
-      
-      // USAMOS ESTA VARIABLE LOCAL PARA TODA LA FUNCIÓN
-      const idParaFiltrar = (perfil.rol === 'superadmin') ? (perfil.equipo_id || 4) : perfil.equipo_id;
-      setEquipoIdActual(idParaFiltrar);
+    setPerfilUsuario(perfil);
 
-      // 2. Cargar configuración
-      const { data: config } = await supabase
+    // ID de filtrado blindado
+    const idParaFiltrar = perfil.rol === 'superadmin' ? (perfil.equipo_id || 4) : (perfil.equipo_id || 0);
+    setEquipoIdActual(idParaFiltrar);
+
+    // 1. Cargar Configuración (Logo y Nombre)
+    const { data: config } = await supabase
       .from('configuracion_liga')
       .select('*')
       .eq('organizacion_id', perfil.organizacion_id)
       .single();
-      setConfigLiga(config);
+    
+    if (config) {
+        setConfigLiga(config);
+        if (config.logo_url) {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0);
+                    setLogoBase64(canvas.toDataURL('image/png'));
+                }
+            };
+            img.src = config.logo_url;
+        }
+    }
 
-      // 3. Plantel (Filtrado por ID Directo)
+    if (idParaFiltrar !== 0) {
+      // 2. Cargar Plantel
       const { data: jugadorasData } = await supabase
         .from('jugadoras')
         .select(`*, sanciones(id, motivo, estado)`)
@@ -80,8 +114,7 @@ const fetchData = useCallback(async () => {
         estaSuspendida: j.sanciones?.some(s => s.estado === 'cumpliendo') || j.sancionada === true
       })) || []);
 
-      // 4. CORRECCIÓN ERROR 400: Expedientes Disciplinarios
-      // Filtramos por jugadoras que pertenecen al equipo para evitar el error de relación
+      // 3. Cargar Expedientes
       const { data: sancData } = await supabase
         .from('sanciones')
         .select(`
@@ -93,27 +126,12 @@ const fetchData = useCallback(async () => {
             visitante:equipos!visitante_id(nombre)
           )
         `)
-        .eq('jugadora.equipo_id', idParaFiltrar) // Filtro a través de la relación inner
+        .eq('jugadora.equipo_id', idParaFiltrar)
         .order('created_at', { ascending: false });
       
       setExpedientes(sancData || []);
 
-      //recibo la imagen
-      if (config?.logo_url) {
-  const img = new Image();
-  img.crossOrigin = 'Anonymous';
-  img.onload = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = img.width;
-    canvas.height = img.height;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-    setLogoBase64(canvas.toDataURL('image/png'));
-  };
-  img.src = config.logo_url;
-}
-
-      // 5. Partidos y Clubes
+      // 4. Cargar Partidos
       const { data: partidosData } = await supabase
         .from('partidos')
         .select('*, local:equipos!local_id(nombre), visitante:equipos!visitante_id(nombre)')
@@ -121,18 +139,23 @@ const fetchData = useCallback(async () => {
         .eq('organizacion_id', perfil.organizacion_id)
         .eq('finalizado', false); 
       setPartidos(partidosData || []);
+    }
 
-      const { data: clubesData } = await supabase
+    // 5. Clubes siempre se cargan
+    const { data: clubesData } = await supabase
       .from('equipos')
       .select('*')
       .eq('organizacion_id', perfil.organizacion_id)
       .order('nombre');
-      setClubes(clubesData || []);
+    setClubes(clubesData || []);
 
-    } catch (error) {
-      console.error("Error en fetchData:", error);
-    }
-  }, []);
+  } catch (error) {
+    console.error("Error en fetchData:", error);
+  } finally {
+    setLoadingSession(false);
+  }
+  // ELIMINAMOS LAS DEPENDENCIAS QUE DAN ERROR
+}, []);
 
   // --- AGREGAMOS ESTA PIEZA QUE FALTA: CARGA DE MODELOS IA ---
   useEffect(() => {

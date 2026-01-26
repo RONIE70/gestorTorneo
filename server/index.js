@@ -136,6 +136,15 @@ app.post('/fichar', upload.fields([
     }
 });
 
+// Agregá esto en server/index.js
+app.get('/', (req, res) => {
+    res.status(200).json({
+        status: "Online",
+        message: "SaaS Gestión Deportiva API - Sistema Activo",
+        timestamp: new Date().toISOString()
+    });
+});
+
 // --- RUTA DASHBOARD ---
 app.get('/dashboard-resumen', async (req, res) => {
     try {

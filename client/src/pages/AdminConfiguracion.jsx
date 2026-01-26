@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import CarnetJugadora from '../components/CarnetJugadora';
+import { useNavigate } from 'react-router-dom';
 
 const AdminConfiguracion = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [userOrgId, setUserOrgId] = useState(null);
   const [config, setConfig] = useState(null);
@@ -20,7 +22,7 @@ const AdminConfiguracion = () => {
     nombre: "MARTINA", 
     apellido: "GOAL", 
     dni: "42.123.456",
-    foto_url: "https://images.unsplash.com/photo-1543132220-3ce99c5ae03d?auto=format&fit=crop&q=80&w=200",
+    foto_url: "",
     categoria_actual: "PRIMERA DIVISIÓN"
   };
 
@@ -126,7 +128,7 @@ const AdminConfiguracion = () => {
         </div>
         <div className="flex gap-3 w-full md:w-auto">
           <button 
-            onClick={() => window.location.href = '/AdminConfig'} 
+            onClick={() => navigate('/AdminConfig')} // Cambiado de window.location
             className="flex-1 md:px-6 py-3 bg-slate-900 hover:bg-slate-800 rounded-2xl font-black text-[10px] uppercase transition-all border border-slate-800"
           >
             Volver

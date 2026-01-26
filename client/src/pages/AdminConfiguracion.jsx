@@ -22,7 +22,7 @@ const AdminConfiguracion = () => {
     nombre: "MARTINA", 
     apellido: "GOAL", 
     dni: "42.123.456",
-    foto_url: "",
+    foto_url: "https://placehold.co/150x200/00355E/FFFFFF?text=FOTO",
     categoria_actual: "PRIMERA DIVISIÓN"
   };
 

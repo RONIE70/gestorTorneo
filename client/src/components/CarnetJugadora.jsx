@@ -73,12 +73,16 @@ const CarnetJugadora = ({ jugadora, config }) => {
     {/* Foto de Perfil Enmarcada (TAMAÑO CARNET) */}
     <div className="w-[100px] h-[122px] bg-slate-900 border-2 border-white overflow-hidden rounded-md shadow-2xl flex-shrink-1">
        <img 
-          src={jugadora.foto_url || 'https://via.placeholder.com/150'} 
-          className="w-full h-full object-cover"
-          alt="Foto"
-          crossOrigin="anonymous"
-        />
-    </div>
+        src={jugadora.foto_url ? jugadora.foto_url : 'https://placehold.co/150x200/00355E/FFFFFF?text=FOTO'} 
+        className="w-full h-full object-cover"
+        alt={`${jugadora.nombre} ${jugadora.apellido}`}
+        crossOrigin="anonymous"
+        onError={(e) => {
+          e.target.src = 'https://placehold.co/150x200/333/FFF?text=ERROR+CARGA';
+        }}
+      />
+
+      </div>
 
             {/* Datos Derecha con Recuadros */}
             <div className="flex-1 space-y-2">

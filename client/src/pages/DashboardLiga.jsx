@@ -27,12 +27,18 @@ const DashboardLiga = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const { data: { session } } = supabase.auth.getSession();
+if (!session) {
+    setUserRol('jugadora'); // <--- Esto asegura que si no hay nadie, el rol sea el mínimo
+    setLoadingSession(false);
+    return;
+}
     // 1. Obtener datos públicos del Dashboard
     fetch(`${import.meta.env.VITE_API_URL}/dashboard-resumen`)
       .then(res => res.json())
       .then(json => setData(json))
       .catch(err => console.error("Error al cargar resumen:", err));
-
+      
     // 2. Obtener el rol real si hay sesión
     const getPerfilYIdentidad = async () => {
       try {

@@ -42,26 +42,9 @@ app.post('/fichar', upload.fields([
         const foto_url = req.files['foto'] ? req.files['foto'][0].path : null;
         const dni_foto_url = req.files['dni_foto'] ? req.files['dni_foto'][0].path : null;
 
-        if (!foto_url || !dni_foto_url) {
-            return res.status(400).json({ error: "Faltan fotos obligatorias." });
-        }
+        if (!foto_url || !dni_foto_url) return res.status(400).json({ error: "Faltan fotos." });
 
-        // --- OPTIMIZACIÓN OCR ---
-        let ocrExitoso = true;
-        try {
-            const worker = await Tesseract.createWorker('spa');
-            const { data: { text } } = await worker.recognize(dni_foto_url);
-            await worker.terminate();
-            
-            const dniLimpio = dni.replace(/\D/g, '');
-            const textoLimpio = text.replace(/\D/g, '');
-            if (!textoLimpio.includes(dniLimpio)) ocrExitoso = false;
-        } catch (ocrErr) {
-            console.error("OCR Falló o tardó demasiado:", ocrErr);
-            ocrExitoso = false; 
-        }
-
-        // --- LÓGICA DE EDAD ---
+        // --- LÓGICA DE EDAD (Precisa) ---
         const nacimiento = new Date(fecha_nacimiento);
         const hoy = new Date();
         let edad = hoy.getFullYear() - nacimiento.getFullYear();
@@ -70,7 +53,7 @@ app.post('/fichar', upload.fields([
             edad--; 
         }
 
-        // --- TU LÓGICA DE CATEGORÍAS (SIN CAMBIOS) ---
+        // --- TU LÓGICA DE CATEGORÍAS (RESTAURADA) ---
         let categoria = "";
         if (edad <= 7) categoria = "Sub 7";
         else if (edad <= 9) categoria = "Sub 9";
@@ -82,41 +65,31 @@ app.post('/fichar', upload.fields([
         else if (edad < 45) categoria = "Unicas (+30/35)";
         else categoria = "Reinas (+45)";
 
-        // --- VALIDACIÓN FINAL ---
-        const distanciaNum = parseFloat(distancia_biometrica) || 0;
-        const flagRevision = verificacion_manual === 'true' || distanciaNum > 0.6 || !ocrExitoso;
-
+        // --- GUARDADO RÁPIDO ---
+        // Quitamos el OCR pesado de aquí para que responda antes de los 10 segundos
         const { data, error: dbError } = await supabase
             .from('jugadoras')
             .insert([{
-                nombre, 
-                apellido, 
-                dni, 
-                fecha_nacimiento,
-                equipo_id: Number(equipo_id), 
-                organizacion_id,
-                foto_url, 
-                dni_foto_url,
-                categoria_actual: categoria,
-                verificacion_manual: flagRevision,
-                distancia_biometrica: distanciaNum,
-                observaciones_ia: !ocrExitoso ? "Duda en lectura de DNI | " + (observaciones_ia || "") : observaciones_ia
+                nombre, apellido, dni, fecha_nacimiento,
+                equipo_id: Number(equipo_id), organizacion_id,
+                foto_url, dni_foto_url, categoria_actual: categoria,
+                verificacion_manual: (verificacion_manual === 'true' || parseFloat(distancia_biometrica) > 0.6),
+                distancia_biometrica: parseFloat(distancia_biometrica) || 0,
+                observaciones_ia: observaciones_ia || "Fichaje procesado"
             }])
             .select();
 
-        if (dbError) throw dbError;
+        if (dbError) {
+            if (dbError.code === '23505') return res.status(409).json({ error: "DNI DUPLICADO" });
+            throw dbError;
+        }
 
-        return res.status(200).json({ 
-            mensaje: flagRevision 
-                ? "⚠️ Fichaje en REVISIÓN MANUAL. La IA o el OCR requieren verificación." 
-                : "✅ Fichaje validado y aprobado correctamente.", 
-            jugadora: data[0],
-            revision: flagRevision
-        });
+        // Respuesta inmediata: Evita el 504 de Vercel
+        return res.status(200).json({ mensaje: "✅ Fichaje Exitoso", jugadora: data[0] });
 
     } catch (err) {
-        console.error("❌ ERROR CRÍTICO:", err);
-        return res.status(500).json({ error: "Error interno: " + err.message });
+        console.error("Error:", err);
+        return res.status(500).json({ error: err.message });
     }
 });
 

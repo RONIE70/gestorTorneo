@@ -26,6 +26,7 @@ const AdminConfiguracion = () => {
     categoria_actual: "PRIMERA DIVISIÓN"
   };
 
+  //controlar la foto si no hace conflicto
   // 1. Recuperar Identidad de la Organización
   useEffect(() => {
     const obtenerContextoOrg = async () => {

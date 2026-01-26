@@ -27,45 +27,50 @@ const DashboardLiga = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // 1. Obtener datos públicos del Dashboard
-    fetch(`${import.meta.env.VITE_API_URL}/dashboard-resumen`)
-      .then(res => res.json())
-      .then(json => setData(json))
-      .catch(err => console.error("Error al cargar resumen:", err));
-      
-    // 2. Obtener el rol real si hay sesión
-    const getPerfilYIdentidad = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session) {
-          const { data: perfil } = await supabase
-            .from('perfiles')
-            .select('rol, organizaciones(nombre, color_principal)')
-            .eq('id', session.user.id)
-            .single();
+  const inicializarDashboard = async () => {
+    try {
+      // 1. Cargar SIEMPRE los datos públicos (Fixture, Goleadoras, etc.)
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard-resumen`);
+      const json = await res.json();
+      setData(json);
 
-          if (perfil) {
-            setUserRol(perfil.rol);
-            if (perfil.organizaciones) {
-              setLigaNombre(perfil.organizaciones.nombre);
-              const color = perfil.organizaciones.color_principal || '#3b82f6';
-              document.documentElement.style.setProperty('--color-liga', color);
-            }
-          }
-        } else {
-          // Si no hay sesión, nos aseguramos que sea 'jugadora'
-          setUserRol('jugadora');
-        }
-      // eslint-disable-next-line no-unused-vars
-      } catch (error) {
+      // 2. Verificar Sesión y Rol
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
         setUserRol('jugadora');
-      } finally {
         setLoadingSession(false);
+        return;
       }
-    };
-    getPerfilYIdentidad();
-  }, []);
+
+      // 3. Si hay sesión, traer el perfil real
+      const { data: perfil, error } = await supabase
+        .from('perfiles')
+        .select('rol, organizaciones(nombre, color_principal)')
+        .eq('id', session.user.id)
+        .single();
+
+      if (perfil && !error) {
+        setUserRol(perfil.rol);
+        if (perfil.organizaciones) {
+          setLigaNombre(perfil.organizaciones.nombre);
+          const color = perfil.organizaciones.color_principal || '#3b82f6';
+          document.documentElement.style.setProperty('--color-liga', color);
+        }
+      } else {
+        setUserRol('jugadora');
+      }
+
+    } catch (error) {
+      console.error("Error en la carga del Dashboard:", error);
+      setUserRol('jugadora');
+    } finally {
+      setLoadingSession(false);
+    }
+  };
+
+  inicializarDashboard();
+}, []); // Se ejecuta una sola vez al montar el componente
 
   if (!data || loadingSession) return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -147,11 +152,13 @@ const DashboardLiga = () => {
               <Link to="/AdminTribunal" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-rose-600 shadow-2xl hover:-translate-y-1">
                 <span className="text-3xl mb-3 block">⚖️</span>
                 <h3 className="text-lg font-black uppercase italic tracking-tighter">Tribunal</h3>
+                {/* AGREGAMOS LA DESCRIPCIÓN AQUÍ TAMBIÉN */}
+                <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Módulo disciplinario y resoluciones oficiales.</p>
+                <div className="mt-4 text-rose-500 text-[9px] font-black uppercase tracking-widest">Ver Expedientes →</div>
               </Link>
             ) : (
               <CardInvitado icono="⚖️" titulo="Tribunal" descripcion="Módulo disciplinario y resoluciones oficiales." acento="rose-600" navigate={navigate} />
             )}
-
             {/* 6. ORGANIZACIÓN */}
             {userRol === 'superadmin' ? (
               <Link to="/AdminConfig" className="group relative overflow-hidden bg-slate-950 border border-blue-500/30 p-6 rounded-[2rem] transition-all hover:border-blue-500 shadow-2xl">

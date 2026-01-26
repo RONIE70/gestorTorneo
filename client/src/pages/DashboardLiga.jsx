@@ -20,7 +20,7 @@ const CardInvitado = ({ icono, titulo, descripcion, acento, navigate }) => (
 const DashboardLiga = () => {
   const [data, setData] = useState(null);
   // CLAVE: El estado inicial es 'jugadora' (el rol para usuarios sin login)
-  const [userRol, setUserRol] = useState('jugadora');
+  const [userRol, setUserRol] = useState(null);
   const [ligaNombre, setLigaNombre] = useState('SISTEMA GESTOR');
   const [loadingSession, setLoadingSession] = useState(true);
 

@@ -11,7 +11,7 @@ const URL_MODELOS = 'models';
 
 const AdminDelegado = () => {
   // --- ESTADOS DE SESIÓN Y PERFIL ---
-  // eslint-disable-next-line no-unused-vars
+  const [errorDni, setErrorDni] = useState(""); // Estado para el mensaje de error
   const [perfilUsuario, setPerfilUsuario] = useState(null);
   const [equipoIdActual, setEquipoIdActual] = useState(null);
 
@@ -324,25 +324,23 @@ const fetchData = useCallback(async () => {
 
   // Agrega esta función de utilidad arriba de manejarEnvioFichaje
 const preprocesarImagenIA = async (archivo) => {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => { // Ahora sí lo usamos
         const reader = new FileReader();
         reader.onload = (e) => {
             const img = new Image();
             img.onload = () => {
-                // Creamos un canvas para normalizar la imagen
                 const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                // Redimensionamos a un tamaño estándar para IA (max 600px) para evitar saturación de memoria
-                const escala = Math.min(600 / img.width, 600 / img.height, 1);
+                const escala = Math.min(400 / img.width, 400 / img.height, 1);
                 canvas.width = img.width * escala;
                 canvas.height = img.height * escala;
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                resolve(canvas); // Devolvemos el canvas que face-api entiende perfectamente
+                resolve(canvas);
             };
-            img.onerror = reject;
+            img.onerror = () => reject("Error al cargar la imagen"); // Uso de reject
             img.src = e.target.result;
         };
-        reader.onerror = reject;
+        reader.onerror = () => reject("Error al leer el archivo"); // Uso de reject
         reader.readAsDataURL(archivo);
     });
 };
@@ -432,6 +430,33 @@ const manejarEnvioFichaje = async (e) => {
         alert("🚨 Error: " + (err.response?.data?.error || err.message));
     } finally { 
         setCargandoFichaje(false); 
+    }
+};
+
+// --- VALIDACIÓN PREVIA DE DNI ---
+const verificarDniDuplicado = async (dni) => {
+    if (dni.length < 7) {
+        setErrorDni(""); 
+        return;
+    }
+    
+    try {
+        const { data, error } = await supabase
+            .from('jugadoras')
+            .select('id, apellido, nombre')
+            .eq('dni', dni)
+            .eq('organizacion_id', perfilUsuario?.organizacion_id)
+            .maybeSingle();
+
+        if (data) {
+            setErrorDni(`⚠️ Este DNI ya pertenece a ${data.apellido}, ${data.nombre}`);
+            setDatosFichaje(prev => ({ ...prev, dni: '' })); // Opcional: limpiar si querés bloquear
+        } else {
+            setErrorDni(""); // Limpiar error si el DNI está libre
+        }
+        if (error) console.error("Error en validación DNI:", error);
+    } catch (err) {
+        console.error("Error inesperado:", err);
     }
 };
 
@@ -590,12 +615,30 @@ const manejarEnvioFichaje = async (e) => {
     setDatosFichaje({...datosFichaje, apellido: val});
   }} 
   required 
-/><input id="dni" type="text" maxLength="8" placeholder="DNI" value={datosFichaje.dni} onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, ''); // Elimina lo que no sea número
-                  setDatosFichaje({...datosFichaje, dni: val});
-                }} className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs font-bold"  required />
-                <input id="fecha" type="date" placeholder="FECHA NACIMIENTO XX/XX/XXXX"className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs font-bold" onChange={e => setDatosFichaje({...datosFichaje, fecha_nacimiento: e.target.value})} required />
-                 
+/>
+<div className="flex flex-col gap-1">
+  <input 
+    id="dni" 
+    type="text" 
+    maxLength="8" 
+    placeholder="DNI" 
+    value={datosFichaje.dni} 
+    onChange={(e) => {
+      const val = e.target.value.replace(/\D/g, ''); 
+      setDatosFichaje({...datosFichaje, dni: val});
+      if (errorDni) setErrorDni(""); // Limpiar error mientras escribe de nuevo
+    }} 
+    onBlur={(e) => verificarDniDuplicado(e.target.value)} 
+    className={`bg-slate-950 p-4 rounded-xl border ${errorDni ? 'border-rose-500' : 'border-slate-800'} text-xs font-bold transition-colors`} 
+    required 
+  />
+  {/* EL CARTELITO ROJO */}
+  {errorDni && (
+    <span className="text-[9px] font-black text-rose-500 uppercase tracking-tighter ml-2 animate-pulse">
+      {errorDni}
+    </span>
+  )}
+</div>
                 <div className="relative group">
   <label className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
     Club Asignado

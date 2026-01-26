@@ -34,17 +34,9 @@ app.post('/fichar', upload.fields([
     { name: 'dni_foto', maxCount: 1 }
 ]), async (req, res) => {
     try {
-        // 1. DESESTRUCTURACIÓN DE DATOS
         const { 
-            nombre, 
-            apellido, 
-            dni, 
-            fecha_nacimiento, 
-            equipo_id, 
-            organizacion_id,
-            verificacion_manual, 
-            distancia_biometrica,
-            observaciones_ia 
+            nombre, apellido, dni, fecha_nacimiento, equipo_id, 
+            organizacion_id, verificacion_manual, distancia_biometrica, observaciones_ia 
         } = req.body;
 
         const foto_url = req.files['foto'] ? req.files['foto'][0].path : null;
@@ -54,27 +46,31 @@ app.post('/fichar', upload.fields([
             return res.status(400).json({ error: "Faltan fotos obligatorias." });
         }
 
-        // 2. VALIDACIÓN OCR (DNI)
-        const { data: { text: textoExtraido } } = await Tesseract.recognize(dni_foto_url, 'spa');
-        const dniEscritoManual = dni.replace(/\D/g, '');
-        const textoLimpioOCR = textoExtraido.replace(/\D/g, '');
-
-        if (!textoLimpioOCR.includes(dniEscritoManual)) {
-            return res.status(400).json({ 
-                error: "RECHAZADO: El DNI manual no coincide con la imagen del documento." 
-            });
+        // --- OPTIMIZACIÓN OCR ---
+        let ocrExitoso = true;
+        try {
+            const worker = await Tesseract.createWorker('spa');
+            const { data: { text } } = await worker.recognize(dni_foto_url);
+            await worker.terminate();
+            
+            const dniLimpio = dni.replace(/\D/g, '');
+            const textoLimpio = text.replace(/\D/g, '');
+            if (!textoLimpio.includes(dniLimpio)) ocrExitoso = false;
+        } catch (ocrErr) {
+            console.error("OCR Falló o tardó demasiado:", ocrErr);
+            ocrExitoso = false; 
         }
 
-        // 3. CÁLCULO DE CATEGORÍA REGLAMENTARIO
+        // --- LÓGICA DE EDAD ---
         const nacimiento = new Date(fecha_nacimiento);
         const hoy = new Date();
         let edad = hoy.getFullYear() - nacimiento.getFullYear();
         const m = hoy.getMonth() - nacimiento.getMonth();
-        
         if (m < 0 || (m === 0 && hoy.getDate() < nacimiento.getDate())) { 
             edad--; 
         }
 
+        // --- TU LÓGICA DE CATEGORÍAS (SIN CAMBIOS) ---
         let categoria = "";
         if (edad <= 7) categoria = "Sub 7";
         else if (edad <= 9) categoria = "Sub 9";
@@ -86,45 +82,33 @@ app.post('/fichar', upload.fields([
         else if (edad < 45) categoria = "Unicas (+30/35)";
         else categoria = "Reinas (+45)";
 
-        // 4. LÓGICA DE REVISIÓN MANUAL (Tu propuesta)
-        // Convertimos a booleano real porque FormData lo envía como string
-        // El registro entra en revisión si el frontend marcó sospecha o si la distancia es alta
+        // --- VALIDACIÓN FINAL ---
         const distanciaNum = parseFloat(distancia_biometrica) || 0;
-        const flagRevision = verificacion_manual === 'true' || distanciaNum > 0.6;
+        const flagRevision = verificacion_manual === 'true' || distanciaNum > 0.6 || !ocrExitoso;
 
-        // 5. GUARDADO EN SUPABASE
         const { data, error: dbError } = await supabase
             .from('jugadoras')
             .insert([{
-                nombre,
-                apellido,
-                dni,
+                nombre, 
+                apellido, 
+                dni, 
                 fecha_nacimiento,
-                equipo_id: Number(equipo_id),
+                equipo_id: Number(equipo_id), 
                 organizacion_id,
-                foto_url,
+                foto_url, 
                 dni_foto_url,
                 categoria_actual: categoria,
-                verificacion_manual: flagRevision, // Se guarda para que el propietario lo vea
+                verificacion_manual: flagRevision,
                 distancia_biometrica: distanciaNum,
-                observaciones_ia: observaciones_ia
+                observaciones_ia: !ocrExitoso ? "Duda en lectura de DNI | " + (observaciones_ia || "") : observaciones_ia
             }])
             .select();
 
-        // 6. MANEJO DE ERRORES DE BASE DE DATOS
-        if (dbError) {
-            if (dbError.code === '23505' || dbError.message.toLowerCase().includes('duplicate')) {
-                return res.status(409).json({ 
-                    error: "¡EL DNI YA SE ENCUENTRA REGISTRADO!" 
-                });
-            }
-            throw dbError;
-        }
+        if (dbError) throw dbError;
 
-        // 7. RESPUESTA AL CLIENTE
         return res.status(200).json({ 
             mensaje: flagRevision 
-                ? "⚠️ Fichaje en REVISIÓN MANUAL. La IA no pudo validar la identidad al 100%." 
+                ? "⚠️ Fichaje en REVISIÓN MANUAL. La IA o el OCR requieren verificación." 
                 : "✅ Fichaje validado y aprobado correctamente.", 
             jugadora: data[0],
             revision: flagRevision

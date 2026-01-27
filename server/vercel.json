@@ -13,5 +13,16 @@
         "Access-Control-Allow-Headers": "Content-Type, Authorization"
       }
     }
+  ],
+  
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "index.js"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
   ]
 }

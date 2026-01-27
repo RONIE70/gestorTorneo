@@ -3,19 +3,23 @@ import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 // --- 1. COMPONENTE AUXILIAR ---
-const CardInvitado = ({ icono, titulo, descripcion, acento, navigate }) => (
-  <div 
-    onClick={() => navigate('/login')} 
-    className={`cursor-pointer group bg-slate-900/40 border border-dashed border-slate-800 p-6 rounded-[2rem] opacity-60 hover:opacity-100 transition-all hover:border-${acento}/50 shadow-xl shadow-black/20`}
-  >
-    <span className="text-3xl mb-3 block grayscale group-hover:grayscale-0 transition-all">{icono}</span>
-    <h3 className="text-lg font-black uppercase italic tracking-tighter text-slate-500 group-hover:text-white">{titulo}</h3>
-    <p className="text-[10px] text-slate-600 font-bold uppercase mt-2 leading-relaxed">{descripcion}</p>
-    <div className="mt-4 text-slate-700 text-[9px] font-black uppercase tracking-widest group-hover:text-white transition-colors tracking-widest">
-      Click para Ingresar →
+const CardBloqueada = ({ icono, titulo, descripcion, sesionActiva }) => {
+  const mensaje = sesionActiva 
+    ? "No tienes permisos para este panel" 
+    : "Click para Ingresar →";
+
+  return (
+    <div className="cursor-not-allowed group bg-slate-900/40 border border-slate-800 p-6 rounded-[2rem] opacity-50 shadow-xl">
+      <span className="text-3xl mb-3 block grayscale">{icono}</span>
+      <h3 className="text-lg font-black uppercase italic text-slate-500">{titulo}</h3>
+      <p className="text-[10px] text-slate-600 font-bold uppercase mt-2">{descripcion}</p>
+      <div className="mt-4 text-rose-500/50 text-[9px] font-black uppercase tracking-widest">
+        {mensaje}
+      </div>
     </div>
-  </div>
-);
+  );
+};
+
 
 const DashboardLiga = () => {
   const [data, setData] = useState(null);

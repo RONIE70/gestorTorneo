@@ -39,6 +39,16 @@ const DashboardLiga = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+  // 1. ESCUCHADOR DE CAMBIOS DE AUTH (Para Logout instantáneo)
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') {
+      setUserRol('jugadora');
+      setLigaNombre('SISTEMA GESTOR'); // Reset opcional del nombre
+    } else if (event === 'SIGNED_IN' && session) {
+      inicializarDashboard(); // Recargar datos si alguien entra
+    }
+  });
+
   const inicializarDashboard = async () => {
     try {
       // 1. Datos públicos siempre
@@ -54,12 +64,12 @@ const DashboardLiga = () => {
         return;
       }
 
-      // 3. Perfil (Usamos select('*') para no errar con los nombres de columnas)
+      // 3. Perfil
       const { data: perfil, error: pError } = await supabase
         .from('perfiles')
         .select('*, organizaciones(nombre, color_principal)')
         .eq('id', session.user.id)
-        .maybeSingle(); // maybeSingle evita el error 400 si no existe
+        .maybeSingle();
 
       if (perfil && !pError) {
         setUserRol(perfil.rol);
@@ -77,7 +87,13 @@ const DashboardLiga = () => {
       setLoadingSession(false);
     }
   };
+
   inicializarDashboard();
+
+  // 2. LIMPIEZA: Muy importante para no crear fugas de memoria
+  return () => {
+    subscription.unsubscribe();
+  };
 }, []);
 
   if (!data || loadingSession) return (

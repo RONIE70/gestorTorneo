@@ -8,7 +8,7 @@ import EXIF from 'exif-js';
 import * as faceapi from 'face-api.js';
 
 
-const URL_MODELOS = '/models';
+const URL_MODELOS = 'models';
 
 const AdminDelegado = () => {
   // --- ESTADOS DE SESIÓN Y PERFIL ---

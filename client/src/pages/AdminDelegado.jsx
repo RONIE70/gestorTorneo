@@ -675,17 +675,8 @@ const verificarDniDuplicado = async (dni) => {
     </span>
   )}
 </div>
-                <div className="relative group">
-  <label className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
-    Club Asignado
-  </label>
-  <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex items-center gap-3 shadow-inner">
-    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-    <span className="text-xs font-black uppercase text-white tracking-tighter">
-      {clubes.find(c => c.id === equipoIdActual)?.nombre || "Cargando Club..."}
-    </span>
-  </div>
-  {/* INPUT FECHA NACIMIENTO - Restaurado */}
+
+ {/* INPUT FECHA NACIMIENTO - Restaurado */}
 <div className="flex flex-col gap-1">
   <label className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
     Fecha de Nacimiento
@@ -698,6 +689,18 @@ const verificarDniDuplicado = async (dni) => {
     required 
   />
 </div>
+
+  <div className="relative group">
+  <label className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
+    Club Asignado
+  </label>
+  <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex items-center gap-3 shadow-inner">
+    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+    <span className="text-xs font-black uppercase text-white tracking-tighter">
+      {clubes.find(c => c.id === equipoIdActual)?.nombre || "Cargando Club..."}
+    </span>
+  </div>
+ 
   {/* Campo oculto para asegurar que el valor viaje en el formulario si fuera necesario */}
   <input type="hidden" value={equipoIdActual || ''} required />
 </div>

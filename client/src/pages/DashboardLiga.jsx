@@ -111,7 +111,8 @@ const DashboardLiga = () => {
           </h1>
         </header>
 
-       {/* --- HUB DE PANELES de ROLES --- */}
+       {/*Hub de paneles de roles*/} 
+        <section>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     
     {/* 1. JUGADORAS (SIEMPRE ABIERTO) */}

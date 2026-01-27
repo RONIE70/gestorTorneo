@@ -29,48 +29,44 @@ const DashboardLiga = () => {
   useEffect(() => {
   const inicializarDashboard = async () => {
     try {
-      // 1. Cargar SIEMPRE los datos públicos (Fixture, Goleadoras, etc.)
+      // 1. Datos públicos siempre
       const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard-resumen`);
       const json = await res.json();
       setData(json);
 
-      // 2. Verificar Sesión y Rol
+      // 2. Sesión
       const { data: { session } } = await supabase.auth.getSession();
-      
       if (!session) {
         setUserRol('jugadora');
         setLoadingSession(false);
         return;
       }
 
-      // 3. Si hay sesión, traer el perfil real
-      const { data: perfil, error } = await supabase
+      // 3. Perfil (Usamos select('*') para no errar con los nombres de columnas)
+      const { data: perfil, error: pError } = await supabase
         .from('perfiles')
-        .select('rol, organizaciones(nombre, color_principal)')
+        .select('*, organizaciones(nombre, color_principal)')
         .eq('id', session.user.id)
-        .single();
+        .maybeSingle(); // maybeSingle evita el error 400 si no existe
 
-      if (perfil && !error) {
+      if (perfil && !pError) {
         setUserRol(perfil.rol);
         if (perfil.organizaciones) {
           setLigaNombre(perfil.organizaciones.nombre);
-          const color = perfil.organizaciones.color_principal || '#3b82f6';
-          document.documentElement.style.setProperty('--color-liga', color);
+          document.documentElement.style.setProperty('--color-liga', perfil.organizaciones.color_principal || '#3b82f6');
         }
       } else {
         setUserRol('jugadora');
       }
-
     } catch (error) {
-      console.error("Error en la carga del Dashboard:", error);
+      console.error("Fallo inicialización:", error);
       setUserRol('jugadora');
     } finally {
       setLoadingSession(false);
     }
   };
-
   inicializarDashboard();
-}, []); // Se ejecuta una sola vez al montar el componente
+}, []);
 
   if (!data || loadingSession) return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center">

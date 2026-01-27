@@ -29,9 +29,9 @@ const Navbar = () => {
     try {
       const { data: perfil, error } = await supabase
         .from('perfiles')
-        .select('nombre, foto_url, rol, organizaciones(nombre, logo_url, color_principal)')
+        .select('*, organizaciones(nombre, logo_url, color_principal)')
         .eq('id', sessionActual.user.id)
-        .single();
+        .maybeSingle();
 
       // SI HAY ERROR O NO HAY PERFIL: Limpiamos todo
       if (error || !perfil) {

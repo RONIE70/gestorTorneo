@@ -1,66 +1,66 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
-const ProtectedRoute = ({ children, rolRequerido, rolesPermitidos = [] }) => {
+const ProtectedRoute = ({ children, rolesPermitidos = [] }) => {
     const [loading, setLoading] = useState(true);
-    const [autorizado, setAutorizado] = useState(false);
+    const [user, setUser] = useState(null);
+    const [perfil, setPerfil] = useState(null);
+    const location = useLocation();
 
     useEffect(() => {
-        const verificarAcceso = async () => {
+        const verificarSesion = async () => {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 
                 if (!session) {
-                    setAutorizado(false);
+                    setUser(null);
                     setLoading(false);
                     return;
                 }
 
-                const { data: perfil } = await supabase
+                setUser(session.user);
+
+                const { data: profile } = await supabase
                     .from('perfiles')
                     .select('rol')
                     .eq('id', session.user.id)
-                    .single();
+                    .maybeSingle();
 
-                if (!perfil) {
-                    setAutorizado(false);
-                } else {
-                    // Verificamos: 
-                    // 1. Es Superadmin (Dios)
-                    // 2. Es el rol específico requerido
-                    // 3. El rol está en la lista de permitidos
-                    const tieneRolEspecifico = rolRequerido && perfil.rol === rolRequerido;
-                    const estaEnLista = rolesPermitidos.length > 0 && rolesPermitidos.includes(perfil.rol);
-                    const esSuperAdmin = perfil.rol === 'superadmin';
-
-                    if (esSuperAdmin || tieneRolEspecifico || estaEnLista) {
-                        setAutorizado(true);
-                    } else {
-                        setAutorizado(false);
-                    }
-                }
+                setPerfil(profile);
             } catch (error) {
-                console.error("Error en ProtectedRoute:", error);
-                setAutorizado(false);
+                console.error("Error en validación:", error);
             } finally {
                 setLoading(false);
             }
         };
 
-        verificarAcceso();
-    }, [rolRequerido, rolesPermitidos]);
+        verificarSesion();
+    }, []);
 
-    if (loading) return (
-        <div className="bg-slate-950 min-h-screen flex items-center justify-center text-white italic uppercase font-black tracking-widest animate-pulse">
-            Verificando Credenciales...
-        </div>
-    );
+    // 1. MIENTRAS CARGA: No redireccionar, mostrar pantalla de espera
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+                <div className="text-white animate-pulse font-black uppercase tracking-widest italic">
+                    Validando Credenciales...
+                </div>
+            </div>
+        );
+    }
 
-    // Si no está autorizado, lo mandamos al Dashboard (/) en lugar del login directo
-    // para que vea que la tarjeta está bloqueada.
-    if (!autorizado) return <Navigate to="/" replace />;
+    // 2. SI NO HAY USUARIO: Al login
+    if (!user) {
+        return <Navigate to="/login" state={{ from: location }} replace />;
+    }
 
+    // 3. SI HAY USUARIO PERO EL ROL NO COINCIDE: Al Dashboard
+    if (rolesPermitidos.length > 0 && (!perfil || !rolesPermitidos.includes(perfil.rol))) {
+        console.warn("Acceso denegado: Rol insuficiente");
+        return <Navigate to="/" replace />;
+    }
+
+    // 4. TODO OK: Renderiza la página
     return children;
 };
 

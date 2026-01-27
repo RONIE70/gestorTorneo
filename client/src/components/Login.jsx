@@ -78,7 +78,8 @@ const Login = () => {
               <label className="text-[10px] font-black uppercase text-slate-500 ml-2 mb-2 block tracking-widest">
                 Correo Electrónico
               </label>
-              <input 
+              <input
+                id="username" 
                 autoComplete="username"
                 type="email" 
                 value={email}
@@ -94,6 +95,7 @@ const Login = () => {
                 Contraseña
               </label>
               <input 
+                id="password" 
                 autoComplete="current-password"
                 type="password" 
                 value={password}

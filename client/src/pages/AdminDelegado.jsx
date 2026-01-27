@@ -8,7 +8,7 @@ import EXIF from 'exif-js';
 import * as faceapi from 'face-api.js';
 
 
-const URL_MODELOS = 'models';
+const URL_MODELOS = '/models';
 
 const AdminDelegado = () => {
   // --- ESTADOS DE SESIÓN Y PERFIL ---
@@ -624,7 +624,7 @@ const verificarDniDuplicado = async (dni) => {
           ) : (
             <div className="bg-slate-900 p-8 rounded-[3rem] border border-slate-800 shadow-2xl">
               <h2 className="text-xl font-black uppercase text-emerald-500 mb-6 italic">Fichaje Oficial</h2>
-              <form onSubmit={manejarEnvioFichaje} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <form id="formFicha"   onSubmit={manejarEnvioFichaje} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* INPUT NOMBRE */}
 <input id="nombre"
   type="text" 
@@ -678,10 +678,11 @@ const verificarDniDuplicado = async (dni) => {
 
  {/* INPUT FECHA NACIMIENTO - Restaurado */}
 <div className="flex flex-col gap-1">
-  <label className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
+  <label id="FechNac"  className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
     Fecha de Nacimiento
   </label>
   <input 
+    id="nacimiento"
     type="date" 
     className="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-xs font-bold uppercase outline-none focus:border-emerald-500 text-white" 
     value={datosFichaje.fecha_nacimiento}
@@ -691,7 +692,7 @@ const verificarDniDuplicado = async (dni) => {
 </div>
 
   <div className="relative group">
-  <label className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
+  <label id="clubAsig"  className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
     Club Asignado
   </label>
   <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex items-center gap-3 shadow-inner">

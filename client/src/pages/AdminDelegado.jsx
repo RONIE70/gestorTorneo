@@ -685,6 +685,19 @@ const verificarDniDuplicado = async (dni) => {
       {clubes.find(c => c.id === equipoIdActual)?.nombre || "Cargando Club..."}
     </span>
   </div>
+  {/* INPUT FECHA NACIMIENTO - Restaurado */}
+<div className="flex flex-col gap-1">
+  <label className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
+    Fecha de Nacimiento
+  </label>
+  <input 
+    type="date" 
+    className="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-xs font-bold uppercase outline-none focus:border-emerald-500 text-white" 
+    value={datosFichaje.fecha_nacimiento}
+    onChange={(e) => setDatosFichaje({...datosFichaje, fecha_nacimiento: e.target.value})} 
+    required 
+  />
+</div>
   {/* Campo oculto para asegurar que el valor viaje en el formulario si fuera necesario */}
   <input type="hidden" value={equipoIdActual || ''} required />
 </div>

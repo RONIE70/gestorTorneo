@@ -24,33 +24,43 @@ const Navbar = () => {
       }
     });
 
-    const cargarDatosCompletos = async (sessionActual) => {
-      if (sessionActual?.user?.id) {
-        try {
-          const { data: perfil } = await supabase
-            .from('perfiles')
-            .select('nombre, foto_url, rol, organizaciones(nombre, logo_url, color_principal)')
-            .eq('id', sessionActual.user.id)
-            .single();
+   const cargarDatosCompletos = async (sessionActual) => {
+  if (sessionActual?.user?.id) {
+    try {
+      const { data: perfil, error } = await supabase
+        .from('perfiles')
+        .select('nombre, foto_url, rol, organizaciones(nombre, logo_url, color_principal)')
+        .eq('id', sessionActual.user.id)
+        .single();
 
-          if (perfil) {
-            if (perfil.organizaciones) {
-              const org = perfil.organizaciones;
-              setLigaData({ nombre: org.nombre, logo: org.logo_url });
-              document.documentElement.style.setProperty('--color-liga', org.color_principal || '#3b82f6');
-            }
-            
-            setUserData({
-              nombre: perfil.nombre || 'Usuario',
-              foto: perfil.foto_url,
-              rol: perfil.rol
-            });
-          }
-        } catch (error) {
-          console.error("Error cargando perfil:", error);
-        }
+      // SI HAY ERROR O NO HAY PERFIL: Limpiamos todo
+      if (error || !perfil) {
+        console.warn("Sesión inválida o perfil no encontrado. Limpiando...");
+        await supabase.auth.signOut(); // <--- ESTO ES LA CLAVE
+        setUserSession(null);
+        setUserData({ nombre: '', foto: null, rol: '' });
+        return;
       }
-    };
+
+      // Si todo está bien, cargamos
+      if (perfil.organizaciones) {
+        const org = perfil.organizaciones;
+        setLigaData({ nombre: org.nombre, logo: org.logo_url });
+        document.documentElement.style.setProperty('--color-liga', org.color_principal || '#3b82f6');
+      }
+      
+      setUserData({
+        nombre: perfil.nombre || 'Usuario',
+        foto: perfil.foto_url,
+        rol: perfil.rol
+      });
+
+    } catch (error) {
+      console.error("Error crítico:", error);
+      setUserSession(null);
+    }
+  }
+};
 
     // Verificación inicial al montar
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -97,6 +107,9 @@ const Navbar = () => {
         {/* CENTRO: BUSCADOR (Desktop - Se mantiene intacto) */}
         <form onSubmit={handleSearch} className="flex-1 max-w-sm relative hidden md:block">
           <input
+            id="name"
+            name="name"
+             required
             type="text" 
             placeholder="Buscar equipo..." 
             value={busqueda}

@@ -38,7 +38,7 @@ const ProtectedRoute = ({ children, rolesPermitidos = [] }) => {
         verificarSesion();
     }, []);
 
-    // 1. MIENTRAS CARGA: Pantalla de espera
+    // 1. MIENTRAS CARGA: No redireccionar, mostrar pantalla de espera
     if (loading) {
         return (
             <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -49,25 +49,18 @@ const ProtectedRoute = ({ children, rolesPermitidos = [] }) => {
         );
     }
 
-    // 2. CASO: NO HAY SESIÓN (Usuario anónimo)
-    // Se lo manda al login porque no sabemos quién es.
+    // 2. SI NO HAY USUARIO: Al login
     if (!user) {
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
-    // 3. CASO: HAY SESIÓN PERO EL ROL NO ES PERMITIDO
-    // El usuario está logueado pero intenta entrar a un área que no le corresponde.
-    const tienePermiso = rolesPermitidos.length === 0 || (perfil && rolesPermitidos.includes(perfil.rol));
-    const esSuperAdmin = perfil?.rol === 'superadmin';
-
-    if (!tienePermiso && !esSuperAdmin) {
-        // Disparamos el aviso
-        alert("⚠️ Acceso Restringido: Tu perfil no tiene permisos para esta área.");
-        // Lo devolvemos al Dashboard sin cerrar su sesión
+    // 3. SI HAY USUARIO PERO EL ROL NO COINCIDE: Al Dashboard
+    if (rolesPermitidos.length > 0 && (!perfil || !rolesPermitidos.includes(perfil.rol))) {
+        console.warn("Acceso denegado: Rol insuficiente");
         return <Navigate to="/" replace />;
     }
 
-    // 4. TODO OK: Renderiza la página solicitada
+    // 4. TODO OK: Renderiza la página
     return children;
 };
 

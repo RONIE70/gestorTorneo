@@ -162,26 +162,22 @@ const fetchData = useCallback(async () => {
   useEffect(() => {
     const cargarModelosIA = async () => {
         try {
-            // Evitamos recargar si ya están cargados
-            if (faceapi.nets.tinyFaceDetector.params) return;
-
-            console.log("⏳ Cargando IA desde:", URL_MODELOS);
-
-            // CARGA EN PARALELO (Mucho más rápido en móviles)
-            await Promise.all([
-                faceapi.nets.tinyFaceDetector.loadFromUri(URL_MODELOS),
-                faceapi.nets.faceLandmark68Net.loadFromUri(URL_MODELOS),
-                faceapi.nets.faceRecognitionNet.loadFromUri(URL_MODELOS)
-            ]);
+            console.log("Intentando cargar modelos desde:", URL_MODELOS);
+            //const MODEL_URL = '/models';
+            // Verificamos que faceapi esté disponible
+            //await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+            await faceapi.nets.faceLandmark68Net.loadFromUri(URL_MODELOS);
+            await faceapi.nets.faceRecognitionNet.loadFromUri(URL_MODELOS);
+            await faceapi.nets.tinyFaceDetector.loadFromUri(URL_MODELOS);
             
-            console.log("✅ IA Biométrica lista");
+            console.log("✅ IA Biométrica cargada y lista en el puerto 5173");
         } catch (err) {
             console.error("❌ Error de red al cargar modelos:", err);
-            // Si esto falla, el 404 suele ser por el vercel.json
+            // Si sale Failed to fetch aquí, es porque la carpeta no está en public/models
         }
     };
     cargarModelosIA();
-}, []); // IMPORTANTE: array vacío para que solo corra una vez
+}, []);
 
 
   useEffect(() => { 

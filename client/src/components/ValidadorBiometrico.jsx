@@ -14,7 +14,7 @@ const ValidadorBiometrico = () => {
     // 1. CARGA DE MODELOS PESADOS (PC)
     useEffect(() => {
         const loadModels = async () => {
-            const MODEL_URL = '/models';
+            const MODEL_URL = window.location.origin + '/models';
             try {
                 await Promise.all([
                     faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),

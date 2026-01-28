@@ -58,23 +58,39 @@ const ValidadorBiometrico = () => {
 const analizarForense = (url) => {
     return new Promise((resolve) => {
         const img = new Image();
-        img.crossOrigin = "Anonymous";
+        img.crossOrigin = "anonymous"; 
+        
         img.onload = function() {
-            EXIF.getData(this, function() {
-                const tags = EXIF.getAllTags(this);
-                const software = (tags.Software || "").toLowerCase();
-                const editores = ["photoshop", "adobe", "canva", "picsart", "gimp", "lightroom"];
-                const esEditada = editores.some(ed => software.includes(ed));
-                
-                resolve({
-                    sospechosa: esEditada,
-                    software: tags.Software || "Cámara Nativa / Desconocido",
-                    mensaje: esEditada ? `⚠️ EDITADA CON: ${tags.Software}` : "✅ Imagen Original"
+            try {
+                EXIF.getData(img, function() {
+                    const tags = EXIF.getAllTags(this);
+                    if (!tags || Object.keys(tags).length === 0) {
+                        resolve({ sospechosa: false, mensaje: "✅ Imagen Original", software: "Sin metadatos" });
+                        return;
+                    }
+                    const software = (tags.Software || "").toLowerCase();
+                    const editores = ["photoshop", "adobe", "canva", "picsart", "gimp", "lightroom"];
+                    const esEditada = editores.some(ed => software.includes(ed));
+                    
+                    resolve({
+                        sospechosa: esEditada,
+                        software: tags.Software || "Cámara Nativa",
+                        mensaje: esEditada ? `⚠️ EDITADA CON: ${tags.Software}` : "✅ Imagen Original"
+                    });
                 });
-            });
+            } catch (err) {
+                console.warn("Fallo al leer EXIF", err);
+                resolve({ sospechosa: false, mensaje: "✅ Imagen Original", software: "No legible" });
+            }
         };
-        img.onerror = () => resolve({ sospechosa: false, mensaje: "ℹ️ Error metadatos" });
-        img.src = url;
+
+        img.onerror = () => {
+            resolve({ sospechosa: false, mensaje: "✅ Imagen Original", software: "Error de carga" });
+        };
+
+        // --- AQUÍ VA EL CAMBIO ---
+        // En lugar de img.src = url; usás esto:
+        img.src = url + (url.includes('?') ? '&' : '?') + "t=" + new Date().getTime();
     });
 };
 
@@ -82,24 +98,36 @@ const analizarForense = (url) => {
  const ejecutarCheckCompleto = async (jugadora) => {
     setProcesando(true);
     setResultadoIA(null);
-    setResultadoForense(null); // Limpiamos el estado anterior de forense
+    setResultadoForense(null);
 
     try {
-        // --- NUEVO: Análisis Forense ---
-        const forense = await analizarForense(jugadora.foto_url);
-        setResultadoForense(forense);
+        // --- 1. SEGURO FORENSE ---
+        // Usamos un bloque try/catch independiente para que si falla no detenga la IA
+        try {
+            const forense = await analizarForense(jugadora.foto_url);
+            setResultadoForense(forense);
+        } catch (forenseError) {
+            console.warn("Fallo análisis forense, pero seguimos con IA:", forenseError);
+            setResultadoForense({ 
+                sospechosa: false, 
+                mensaje: "ℹ️ Metadatos no disponibles", 
+                software: "Error de lectura" 
+            });
+        }
 
-        // --- Biometría (Tus avisos se mantienen igual) ---
+        // --- 2. CARGA DE IMÁGENES ---
         const imgPerfil = await faceapi.fetchImage(jugadora.foto_url);
         const imgDni = await faceapi.fetchImage(jugadora.dni_foto_url);
 
-        const det1 = await faceapi.detectSingleFace(imgPerfil).withFaceLandmarks().withFaceDescriptor();
-        const det2 = await faceapi.detectSingleFace(imgDni).withFaceLandmarks().withFaceDescriptor();
+        // --- 3. BIOMETRÍA (Tu lógica original con umbral 0.4) ---
+        // Agregamos opciones para asegurar la detección
+        const opciones = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 });
+        
+        const det1 = await faceapi.detectSingleFace(imgPerfil, opciones).withFaceLandmarks().withFaceDescriptor();
+        const det2 = await faceapi.detectSingleFace(imgDni, opciones).withFaceLandmarks().withFaceDescriptor();
 
         if (det1 && det2) {
             const distancia = faceapi.euclideanDistance(det1.descriptor, det2.descriptor);
-            
-            // Mantenemos tu umbral de 0.4
             const esMismaPersona = distancia < 0.4;
 
             setResultadoIA({
@@ -108,7 +136,6 @@ const analizarForense = (url) => {
                 match: esMismaPersona
             });
         } else {
-            // Mantenemos tu lógica de avisos intacta
             let errorMsg = "❌ NO SE DETECTÓ ROSTRO EN: ";
             if (!det1 && !det2) errorMsg += "AMBAS FOTOS";
             else if (!det1) errorMsg += "FOTO PERFIL";
@@ -117,8 +144,8 @@ const analizarForense = (url) => {
             setResultadoIA({ mensaje: errorMsg, match: false, error: true });
         }
     } catch (err) {
-        console.error("Error en Biometría:", err);
-        alert("Error al procesar las imágenes. Asegúrate de que las URLs sean válidas.");
+        console.error("Error crítico en el proceso:", err);
+        alert("Hubo un problema al cargar las imágenes. Verificá la conexión.");
     } finally {
         setProcesando(false);
     }

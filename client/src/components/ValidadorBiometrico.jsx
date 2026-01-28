@@ -55,53 +55,51 @@ const ValidadorBiometrico = () => {
     }
 };
 
-    // 2. LÓGICA FORENSE (Detección de Manipulación)
-    /*const analizarForense = (url) => {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.crossOrigin = "Anonymous";
-            img.onload = function() {
-                EXIF.getData(this, function() {
-                    const tags = EXIF.getAllTags(this);
-                    const software = (tags.Software || "").toLowerCase();
-                    const editores = ["photoshop", "adobe", "canva", "picsart", "gimp", "lightroom"];
-                    const esEditada = editores.some(ed => software.includes(ed));
-                    
-                    resolve({
-                        sospechosa: esEditada,
-                        software: tags.Software || "Cámara Nativa / Desconocido",
-                        mensaje: esEditada ? `⚠️ EDITADA CON: ${tags.Software}` : "✅ Imagen Original"
-                    });
+const analizarForense = (url) => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = function() {
+            EXIF.getData(this, function() {
+                const tags = EXIF.getAllTags(this);
+                const software = (tags.Software || "").toLowerCase();
+                const editores = ["photoshop", "adobe", "canva", "picsart", "gimp", "lightroom"];
+                const esEditada = editores.some(ed => software.includes(ed));
+                
+                resolve({
+                    sospechosa: esEditada,
+                    software: tags.Software || "Cámara Nativa / Desconocido",
+                    mensaje: esEditada ? `⚠️ EDITADA CON: ${tags.Software}` : "✅ Imagen Original"
                 });
-            };
-            img.src = url;
-        });
-    };*/
+            });
+        };
+        img.onerror = () => resolve({ sospechosa: false, mensaje: "ℹ️ Error metadatos" });
+        img.src = url;
+    });
+};
 
-    // 3. EJECUTAR ESCANEO INTEGRAL
-    const ejecutarCheckCompleto = async (jugadora) => {
+
+ const ejecutarCheckCompleto = async (jugadora) => {
     setProcesando(true);
     setResultadoIA(null);
+    setResultadoForense(null); // Limpiamos el estado anterior de forense
+
     try {
-        // 1. Cargamos las imágenes (Face-api maneja el fetch internamente)
+        // --- NUEVO: Análisis Forense ---
+        const forense = await analizarForense(jugadora.foto_url);
+        setResultadoForense(forense);
+
+        // --- Biometría (Tus avisos se mantienen igual) ---
         const imgPerfil = await faceapi.fetchImage(jugadora.foto_url);
         const imgDni = await faceapi.fetchImage(jugadora.dni_foto_url);
 
-        // 2. Detección con el modelo pesado (Máxima precisión)
-        // No usamos 'tiny', usamos el detector principal
-        const det1 = await faceapi.detectSingleFace(imgPerfil)
-            .withFaceLandmarks()
-            .withFaceDescriptor();
+        const det1 = await faceapi.detectSingleFace(imgPerfil).withFaceLandmarks().withFaceDescriptor();
+        const det2 = await faceapi.detectSingleFace(imgDni).withFaceLandmarks().withFaceDescriptor();
 
-        const det2 = await faceapi.detectSingleFace(imgDni)
-            .withFaceLandmarks()
-            .withFaceDescriptor();
-
-        // 3. Verificamos si se encontraron ambos rostros
         if (det1 && det2) {
             const distancia = faceapi.euclideanDistance(det1.descriptor, det2.descriptor);
             
-            // Umbral de seguridad: 0.6 es el estándar de la industria
+            // Mantenemos tu umbral de 0.4
             const esMismaPersona = distancia < 0.4;
 
             setResultadoIA({
@@ -110,7 +108,7 @@ const ValidadorBiometrico = () => {
                 match: esMismaPersona
             });
         } else {
-            // Si falta un rostro, avisamos cuál es el problema
+            // Mantenemos tu lógica de avisos intacta
             let errorMsg = "❌ NO SE DETECTÓ ROSTRO EN: ";
             if (!det1 && !det2) errorMsg += "AMBAS FOTOS";
             else if (!det1) errorMsg += "FOTO PERFIL";
@@ -170,14 +168,14 @@ const ValidadorBiometrico = () => {
             <div className="w-3/4 p-10 flex flex-col bg-slate-950">
                 {seleccionada ? (
                     <div className="animate-in fade-in zoom-in duration-300">
-                       {/* <header className="flex justify-between items-center mb-8">
+                        <header className="flex justify-between items-center mb-8">
                             <h2 className="text-3xl font-black uppercase italic tracking-tighter">Estación de Seguridad</h2>
                             {resultadoForense && (
                                 <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase ${resultadoForense.sospechosa ? 'bg-rose-600 animate-pulse' : 'bg-emerald-600'}`}>
                                     {resultadoForense.mensaje}
                                 </span>
                             )}
-                        </header>*/}
+                        </header>
                         
                         <div className="grid grid-cols-2 gap-8 mb-10">
                             <div className="space-y-2 group">

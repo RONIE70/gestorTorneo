@@ -180,7 +180,8 @@ const Navbar = () => {
       {menuAbierto && (
         <div className="md:hidden mt-4 pt-4 border-t border-slate-800 flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 duration-200">
           <form onSubmit={handleSearch} className="relative">
-            <input 
+            <input
+              id="buscar" 
               type="text" 
               placeholder="Buscar equipo..." 
               value={busqueda}

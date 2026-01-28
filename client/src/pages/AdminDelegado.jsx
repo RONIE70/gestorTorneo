@@ -8,7 +8,7 @@ import EXIF from 'exif-js';
 import * as faceapi from 'face-api.js';
 
 
-const URL_MODELOS = 'models';
+const URL_MODELOS = '/models';
 
 const AdminDelegado = () => {
   // --- ESTADOS DE SESIÓN Y PERFIL ---
@@ -678,7 +678,7 @@ const verificarDniDuplicado = async (dni) => {
 
  {/* INPUT FECHA NACIMIENTO - Restaurado */}
 <div className="flex flex-col gap-1">
-  <label id="FechNac"  className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
+  <label for="nacimiento"  id="FechNac"  className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
     Fecha de Nacimiento
   </label>
   <input 
@@ -692,7 +692,7 @@ const verificarDniDuplicado = async (dni) => {
 </div>
 
   <div className="relative group">
-  <label id="clubAsig"  className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
+  <label for="clubAsig"  id="clubAsig"  className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
     Club Asignado
   </label>
   <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex items-center gap-3 shadow-inner">

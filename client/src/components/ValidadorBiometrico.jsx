@@ -56,7 +56,7 @@ const ValidadorBiometrico = () => {
 };
 
     // 2. LÓGICA FORENSE (Detección de Manipulación)
-    const analizarForense = (url) => {
+    /*const analizarForense = (url) => {
         return new Promise((resolve) => {
             const img = new Image();
             img.crossOrigin = "Anonymous";
@@ -76,10 +76,10 @@ const ValidadorBiometrico = () => {
             };
             img.src = url;
         });
-    };
+    };*/
 
     // 3. EJECUTAR ESCANEO INTEGRAL
-    const ejecutarCheckIA = async (jugadora) => {
+    const ejecutarCheckCompleto = async (jugadora) => {
     setProcesando(true);
     setResultadoIA(null);
     try {

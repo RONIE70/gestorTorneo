@@ -23,6 +23,8 @@ import Login from './components/Login';
 import GestionPerfiles from './components/GestionPerfiles'; 
 import VerificacionJugadoras from './components/VerificacionJugadoras';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
+import ValidadorBiometrico from './components/ValidadorBiometrico'; 
+
 
 function App() {
   return (
@@ -129,6 +131,15 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+            {/* RUTA EXCLUSIVA PARA SUPERADMIN: VALIDADOR BIOMÉTRICO */}
+              <Route 
+                path="/validador-biometrico" 
+                element={
+                  <ProtectedRoute allowedRoles={['superadmin']}>
+                    <ValidadorBiometrico />
+                  </ProtectedRoute>
+                } 
+              />
 
             {/* REDIRECCIÓN POR DEFECTO */}
             <Route path="*" element={<Navigate to="/" replace />} />

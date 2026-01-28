@@ -3,9 +3,11 @@ import { supabase } from '../supabaseClient';
 import axios from 'axios';
 import AdminFixture from './AdminFixture';
 import RegistroEquipo from '../components/RegistroEquipo';
+import { useNavigate } from 'react-router-dom';
 
 
 const AdminConfig = () => {
+const navigate = useNavigate();
 const [categorias, setCategorias] = useState([]);
 const [clubes, setClubes] = useState([]);
 const [filtroClub, setFiltroClub] = useState('');
@@ -632,6 +634,12 @@ Panel Maestro <span className="text-amber-500">SC1225</span>
 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1 italic">
 Organización e Identidad del Torneo
 </p>
+<button 
+  onClick={() => navigate('/validador-biometrico')}
+  className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-4 rounded-2xl text-xs font-black uppercase shadow-lg flex items-center gap-3 transition-all"
+>
+  🛡️ Estación de Validación Biométrica
+</button>
 </div>
 <div className="flex gap-2">
 <button onClick={handleNuevoTorneo} className="bg-emerald-600 hover:bg-emerald-500 px-6 py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg transition-all">+ Nuevo Torneo</button>

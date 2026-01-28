@@ -4,12 +4,7 @@ import axios from 'axios';
 import CarnetJugadora from '../components/CarnetJugadora'; 
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
-import EXIF from 'exif-js';
-import * as faceapi from 'face-api.js';
 
-
-// Borra la constante vieja y pon esta:
-const URL_MODELOS = window.location.origin + '/models';
 
 const AdminDelegado = () => {
   // --- ESTADOS DE SESIÓN Y PERFIL ---
@@ -158,55 +153,11 @@ const fetchData = useCallback(async () => {
   // ELIMINAMOS LAS DEPENDENCIAS QUE DAN ERROR
 }, []);
 
-  // --- AGREGAMOS ESTA PIEZA QUE FALTA: CARGA DE MODELOS IA ---
- useEffect(() => {
-  const cargarModelosIA = async () => {
-    try {
-      // Usamos Promise.all para que bajen los 3 al mismo tiempo
-      await Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri(URL_MODELOS),
-        faceapi.nets.faceLandmark68Net.loadFromUri(URL_MODELOS),
-        faceapi.nets.faceRecognitionNet.loadFromUri(URL_MODELOS)
-      ]);
-      console.log("✅ IA Lista para procesar");
-    } catch (err) {
-      console.error("❌ Error cargando modelos:", err);
-    }
-  };
-  cargarModelosIA();
-}, []);
-
-
   useEffect(() => { 
     fetchData(); 
   }, [fetchData]);
   
 
-  // LOGICA FORENSE EXIF (Punto 2)
-  const analizarImagen = (archivo) => {
-    return new Promise((resolve) => {
-      EXIF.getData(archivo, function() {
-        const tags = EXIF.getAllTags(this);
-        const software = (tags.Software || "").toLowerCase();
-        const tieneModelo = !!tags.Model;
-        const tieneFechaOriginal = !!tags.DateTimeOriginal;
-        let flagSospecha = false;
-        let motivo = "";
-        const editoresProhibidos = ["photoshop", "adobe", "gimp", "canva", "picsart", "lightroom"];
-        if (editoresProhibidos.some(ed => software.includes(ed))) {
-          flagSospecha = true;
-          motivo = "Manipulación detectada: Imagen procesada con software de edición.";
-        }
-        if (!tieneModelo && !tieneFechaOriginal) {
-          if (archivo.name.toLowerCase().includes("screenshot") || archivo.name.toLowerCase().includes("captura")) {
-            flagSospecha = true;
-            motivo = "La imagen parece ser una captura de pantalla.";
-          }
-        }
-        resolve({ sospechosa: flagSospecha, motivo });
-      });
-    });
-  };
 
   // FUNCIÓN PARA GENERAR EL PDF DEL DICTAMEN CON IDENTIDAD VISUAL NUEVA
  const generarPDFDictamenDelegado = (jugadora, config) => {
@@ -345,88 +296,29 @@ const fetchData = useCallback(async () => {
 
   
 
-  // Agrega esta función de utilidad arriba de manejarEnvioFichaje
-const preprocesarImagenIA = async (archivo) => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                // Bajamos a 160px: tamaño justo para el TinyFaceDetector
-                const anchoDeseado = 160; 
-                const escala = anchoDeseado / img.width;
-                canvas.width = anchoDeseado;
-                canvas.height = img.height * escala;
-
-                const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                
-                // --- TRUCO DE GRISES PARA AHORRAR RAM ---
-                ctx.filter = 'grayscale(100%) contrast(1.2)'; 
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                
-                resolve(canvas);
-            };
-            img.onerror = () => reject("Error al cargar imagen");
-            img.src = e.target.result;
-        };
-        reader.onerror = () => reject("Error al leer archivo");
-        reader.readAsDataURL(archivo);
-    });
-};
-
 const manejarEnvioFichaje = async (e) => {
     e.preventDefault();
     
-    // 1. Validaciones iniciales
-    if (!equipoIdActual || !filePerfil || !fileDNI) return alert("⚠️ Faltan datos obligatorios");
+    // 1. Validaciones de existencia de archivos y datos
+    if (!equipoIdActual || !filePerfil || !fileDNI) {
+        return alert("⚠️ Debes cargar ambas fotos y completar los datos antes de enviar.");
+    }
     
-    if (!faceapi.nets.tinyFaceDetector.params) {
-        return alert("⏳ La IA todavía se está cargando. Espera un segundo e intenta de nuevo.");
+    // 2. Bloqueo si hay error visual de DNI (el input está en rojo)
+    if (errorDni) {
+        return alert("⚠️ No puedes continuar: el DNI ingresado ya existe en la base de datos.");
     }
 
-    setCargandoFichaje(true); // Usamos tu estado de carga
+    // Validaciones de formato extra (opcional pero recomendado)
+    if (datosFichaje.dni.length < 7) return alert("⚠️ El DNI es demasiado corto.");
+
+    setCargandoFichaje(true);
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
 
-        // 2. Análisis Forense e IA Biométrica
-        const analisisPerfil = await analizarImagen(filePerfil);
-        const analisisDNI = await analizarImagen(fileDNI);
-
-        const imgPerfilLimpa = await preprocesarImagenIA(filePerfil);
-        const imgDNILimpia = await preprocesarImagenIA(fileDNI);
-
-        const opcionesIA = new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.3 });
-
-        let distanciaFinal = 1.0; 
-        let requiereRevisionBiometrica = false;
-
-        const detPerfil = await faceapi.detectSingleFace(imgPerfilLimpa, opcionesIA).withFaceLandmarks().withFaceDescriptor();
-        const detDNI = await faceapi.detectSingleFace(imgDNILimpia, opcionesIA).withFaceLandmarks().withFaceDescriptor();
-
-        if (!detPerfil || !detDNI) {
-            console.warn("IA no detectó rostro.");
-            requiereRevisionBiometrica = true;
-            distanciaFinal = 1.1; 
-        } else {
-            distanciaFinal = faceapi.euclideanDistance(detPerfil.descriptor, detDNI.descriptor);
-            if (distanciaFinal > 0.6) {
-                requiereRevisionBiometrica = true;
-            }
-        }
-
-        // 3. Consolidación de motivos de sospecha
-        const motivos = [
-            requiereRevisionBiometrica ? "Fallo/Duda Biometría" : null,
-            analisisPerfil.sospechosa ? `Perfil: ${analisisPerfil.motivo}` : null,
-            analisisDNI.sospechosa ? `DNI: ${analisisDNI.motivo}` : null
-        ].filter(Boolean).join(" | ");
-
-        const esSospechosa = requiereRevisionBiometrica || analisisPerfil.sospechosa || analisisDNI.sospechosa;
-
-        // 4. Preparación de FormData
+        // PREPARACIÓN DE FORM DATA (Sin procesar imágenes con face-api)
         const formData = new FormData();
         formData.append('foto', filePerfil);
         formData.append('dni_foto', fileDNI);
@@ -436,40 +328,32 @@ const manejarEnvioFichaje = async (e) => {
         formData.append('fecha_nacimiento', datosFichaje.fecha_nacimiento);
         formData.append('organizacion_id', perfilUsuario?.organizacion_id);
         formData.append('equipo_id', equipoIdActual);
-        formData.append('verificacion_manual', esSospechosa);
-        formData.append('distancia_biometrica', distanciaFinal);
-        formData.append('observaciones_ia', motivos || "Sin observaciones");
+        
+        // REGLA DE NEGOCIO: Marcamos para que la PC del SuperAdmin haga la IA
+        formData.append('verificacion_manual', true); 
+        formData.append('distancia_biometrica', 0);
+        formData.append('observaciones_ia', "Pendiente de validación biométrica en PC");
 
-        // 5. Envío al Servidor
+        // ENVÍO AL BACKEND
         const res = await axios.post(`${import.meta.env.VITE_API_URL}/fichar`, formData, { 
             headers: { 'Authorization': `Bearer ${token}` } 
         }); 
 
-        // 6. ÉXITO: EFECTOS Y LIMPIEZA
         if (res.status === 200 || res.status === 201) {
-            const { mensaje } = res.data;
+            alert("🚀 Fichaje enviado con éxito. La organización validará la identidad para habilitar el carnet.");
 
-            // Alerta personalizada según sospecha
-            if (esSospechosa) {
-                alert(`⚠️ ATENCIÓN: ${mensaje}\n\nRevisión: (${motivos}). El administrador revisará el caso.`);
-            } else {
-                alert("✅ Fichaje validado correctamente.");
-            }
-
-            // Reset de formulario
+            // Limpieza de estados
             setDatosFichaje({ nombre: '', apellido: '', dni: '', fecha_nacimiento: '' });
             setFilePerfil(null);
             setFileDNI(null);
+            setErrorDni(""); // Limpiamos el error visual
             
-            // Recargar datos (si tienes estas funciones)
             if (typeof fetchData === 'function') fetchData();
-            if (typeof cargarJugadoras === 'function') fetchData();
-
         }
 
     } catch (err) { 
-        console.error("Error en fichaje:", err);
-        alert("🚨 Error: " + (err.response?.data?.error || err.message));
+        console.error("Error en servidor:", err);
+        alert("🚨 Error: " + (err.response?.data?.error || "No se pudo conectar con el servidor"));
     } finally { 
         setCargandoFichaje(false); 
     }

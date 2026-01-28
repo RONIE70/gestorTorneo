@@ -41,7 +41,7 @@ const ValidadorBiometrico = () => {
                 )
             `) // Notación especial: "nombre_relacion:columna_id (campos)"
             .eq('verificacion_biometrica_estado', 'pendiente')
-            .order('created_at', { ascending: true });
+            .order('id', { ascending: false });
 
         if (error) {
             console.error("Error detallado de Supabase:", error.message);

@@ -31,13 +31,29 @@ const ValidadorBiometrico = () => {
     }, []);
 
     const fetchPendientes = async () => {
+    try {
         const { data, error } = await supabase
             .from('jugadoras')
-            .select('*, equipos(nombre)')
+            .select(`
+                *,
+                equipos:equipo_id (
+                    nombre
+                )
+            `) // Notación especial: "nombre_relacion:columna_id (campos)"
             .eq('verificacion_biometrica_estado', 'pendiente')
             .order('created_at', { ascending: true });
-        if (!error) setPendientes(data);
-    };
+
+        if (error) {
+            console.error("Error detallado de Supabase:", error.message);
+            return;
+        }
+
+        console.log("✅ Datos con club cargados:", data);
+        setPendientes(data || []);
+    } catch (err) {
+        console.error("Error inesperado:", err);
+    }
+};
 
     // 2. LÓGICA FORENSE (Detección de Manipulación)
     const analizarForense = (url) => {
@@ -133,7 +149,7 @@ const ValidadorBiometrico = () => {
                             className={`p-4 rounded-2xl cursor-pointer border-2 transition-all ${seleccionada?.id === j.id ? 'border-blue-500 bg-blue-600/20 shadow-[0_0_15px_rgba(37,99,235,0.3)]' : 'border-slate-800 bg-slate-900 hover:border-slate-700'}`}
                         >
                             <p className="font-black uppercase text-xs">{j.apellido}, {j.nombre}</p>
-                            <p className="text-[9px] text-slate-500 font-bold uppercase">{j.equipos?.nombre}</p>
+                            <p className="text-[9px] text-slate-500 font-bold uppercase">{j.equipos?.nombre || "Club no asignado"}</p>
                         </div>
                     ))}
                 </div>

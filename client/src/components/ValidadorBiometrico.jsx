@@ -79,41 +79,52 @@ const ValidadorBiometrico = () => {
     };
 
     // 3. EJECUTAR ESCANEO INTEGRAL
-    const ejecutarCheckCompleto = async (jugadora) => {
-        setProcesando(true);
-        setResultadoIA(null);
-        setResultadoForense(null);
+    const ejecutarCheckIA = async (jugadora) => {
+    setProcesando(true);
+    setResultadoIA(null);
+    try {
+        // 1. Cargamos las imágenes (Face-api maneja el fetch internamente)
+        const imgPerfil = await faceapi.fetchImage(jugadora.foto_url);
+        const imgDni = await faceapi.fetchImage(jugadora.dni_foto_url);
 
-        try {
-            // Análisis Forense
-            const forense = await analizarForense(jugadora.foto_url);
-            setResultadoForense(forense);
+        // 2. Detección con el modelo pesado (Máxima precisión)
+        // No usamos 'tiny', usamos el detector principal
+        const det1 = await faceapi.detectSingleFace(imgPerfil)
+            .withFaceLandmarks()
+            .withFaceDescriptor();
 
-            // Biometría Pesada
-            const imgPerfil = await faceapi.fetchImage(jugadora.foto_url);
-            const imgDni = await faceapi.fetchImage(jugadora.dni_foto_url);
+        const det2 = await faceapi.detectSingleFace(imgDni)
+            .withFaceLandmarks()
+            .withFaceDescriptor();
 
-            const det1 = await faceapi.detectSingleFace(imgPerfil).withFaceLandmarks().withFaceDescriptor();
-            const det2 = await faceapi.detectSingleFace(imgDni).withFaceLandmarks().withFaceDescriptor();
+        // 3. Verificamos si se encontraron ambos rostros
+        if (det1 && det2) {
+            const distancia = faceapi.euclideanDistance(det1.descriptor, det2.descriptor);
+            
+            // Umbral de seguridad: 0.6 es el estándar de la industria
+            const esMismaPersona = distancia < 0.6;
 
-            if (det1 && det2) {
-                const distancia = faceapi.euclideanDistance(det1.descriptor, det2.descriptor);
-                const esMismaPersona = distancia < 0.6;
-                setResultadoIA({
-                    distancia: distancia.toFixed(4),
-                    mensaje: esMismaPersona ? "IDENTIDAD CONFIRMADA" : "POSIBLE SUPLANTACIÓN",
-                    match: esMismaPersona
-                });
-            } else {
-                setResultadoIA({ mensaje: "NO SE DETECTÓ ROSTRO", match: false, error: true });
-            }
-        // eslint-disable-next-line no-unused-vars
-        } catch (err) {
-            alert("Error al procesar imágenes. Verifique la conexión.");
-        } finally {
-            setProcesando(false);
+            setResultadoIA({
+                distancia: distancia.toFixed(4),
+                mensaje: esMismaPersona ? "✅ IDENTIDAD CONFIRMADA" : "⚠️ NO COINCIDE LA IDENTIDAD",
+                match: esMismaPersona
+            });
+        } else {
+            // Si falta un rostro, avisamos cuál es el problema
+            let errorMsg = "❌ NO SE DETECTÓ ROSTRO EN: ";
+            if (!det1 && !det2) errorMsg += "AMBAS FOTOS";
+            else if (!det1) errorMsg += "FOTO PERFIL";
+            else errorMsg += "FOTO DNI";
+            
+            setResultadoIA({ mensaje: errorMsg, match: false, error: true });
         }
-    };
+    } catch (err) {
+        console.error("Error en Biometría:", err);
+        alert("Error al procesar las imágenes. Asegúrate de que las URLs sean válidas.");
+    } finally {
+        setProcesando(false);
+    }
+};
 
     const actualizarEstado = async (id, nuevoEstado, distancia) => {
         const { error } = await supabase

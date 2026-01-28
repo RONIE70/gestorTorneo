@@ -347,23 +347,30 @@ const fetchData = useCallback(async () => {
 
   // Agrega esta función de utilidad arriba de manejarEnvioFichaje
 const preprocesarImagenIA = async (archivo) => {
-    return new Promise((resolve, reject) => { // Ahora sí lo usamos
+    return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
             const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const escala = Math.min(400 / img.width, 400 / img.height, 1);
-                canvas.width = img.width * escala;
+                // Bajamos a 160px: tamaño justo para el TinyFaceDetector
+                const anchoDeseado = 160; 
+                const escala = anchoDeseado / img.width;
+                canvas.width = anchoDeseado;
                 canvas.height = img.height * escala;
+
                 const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                
+                // --- TRUCO DE GRISES PARA AHORRAR RAM ---
+                ctx.filter = 'grayscale(100%) contrast(1.2)'; 
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
                 resolve(canvas);
             };
-            img.onerror = () => reject("Error al cargar la imagen"); // Uso de reject
+            img.onerror = () => reject("Error al cargar imagen");
             img.src = e.target.result;
         };
-        reader.onerror = () => reject("Error al leer el archivo"); // Uso de reject
+        reader.onerror = () => reject("Error al leer archivo");
         reader.readAsDataURL(archivo);
     });
 };
@@ -444,9 +451,9 @@ const manejarEnvioFichaje = async (e) => {
 
             // Alerta personalizada según sospecha
             if (esSospechosa) {
-                alert(`⚠️ ATENCIÓN: ${mensaje}\n\nEl sistema detectó inconsistencias: (${motivos}). El administrador revisará el fichaje.`);
+                alert(`⚠️ ATENCIÓN: ${mensaje}\n\nRevisión: (${motivos}). El administrador revisará el caso.`);
             } else {
-                alert("✅ Fichaje completado y validado correctamente.");
+                alert("✅ Fichaje validado correctamente.");
             }
 
             // Reset de formulario

@@ -62,7 +62,7 @@ const fetchData = useCallback(async () => {
       .from('perfiles')
       .select('organizacion_id, equipo_id, rol')
       .eq('id', session.user.id)
-      .single();
+      .maybeSingle();
 
     if (perfilError || !perfil) {
       // setUserRol('publico'); <--- BORRÁ ESTO
@@ -73,7 +73,7 @@ const fetchData = useCallback(async () => {
     setPerfilUsuario(perfil);
 
     // ID de filtrado blindado
-    const idParaFiltrar = perfil.rol === 'superadmin' ? (perfil.equipo_id || 4) : (perfil.equipo_id || 0);
+    const idParaFiltrar = perfil.rol === 'superadmin' ? (perfil?.equipo_id || 4) : (perfil?.equipo_id || 0);
     setEquipoIdActual(idParaFiltrar);
 
     // 1. Cargar Configuración (Logo y Nombre)
@@ -81,7 +81,7 @@ const fetchData = useCallback(async () => {
       .from('configuracion_liga')
       .select('*')
       .eq('organizacion_id', perfil.organizacion_id)
-      .single();
+      .maybeSingle();
     
     if (config) {
         setConfigLiga(config);
@@ -159,24 +159,21 @@ const fetchData = useCallback(async () => {
 }, []);
 
   // --- AGREGAMOS ESTA PIEZA QUE FALTA: CARGA DE MODELOS IA ---
-  useEffect(() => {
-    const cargarModelosIA = async () => {
-        try {
-            console.log("Intentando cargar modelos desde:", URL_MODELOS);
-            //const MODEL_URL = '/models';
-            // Verificamos que faceapi esté disponible
-            //await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-            await faceapi.nets.faceLandmark68Net.loadFromUri(URL_MODELOS);
-            await faceapi.nets.faceRecognitionNet.loadFromUri(URL_MODELOS);
-            await faceapi.nets.tinyFaceDetector.loadFromUri(URL_MODELOS);
-            
-            console.log("✅ IA Biométrica cargada y lista en el puerto 5173");
-        } catch (err) {
-            console.error("❌ Error de red al cargar modelos:", err);
-            // Si sale Failed to fetch aquí, es porque la carpeta no está en public/models
-        }
-    };
-    cargarModelosIA();
+ useEffect(() => {
+  const cargarModelosIA = async () => {
+    try {
+      // Usamos Promise.all para que bajen los 3 al mismo tiempo
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(URL_MODELOS),
+        faceapi.nets.faceLandmark68Net.loadFromUri(URL_MODELOS),
+        faceapi.nets.faceRecognitionNet.loadFromUri(URL_MODELOS)
+      ]);
+      console.log("✅ IA Lista para procesar");
+    } catch (err) {
+      console.error("❌ Error cargando modelos:", err);
+    }
+  };
+  cargarModelosIA();
 }, []);
 
 
@@ -394,7 +391,7 @@ const manejarEnvioFichaje = async (e) => {
         const imgPerfilLimpa = await preprocesarImagenIA(filePerfil);
         const imgDNILimpia = await preprocesarImagenIA(fileDNI);
 
-        const opcionesIA = new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.3 });
+        const opcionesIA = new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.3 });
 
         let distanciaFinal = 1.0; 
         let requiereRevisionBiometrica = false;

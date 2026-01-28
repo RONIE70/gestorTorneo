@@ -102,7 +102,7 @@ const ValidadorBiometrico = () => {
             const distancia = faceapi.euclideanDistance(det1.descriptor, det2.descriptor);
             
             // Umbral de seguridad: 0.6 es el estándar de la industria
-            const esMismaPersona = distancia < 0.6;
+            const esMismaPersona = distancia < 0.4;
 
             setResultadoIA({
                 distancia: distancia.toFixed(4),
@@ -170,14 +170,14 @@ const ValidadorBiometrico = () => {
             <div className="w-3/4 p-10 flex flex-col bg-slate-950">
                 {seleccionada ? (
                     <div className="animate-in fade-in zoom-in duration-300">
-                        <header className="flex justify-between items-center mb-8">
+                       {/* <header className="flex justify-between items-center mb-8">
                             <h2 className="text-3xl font-black uppercase italic tracking-tighter">Estación de Seguridad</h2>
                             {resultadoForense && (
                                 <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase ${resultadoForense.sospechosa ? 'bg-rose-600 animate-pulse' : 'bg-emerald-600'}`}>
                                     {resultadoForense.mensaje}
                                 </span>
                             )}
-                        </header>
+                        </header>*/}
                         
                         <div className="grid grid-cols-2 gap-8 mb-10">
                             <div className="space-y-2 group">

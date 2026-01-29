@@ -61,8 +61,7 @@ const Login = () => {
         {/* Logo / Header */}
         <div className="text-center mb-8">
           <div className="inline-block p-4 rounded-full bg-rose-600/10 border border-rose-500/20 mb-4">
-             <span className="text-4xl"><img src="https://www.freepik.es/vectores/multideporte"/></span>
-          </div>
+            <iframe src="https://assets.pinterest.com/ext/embed.html?id=261771797085621294" height="343" width="345" frameborder="0" scrolling="no" ></iframe></div>
           <h1 className="text-3xl font-black uppercase italic text-white tracking-tighter">
             SC<span className="text-rose-600">-</span>1225
           </h1>

@@ -82,67 +82,52 @@ const SuperAdminDashboard = () => {
 
   // --- LÓGICA DE ALTA (RESPETANDO TUS REGLAS DE ROLES) ---
   const crearNuevaLiga = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setMensaje({ tipo: '', texto: '' });
+  e.preventDefault();
+  setLoading(true);
 
-    try {
-      // 1. Crear la Organización
-      const { data: org, error: orgError } = await supabase
-        .from('organizaciones')
-        .insert([{ nombre: nombreLiga, slug: nombreLiga.toLowerCase().replace(/ /g, '-') }])
-        .select()
-        .single();
+  try {
+    // 1. Crear la Organización
+    const { data: org, error: orgError } = await supabase
+      .from('organizaciones')
+      .insert([{ 
+        nombre: nombreLiga, 
+        slug: nombreLiga.toLowerCase().replace(/ /g, '-') 
+      }])
+      .select().single();
 
-      if (orgError) throw orgError;
+    if (orgError) throw orgError;
 
-      // 2. Crear el Usuario Auth con metadatos de rol
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: emailAdmin,
-        password: passwordAdmin,
-        options: {
-          data: {
-            rol: 'admin_liga',
-            organizacion_id: org.id
-          }
-        }
-      });
+    // 2. Crear el Usuario Admin (Sin confirmar email porque ya lo desactivaste)
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: emailAdmin,
+      password: passwordAdmin,
+      options: {
+        data: { rol: 'admin_liga', organizacion_id: org.id }
+      }
+    });
 
-      if (authError) throw authError;
+    if (authError) throw authError;
 
-      // 3. Crear el perfil vinculado en la tabla perfiles
-      const { error: perfilError } = await supabase
-        .from('perfiles')
-        .insert([{
-          id: authData.user.id,
-          rol: 'admin_liga',
-          organizacion_id: org.id,
-          email: emailAdmin
-        }]);
+    // 3. CREAR EL PERFIL (Aquí es donde se vincula todo)
+    const { error: perfilError } = await supabase
+      .from('perfiles')
+      .insert([{
+        id: authData.user.id,        // ID de Auth
+        email: emailAdmin,           // El mail que faltaba
+        rol: 'admin_liga',           // El rol que definimos
+        organizacion_id: org.id      // La liga que acabamos de crear
+      }]);
 
-      if (perfilError) throw perfilError;
+    if (perfilError) throw perfilError;
 
-      // 4. Preparar Kit de Bienvenida y Notificar éxito
-      setKitBienvenida({
-        nombre: nombreLiga,
-        email: emailAdmin,
-        password: passwordAdmin,
-        urlFichaje: `https://gestor-torneo.vercel.app/registro?org=${org.id}`
-      });
-
-      setMensaje({ tipo: 'success', texto: `Liga "${nombreLiga}" creada con éxito. Admin: ${emailAdmin}` });
-      setNombreLiga(''); setEmailAdmin(''); setPasswordAdmin('');
-      
-      // Refrescar Dashboard
-      fetchGlobalStats();
-      fetchRankingLigas();
-
-    } catch (error) {
-      setMensaje({ tipo: 'error', texto: error.message });
-    } finally {
-      setLoading(false);
-    }
-  };
+    setMensaje({ tipo: 'success', texto: `¡Éxito! Liga y Admin creados.` });
+    // Limpiar campos...
+  } catch (error) {
+    setMensaje({ tipo: 'error', texto: error.message });
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4 md:p-8 font-sans">

@@ -99,7 +99,11 @@ const Navbar = () => {
     <img src={ligaData.logo} alt="Logo" className="h-8 md:h-10 w-auto object-contain rounded" />
   ) : (
     // 2. Si NO hay logo, muestra tu imagen por defecto
-    <iframe src="https://assets.pinterest.com/ext/embed.html?id=284078688991531752" height="445" width="345" frameborder="0" scrolling="no" ></iframe>
+    <img 
+      src="https://assets.pinterest.com/ext/embed.html?id=284078688991531752"  // <-- Poné acá la ruta de tu logo en la carpeta public
+      alt="Logo Defecto" 
+      className="h-8 md:h-10 w-auto object-contain rounded brightness-110" 
+    />
   )}
   
   <h1 className="text-xl md:text-2xl font-black tracking-tighter uppercase italic">

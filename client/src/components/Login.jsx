@@ -61,13 +61,13 @@ const Login = () => {
         {/* Logo / Header */}
         <div className="text-center mb-8">
           <div className="inline-block p-4 rounded-full bg-rose-600/10 border border-rose-500/20 mb-4">
-             <span className="text-4xl">⚽</span>
+             <span className="text-4xl"><img src="https://www.freepik.es/vectores/multideporte"/></span>
           </div>
           <h1 className="text-3xl font-black uppercase italic text-white tracking-tighter">
-            NC<span className="text-rose-600">-</span>S1125
+            SC<span className="text-rose-600">-</span>1225
           </h1>
           <p className="text-slate-500 text-[10px] uppercase tracking-[0.4em] font-bold mt-2">
-            Gestión Oficial de Liga
+            Gestión Oficial de Ligas Deportivas
           </p>
         </div>
 
@@ -120,7 +120,7 @@ const Login = () => {
 
         {/* Footer del Login */}
         <p className="text-center mt-8 text-slate-600 text-[9px] uppercase font-bold tracking-widest">
-          Sistema de Identidad Digital nc-s1125 &copy; 2026
+          Sistema Gestor de Torneos by Digital Scorpions &copy; 2026
         </p>
       </div>
     </div>

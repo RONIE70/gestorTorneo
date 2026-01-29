@@ -7,8 +7,11 @@ const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const Tesseract = require('tesseract.js'); // Librería de OCR
+const path = require('path');
 
 const app = express();
+app.use(express.static(path.join(__dirname, 'public')));
+
 app.use(cors());
 app.use(express.json());
 
@@ -28,6 +31,15 @@ const storage = new CloudinaryStorage({
 const upload = multer({ storage: storage });
 
 // --- RUTA DE FICHAJE CON FILTRO OCR Y VALIDACIÓN DE DUPLICADOS ---
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'), (err) => {
+        if (err) {
+            // Si no encuentra el index.html físicamente, envía un error simple
+            res.status(404).send("Error: No se encontró el archivo de la App.");
+        }
+    });
+});
+
 
 app.post('/fichar', upload.fields([
     { name: 'foto', maxCount: 1 }, 

@@ -122,7 +122,7 @@ const DashboardLiga = () => {
             </h1>
             <p className="text-sm md:text-base text-slate-400 font-bold uppercase tracking-wide max-w-2xl mx-auto leading-relaxed">
               Dale profesionalismo a tus eventos con tecnología de vanguardia. 
-              Fichajes biométricos, estadísticas en tiempo real y una experiencia única para tus jugadoras.
+              Fichajes biométricos, estadísticas en tiempo real y una experiencia única para tus participantes.
             </p>
           </div>
         </div>
@@ -148,7 +148,7 @@ const DashboardLiga = () => {
              {userRol === 'jugadora' ? "DEMOSTRACIÓN EN VIVO" : `Panel de Control: ${userRol?.toUpperCase()}`}
           </h2>
           <h1 className="text-3xl md:text-5xl font-black uppercase italic tracking-tighter leading-none">
-            ESTÁS VIENDO LA INTERFAZ DE <br />
+            ESTÁS VIENDO LA PANTALLA DEMO <br />
             <span className="text-liga filter brightness-125">{ligaNombre}</span>
           </h1>
         </header>

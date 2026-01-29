@@ -140,7 +140,7 @@ const DashboardLiga = () => {
     </Link>
 
     {/* 2. DELEGADOS */}
-    {['delegado', 'superadmin'].includes(userRol) ? (
+    {['delegado', 'superadmin', 'admin_liga'].includes(userRol) ? (
       <Link to="/AdminDelegado" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-emerald-500 shadow-2xl hover:-translate-y-1">
         <span className="text-3xl mb-3 block">🛡️</span>
         <h3 className="text-lg font-black uppercase italic tracking-tighter text-emerald-500">Delegados</h3>
@@ -166,7 +166,7 @@ const DashboardLiga = () => {
     )}
 
     {/* 4. ÁRBITROS */}
-    {['arbitro', 'superadmin'].includes(userRol) ? (
+    {['arbitro', 'superadmin', 'admin_liga'].includes(userRol) ? (
       <Link to="/AdminArbitros" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-amber-500 shadow-2xl hover:-translate-y-1">
         <span className="text-3xl mb-3 block">🏁</span>
         <h3 className="text-lg font-black uppercase italic tracking-tighter text-amber-500">Árbitros</h3>
@@ -193,7 +193,7 @@ const DashboardLiga = () => {
     )}
 
     {/* 6. ORGANIZACIÓN */}
-    {userRol === 'superadmin' ? (
+    {(userRol === 'superadmin' || userRol === 'admin_liga') ?(
       <Link to="/AdminConfig" className="group relative overflow-hidden bg-slate-950 border border-blue-500/30 p-6 rounded-[2rem] transition-all hover:border-blue-500 shadow-2xl">
         <span className="text-3xl mb-3 block">🏢</span>
         <h3 className="text-lg font-black uppercase italic tracking-tighter text-blue-400">Organización</h3>

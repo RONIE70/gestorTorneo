@@ -115,6 +115,7 @@ const ListaJugadoras = () => {
 
         <div className="mb-10 bg-slate-900/50 border border-slate-800 p-2 rounded-2xl shadow-2xl">
           <input 
+            id="filtro"
             type="text" 
             placeholder="Buscar por nombre o DNI..."
             className="bg-transparent w-full p-4 outline-none text-xs font-bold uppercase text-white"

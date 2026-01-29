@@ -43,8 +43,7 @@ function App() {
             <Route path="/verificar/:id" element={<VerificacionPublica />} />
             
             {/* --- NIVEL 1: CONTROL MAESTRO (Solo Tú) --- */}
-            // Prueba esto solo para ver si carga el componente
-<Route path="/master-control" element={<SuperAdminDashboard />} />
+            <Route path="/test" element={<SuperAdminDashboard />} />
 
             {/* --- NIVEL 2: ADMIN DE LIGA (Tus Clientes) --- */}
             <Route 

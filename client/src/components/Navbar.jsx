@@ -25,14 +25,18 @@ const Navbar = () => {
     });
 
     const cargarDatosCompletos = async (sessionActual) => {
-      if (sessionActual?.user?.id) {
-        try {
-          const { data: perfil, error } = await supabase
-            .from('perfiles')
-            .select('*, organizaciones(nombre, logo_url, color_principal)')
-            .eq('id', sessionActual.user.id)
-            .maybeSingle();
+  if (sessionActual?.user?.id) {
+    try {
+      const { data: perfil, error } = await supabase
+        .from('perfiles')
+        .select('*, organizaciones(nombre, logo_url, color_principal)')
+        .eq('id', sessionActual.user.id)
+        .maybeSingle();
 
+      // --- AGREGA ESTOS LOGS AQUÍ ---
+      console.log("🟢 RESPUESTA DE SUPABASE:", perfil);
+      console.log("🛡️ ROL DETECTADO:", perfil?.rol);
+      
           if (error || !perfil) {
             console.warn("Sesión inválida o perfil no encontrado. Limpiando...");
             await supabase.auth.signOut();

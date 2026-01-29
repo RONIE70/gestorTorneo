@@ -24,43 +24,41 @@ const Navbar = () => {
       }
     });
 
-   const cargarDatosCompletos = async (sessionActual) => {
-  if (sessionActual?.user?.id) {
-    try {
-      const { data: perfil, error } = await supabase
-        .from('perfiles')
-        .select('*, organizaciones(nombre, logo_url, color_principal)')
-        .eq('id', sessionActual.user.id)
-        .maybeSingle();
+    const cargarDatosCompletos = async (sessionActual) => {
+      if (sessionActual?.user?.id) {
+        try {
+          const { data: perfil, error } = await supabase
+            .from('perfiles')
+            .select('*, organizaciones(nombre, logo_url, color_principal)')
+            .eq('id', sessionActual.user.id)
+            .maybeSingle();
 
-      // SI HAY ERROR O NO HAY PERFIL: Limpiamos todo
-      if (error || !perfil) {
-        console.warn("Sesión inválida o perfil no encontrado. Limpiando...");
-        await supabase.auth.signOut(); // <--- ESTO ES LA CLAVE
-        setUserSession(null);
-        setUserData({ nombre: '', foto: null, rol: '' });
-        return;
+          if (error || !perfil) {
+            console.warn("Sesión inválida o perfil no encontrado. Limpiando...");
+            await supabase.auth.signOut();
+            setUserSession(null);
+            setUserData({ nombre: '', foto: null, rol: '' });
+            return;
+          }
+
+          if (perfil.organizaciones) {
+            const org = perfil.organizaciones;
+            setLigaData({ nombre: org.nombre, logo: org.logo_url });
+            document.documentElement.style.setProperty('--color-liga', org.color_principal || '#3b82f6');
+          }
+          
+          setUserData({
+            nombre: perfil.nombre || 'Usuario',
+            foto: perfil.foto_url,
+            rol: perfil.rol
+          });
+
+        } catch (error) {
+          console.error("Error crítico:", error);
+          setUserSession(null);
+        }
       }
-
-      // Si todo está bien, cargamos
-      if (perfil.organizaciones) {
-        const org = perfil.organizaciones;
-        setLigaData({ nombre: org.nombre, logo: org.logo_url });
-        document.documentElement.style.setProperty('--color-liga', org.color_principal || '#3b82f6');
-      }
-      
-      setUserData({
-        nombre: perfil.nombre || 'Usuario',
-        foto: perfil.foto_url,
-        rol: perfil.rol
-      });
-
-    } catch (error) {
-      console.error("Error crítico:", error);
-      setUserSession(null);
-    }
-  }
-};
+    };
 
     // Verificación inicial al montar
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -104,12 +102,12 @@ const Navbar = () => {
           </h1>
         </Link>
 
-        {/* CENTRO: BUSCADOR (Desktop - Se mantiene intacto) */}
+        {/* CENTRO: BUSCADOR (Desktop) */}
         <form onSubmit={handleSearch} className="flex-1 max-w-sm relative hidden md:block">
           <input
             id="name"
             name="name"
-             required
+            required
             type="text" 
             placeholder="Buscar equipo..." 
             value={busqueda}
@@ -119,8 +117,19 @@ const Navbar = () => {
           <button type="submit" className="absolute right-4 top-2.5 text-slate-500 hover:text-white">🔍</button>
         </form>
 
-        {/* DERECHA: SESIÓN + AVATAR + CONTACTO */}
+        {/* DERECHA: SESIÓN + AVATAR + BOTÓN SECRETO */}
         <div className="hidden md:flex items-center gap-6">
+          
+          {/* BOTÓN SECRETO: Solo para SuperAdmin */}
+          {userData.rol === 'superadmin' && (
+            <Link 
+              to="/mastercontrol" 
+              className="bg-rose-600 hover:bg-rose-500 text-white text-[9px] font-black px-4 py-2 rounded-lg uppercase tracking-tighter animate-pulse shadow-[0_0_15px_rgba(225,29,72,0.4)] transition-all"
+            >
+              🛡️ Master Panel
+            </Link>
+          )}
+
           <Link to="/contacto" className="text-[10px] font-black uppercase text-slate-400 hover:text-white transition-colors tracking-widest">
             Contactanos
           </Link>
@@ -176,7 +185,7 @@ const Navbar = () => {
         </button>
       </div>
 
-      {/* --- MENÚ DESPLEGABLE MÓVIL (Con Búsqueda e Identidad) --- */}
+      {/* --- MENÚ DESPLEGABLE MÓVIL --- */}
       {menuAbierto && (
         <div className="md:hidden mt-4 pt-4 border-t border-slate-800 flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 duration-200">
           <form onSubmit={handleSearch} className="relative">
@@ -192,15 +201,28 @@ const Navbar = () => {
           </form>
 
           {userSession && (
-            <div className="flex items-center gap-3 p-4 bg-slate-950 rounded-2xl border border-slate-800">
-               <div className="w-10 h-10 rounded-xl bg-liga flex items-center justify-center font-black text-white uppercase">
-                 {userData.nombre.charAt(0)}
-               </div>
-               <div>
-                 <p className="text-xs font-black text-white uppercase">{userData.nombre}</p>
-                 <p className="text-[9px] text-liga font-bold uppercase tracking-widest">{userData.rol}</p>
-               </div>
-            </div>
+            <>
+              <div className="flex items-center gap-3 p-4 bg-slate-950 rounded-2xl border border-slate-800">
+                 <div className="w-10 h-10 rounded-xl bg-liga flex items-center justify-center font-black text-white uppercase">
+                   {userData.nombre.charAt(0)}
+                 </div>
+                 <div>
+                   <p className="text-xs font-black text-white uppercase">{userData.nombre}</p>
+                   <p className="text-[9px] text-liga font-bold uppercase tracking-widest">{userData.rol}</p>
+                 </div>
+              </div>
+
+              {/* ACCESO MAESTRO MÓVIL */}
+              {userData.rol === 'superadmin' && (
+                <Link 
+                  to="/mastercontrol" 
+                  onClick={() => setMenuAbierto(false)}
+                  className="w-full bg-rose-600/20 border border-rose-600 text-rose-500 text-center py-3 rounded-xl font-black uppercase text-[10px] tracking-widest"
+                >
+                  🛡️ ACCESO MASTER CONTROL
+                </Link>
+              )}
+            </>
           )}
 
           <Link 

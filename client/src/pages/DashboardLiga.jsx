@@ -122,7 +122,7 @@ const DashboardLiga = () => {
             </h1>
             <p className="text-sm md:text-base text-slate-400 font-bold uppercase tracking-wide max-w-2xl mx-auto leading-relaxed">
               Dale profesionalismo a tus eventos con tecnología de vanguardia. 
-              Fichajes biométricos, estadísticas en tiempo real y una experiencia única para tus participantes.
+              Fichajes biométricos, estadísticas en tiempo real y una experiencia única para todos.
             </p>
           </div>
         </div>
@@ -132,7 +132,7 @@ const DashboardLiga = () => {
           {[
             { i: "⚡", t: "Velocidad Total", d: "Resultados y tablas que se actualizan apenas termina el partido." },
             { i: "🛡️", t: "Seguridad Pro", d: "Validación de identidad por OCR y Biometría para evitar suplantaciones." },
-            { i: "📱", t: "Multi-Dispositivo", d: "Administra tu liga desde el celular en el campo o desde tu oficina." }
+            { i: "📱", t: "Multi-Dispositivo", d: "Administra tu liga desde el celular en el campo de juego o desde tu casa." }
           ].map((item, idx) => (
             <div key={idx} className="p-6 bg-slate-900/30 border border-slate-800/50 rounded-[2rem] hover:bg-slate-900/50 transition-colors">
               <span className="text-2xl mb-2 block">{item.i}</span>

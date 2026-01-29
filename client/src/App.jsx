@@ -22,7 +22,7 @@ import ListaJugadoras from './components/ListaJugadoras';
 import Login from './components/Login';
 import GestionPerfiles from './components/GestionPerfiles'; 
 import VerificacionJugadoras from './components/VerificacionJugadoras';
-import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import SuperAdminDashboard from './components/SuperAdminDashboard';
 import ValidadorBiometrico from './components/ValidadorBiometrico'; 
 
 
@@ -44,7 +44,7 @@ function App() {
             
             {/* --- NIVEL 1: CONTROL MAESTRO (Solo Tú) --- */}
             <Route 
-              path="/master-control" 
+              path="/SuperAdminDashboard"
               element={
                 <ProtectedRoute rolesPermitidos={['superadmin']}>
                   <SuperAdminDashboard />
@@ -135,7 +135,7 @@ function App() {
               <Route 
                 path="/validador-biometrico" 
                 element={
-                  <ProtectedRoute allowedRoles={['superadmin']}>
+                  <ProtectedRoute rolesPermitidos={['superadmin']}>
                     <ValidadorBiometrico />
                   </ProtectedRoute>
                 } 

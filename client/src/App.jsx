@@ -43,14 +43,8 @@ function App() {
             <Route path="/verificar/:id" element={<VerificacionPublica />} />
             
             {/* --- NIVEL 1: CONTROL MAESTRO (Solo Tú) --- */}
-            <Route 
-              path="/mastercontrol" 
-              element={
-                <ProtectedRoute rolesPermitidos={['superadmin']}>
-                  <SuperAdminDashboard />
-                </ProtectedRoute>
-              } 
-            />
+            // Prueba esto solo para ver si carga el componente
+<Route path="/master-control" element={<SuperAdminDashboard />} />
 
             {/* --- NIVEL 2: ADMIN DE LIGA (Tus Clientes) --- */}
             <Route 

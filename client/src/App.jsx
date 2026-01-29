@@ -100,7 +100,7 @@ function App() {
             <Route 
               path="/AdminDelegado" 
               element={
-                <ProtectedRoute rolesPermitidos={['superadmin','delegado']}>
+                <ProtectedRoute rolesPermitidos={['superadmin','delegado','admin_liga']}>
                   <AdminDelegado />
                 </ProtectedRoute>
               } 
@@ -108,7 +108,7 @@ function App() {
             <Route 
               path="/registro" 
               element={
-                <ProtectedRoute rolesPermitidos={['superadmin','delegado']}>
+                <ProtectedRoute rolesPermitidos={['superadmin','delegado','admin_liga']}>
                   <FormularioFichaje />
                 </ProtectedRoute>
               } 
@@ -126,7 +126,7 @@ function App() {
             <Route 
               path="/AdminArbitros" 
               element={
-                <ProtectedRoute rolesPermitidos={['arbitro', 'superadmin']}>
+                <ProtectedRoute rolesPermitidos={['arbitro', 'superadmin','admin_liga']}>
                   <AdminArbitros />
                 </ProtectedRoute>
               } 
@@ -135,7 +135,7 @@ function App() {
               <Route 
                 path="/validador-biometrico" 
                 element={
-                  <ProtectedRoute rolesPermitidos={['superadmin']}>
+                  <ProtectedRoute rolesPermitidos={['superadmin','admin_liga']}>
                     <ValidadorBiometrico />
                   </ProtectedRoute>
                 } 

@@ -36,7 +36,7 @@ const Navbar = () => {
       // --- AGREGA ESTOS LOGS AQUÍ ---
       console.log("🟢 RESPUESTA DE SUPABASE:", perfil);
       console.log("🛡️ ROL DETECTADO:", perfil?.rol);
-      
+
           if (error || !perfil) {
             console.warn("Sesión inválida o perfil no encontrado. Limpiando...");
             await supabase.auth.signOut();
@@ -192,7 +192,7 @@ const Navbar = () => {
       {/* --- MENÚ DESPLEGABLE MÓVIL --- */}
       {menuAbierto && (
         <div className="md:hidden mt-4 pt-4 border-t border-slate-800 flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 duration-200">
-          <form onSubmit={handleSearch} className="relative">
+          <form for="buscar" onSubmit={handleSearch} className="relative">
             <input
               id="buscar" 
               type="text" 

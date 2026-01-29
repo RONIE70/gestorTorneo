@@ -17,7 +17,6 @@ const CardInvitado = ({ icono, titulo, descripcion, acento, navigate }) => (
   </div>
 );
 
-// Este es para el usuario logueado que NO tiene permiso (Gris y sin click)
 const CardBloqueada = ({ icono, titulo, descripcion }) => (
   <div className="bg-slate-950/20 border border-slate-900 p-6 rounded-[2rem] opacity-30 cursor-not-allowed">
     <span className="text-3xl mb-3 block grayscale">{icono}</span>
@@ -31,7 +30,6 @@ const CardBloqueada = ({ icono, titulo, descripcion }) => (
 
 const DashboardLiga = () => {
   const [data, setData] = useState(null);
-  // CLAVE: El estado inicial es 'jugadora' (el rol para usuarios sin login)
   const [userRol, setUserRol] = useState(null);
   const [ligaNombre, setLigaNombre] = useState('SISTEMA GESTOR');
   const [loadingSession, setLoadingSession] = useState(true);
@@ -39,62 +37,57 @@ const DashboardLiga = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-  // 1. ESCUCHADOR DE CAMBIOS DE AUTH (Para Logout instantáneo)
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_OUT') {
-      setUserRol('jugadora');
-      setLigaNombre('SISTEMA GESTOR'); // Reset opcional del nombre
-    } else if (event === 'SIGNED_IN' && session) {
-      inicializarDashboard(); // Recargar datos si alguien entra
-    }
-  });
-
-  const inicializarDashboard = async () => {
-    try {
-      // 1. Datos públicos siempre
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard-resumen`);
-      const json = await res.json();
-      setData(json);
-
-      // 2. Sesión
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
         setUserRol('jugadora');
-        setLoadingSession(false);
-        return;
+        setLigaNombre('SISTEMA GESTOR');
+      } else if (event === 'SIGNED_IN' && session) {
+        inicializarDashboard();
       }
+    });
 
-      // 3. Perfil
-      const { data: perfil, error: pError } = await supabase
-        .from('perfiles')
-        .select('*, organizaciones(nombre, color_principal)')
-        .eq('id', session.user.id)
-        .maybeSingle();
+    const inicializarDashboard = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard-resumen`);
+        const json = await res.json();
+        setData(json);
 
-      if (perfil && !pError) {
-        setUserRol(perfil.rol);
-        if (perfil.organizaciones) {
-          setLigaNombre(perfil.organizaciones.nombre);
-          document.documentElement.style.setProperty('--color-liga', perfil.organizaciones.color_principal || '#3b82f6');
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          setUserRol('jugadora');
+          setLoadingSession(false);
+          return;
         }
-      } else {
+
+        const { data: perfil, error: pError } = await supabase
+          .from('perfiles')
+          .select('*, organizaciones(nombre, color_principal)')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        if (perfil && !pError) {
+          setUserRol(perfil.rol);
+          if (perfil.organizaciones) {
+            setLigaNombre(perfil.organizaciones.nombre);
+            document.documentElement.style.setProperty('--color-liga', perfil.organizaciones.color_principal || '#3b82f6');
+          }
+        } else {
+          setUserRol('jugadora');
+        }
+      } catch (error) {
+        console.error("Fallo inicialización:", error);
         setUserRol('jugadora');
+      } finally {
+        setLoadingSession(false);
       }
-    } catch (error) {
-      console.error("Fallo inicialización:", error);
-      setUserRol('jugadora');
-    } finally {
-      setLoadingSession(false);
-    }
-  };
+    };
 
-  inicializarDashboard();
+    inicializarDashboard();
 
-  // 2. LIMPIEZA: Muy importante para no crear fugas de memoria
-  return () => {
-    subscription.unsubscribe();
-  };
-}, []);
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   if (!data || loadingSession) return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -115,98 +108,131 @@ const DashboardLiga = () => {
     <div className="p-4 md:p-8 bg-slate-950 min-h-screen text-slate-100 font-sans selection:bg-liga">
       <div className="max-w-6xl mx-auto space-y-12 pb-20">
 
-        {/* --- HEADER --- */}
-        <header className="text-center py-10 space-y-4 relative">
-          <div className="absolute top-20 left-1/2 -translate-x-1/2 w-64 h-64 bg-liga opacity-10 blur-[100px] -z-10"></div>
-          <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 animate-in fade-in duration-700">
-             {userRol === 'jugadora' ? "Acceso Público" : `Panel de Control: ${userRol?.toUpperCase()}`}
+        {/* --- NUEVA HERO SECTION (MARKETING) --- */}
+        <div className="relative overflow-hidden bg-gradient-to-b from-slate-900 to-slate-950 py-16 px-6 rounded-[3.5rem] border border-white/5 shadow-2xl mt-8">
+          <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 bg-liga opacity-10 blur-[100px] -z-10 animate-pulse"></div>
+          
+          <div className="relative z-10 max-w-4xl mx-auto text-center space-y-6">
+            <span className="inline-block px-4 py-1.5 text-[10px] font-black tracking-[0.3em] text-liga uppercase bg-liga/10 rounded-full border border-liga/20">
+              Gestión Deportiva Elite
+            </span>
+            <h1 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase leading-none">
+              LA MEJOR APP PARA GESTIONAR TU <br />
+              <span className="text-liga filter brightness-110 italic">LIGA PROFESIONAL</span>
+            </h1>
+            <p className="text-sm md:text-base text-slate-400 font-bold uppercase tracking-wide max-w-2xl mx-auto leading-relaxed">
+              Dale profesionalismo a tus eventos con tecnología de vanguardia. 
+              Fichajes biométricos, estadísticas en tiempo real y una experiencia única para tus jugadoras.
+            </p>
+          </div>
+        </div>
+
+        {/* --- GRID DE PROPUESTA DE VALOR --- */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[
+            { i: "⚡", t: "Velocidad Total", d: "Resultados y tablas que se actualizan apenas termina el partido." },
+            { i: "🛡️", t: "Seguridad Pro", d: "Validación de identidad por OCR y Biometría para evitar suplantaciones." },
+            { i: "📱", t: "Multi-Dispositivo", d: "Administra tu liga desde el celular en el campo o desde tu oficina." }
+          ].map((item, idx) => (
+            <div key={idx} className="p-6 bg-slate-900/30 border border-slate-800/50 rounded-[2rem] hover:bg-slate-900/50 transition-colors">
+              <span className="text-2xl mb-2 block">{item.i}</span>
+              <h4 className="text-xs font-black uppercase text-white mb-1 tracking-tighter">{item.t}</h4>
+              <p className="text-[10px] text-slate-500 font-bold uppercase leading-tight">{item.d}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* --- HEADER ORIGINAL (ADAPTADO) --- */}
+        <header className="text-center py-6 space-y-4 relative">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500">
+             {userRol === 'jugadora' ? "DEMOSTRACIÓN EN VIVO" : `Panel de Control: ${userRol?.toUpperCase()}`}
           </h2>
-          <h1 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter leading-none">
-            BIENVENIDO A <br />
+          <h1 className="text-3xl md:text-5xl font-black uppercase italic tracking-tighter leading-none">
+            ESTÁS VIENDO LA INTERFAZ DE <br />
             <span className="text-liga filter brightness-125">{ligaNombre}</span>
           </h1>
         </header>
 
-       {/*Hub de paneles de roles*/} 
+        {/*Hub de paneles de roles*/} 
         <section>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    
-    {/* 1. JUGADORAS (SIEMPRE ABIERTO) */}
-    <Link to="/FixturePublico" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-liga shadow-2xl hover:-translate-y-1">
-      <span className="text-3xl mb-3 block">⚽</span>
-      <h3 className="text-lg font-black uppercase italic tracking-tighter">Jugadoras</h3>
-      <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Fixture oficial, resultados y tablas de posiciones.</p>
-      <div className="mt-4 text-liga text-[9px] font-black uppercase tracking-widest">Ver Resultados →</div>
-    </Link>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        {/* 1. JUGADORAS (SIEMPRE ABIERTO) */}
+        <Link to="/FixturePublico" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-liga shadow-2xl hover:-translate-y-1">
+          <span className="text-3xl mb-3 block">⚽</span>
+          <h3 className="text-lg font-black uppercase italic tracking-tighter">Jugadoras</h3>
+          <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Fixture oficial, resultados y tablas de posiciones.</p>
+          <div className="mt-4 text-liga text-[9px] font-black uppercase tracking-widest">Ver Resultados →</div>
+        </Link>
 
-    {/* 2. DELEGADOS */}
-    {['delegado', 'superadmin', 'admin_liga'].includes(userRol) ? (
-      <Link to="/AdminDelegado" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-emerald-500 shadow-2xl hover:-translate-y-1">
-        <span className="text-3xl mb-3 block">🛡️</span>
-        <h3 className="text-lg font-black uppercase italic tracking-tighter text-emerald-500">Delegados</h3>
-        <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Fichajes, gestión de plantel y lista de buena fe.</p>
-      </Link>
-    ) : userRol === 'jugadora' ? (
-      <CardInvitado icono="🛡️" titulo="Delegados" descripcion="Gestión de fichajes y planteles oficiales." acento="emerald-500" navigate={navigate} />
-    ) : (
-      <CardBloqueada icono="🛡️" titulo="Delegados" descripcion="Gestión de fichajes y planteles oficiales." />
-    )}
+        {/* 2. DELEGADOS */}
+        {['delegado', 'superadmin', 'admin_liga'].includes(userRol) ? (
+          <Link to="/AdminDelegado" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-emerald-500 shadow-2xl hover:-translate-y-1">
+            <span className="text-3xl mb-3 block">🛡️</span>
+            <h3 className="text-lg font-black uppercase italic tracking-tighter text-emerald-500">Delegados</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Fichajes, gestión de plantel y lista de buena fe.</p>
+          </Link>
+        ) : userRol === 'jugadora' ? (
+          <CardInvitado icono="🛡️" titulo="Delegados" descripcion="Gestión de fichajes y planteles oficiales." acento="emerald-500" navigate={navigate} />
+        ) : (
+          <CardBloqueada icono="🛡️" titulo="Delegados" descripcion="Gestión de fichajes y planteles oficiales." />
+        )}
 
-    {/* 3. LIGA */}
-    {['colaborador', 'superadmin', 'admin_liga'].includes(userRol) ? (
-      <Link to="/AdminLiga" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-purple-500 shadow-2xl hover:-translate-y-1">
-        <span className="text-3xl mb-3 block">📢</span>
-        <h3 className="text-lg font-black uppercase italic tracking-tighter text-purple-500">Panel Liga</h3>
-        <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Comunicados oficiales y prensa del torneo.</p>
-      </Link>
-    ) : userRol === 'jugadora' ? (
-      <CardInvitado icono="📢" titulo="Panel Liga" descripcion="Comunicados y administración de noticias." acento="purple-500" navigate={navigate} />
-    ) : (
-      <CardBloqueada icono="📢" titulo="Panel Liga" descripcion="Comunicados y administración de noticias." />
-    )}
+        {/* 3. LIGA */}
+        {['colaborador', 'superadmin', 'admin_liga'].includes(userRol) ? (
+          <Link to="/AdminLiga" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-purple-500 shadow-2xl hover:-translate-y-1">
+            <span className="text-3xl mb-3 block">📢</span>
+            <h3 className="text-lg font-black uppercase italic tracking-tighter text-purple-500">Panel Liga</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Comunicados oficiales y prensa del torneo.</p>
+          </Link>
+        ) : userRol === 'jugadora' ? (
+          <CardInvitado icono="📢" titulo="Panel Liga" descripcion="Comunicados y administración de noticias." acento="purple-500" navigate={navigate} />
+        ) : (
+          <CardBloqueada icono="📢" titulo="Panel Liga" descripcion="Comunicados y administración de noticias." />
+        )}
 
-    {/* 4. ÁRBITROS */}
-    {['arbitro', 'superadmin', 'admin_liga'].includes(userRol) ? (
-      <Link to="/AdminArbitros" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-amber-500 shadow-2xl hover:-translate-y-1">
-        <span className="text-3xl mb-3 block">🏁</span>
-        <h3 className="text-lg font-black uppercase italic tracking-tighter text-amber-500">Árbitros</h3>
-        <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Acceso para referís y carga de planillas.</p>
-      </Link>
-    ) : userRol === 'jugadora' ? (
-      <CardInvitado icono="🏁" titulo="Árbitros" descripcion="Acceso para referís y carga de planillas." acento="amber-500" navigate={navigate} />
-    ) : (
-      <CardBloqueada icono="🏁" titulo="Árbitros" descripcion="Acceso para referís y carga de planillas." />
-    )}
+        {/* 4. ÁRBITROS */}
+        {['arbitro', 'superadmin', 'admin_liga'].includes(userRol) ? (
+          <Link to="/AdminArbitros" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-amber-500 shadow-2xl hover:-translate-y-1">
+            <span className="text-3xl mb-3 block">🏁</span>
+            <h3 className="text-lg font-black uppercase italic tracking-tighter text-amber-500">Árbitros</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Acceso para referís y carga de planillas.</p>
+          </Link>
+        ) : userRol === 'jugadora' ? (
+          <CardInvitado icono="🏁" titulo="Árbitros" descripcion="Acceso para referís y carga de planillas." acento="amber-500" navigate={navigate} />
+        ) : (
+          <CardBloqueada icono="🏁" titulo="Árbitros" descripcion="Acceso para referís y carga de planillas." />
+        )}
 
-    {/* 5. TRIBUNAL */}
-    {['superadmin', 'tribunal', 'admin_liga', 'colaborador'].includes(userRol) ? (
-      <Link to="/AdminTribunal" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-rose-600 shadow-2xl hover:-translate-y-1">
-        <span className="text-3xl mb-3 block">⚖️</span>
-        <h3 className="text-lg font-black uppercase italic tracking-tighter text-rose-500">Tribunal</h3>
-        <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Módulo disciplinario y resoluciones oficiales.</p>
-        <div className="mt-4 text-rose-500 text-[9px] font-black uppercase tracking-widest">Ver Expedientes →</div>
-      </Link>
-    ) : userRol === 'jugadora' ? (
-      <CardInvitado icono="⚖️" titulo="Tribunal" descripcion="Módulo disciplinario y resoluciones oficiales." acento="rose-600" navigate={navigate} />
-    ) : (
-      <CardBloqueada icono="⚖️" titulo="Tribunal" descripcion="Módulo disciplinario y resoluciones oficiales." />
-    )}
+        {/* 5. TRIBUNAL */}
+        {['superadmin', 'tribunal', 'admin_liga', 'colaborador'].includes(userRol) ? (
+          <Link to="/AdminTribunal" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-rose-600 shadow-2xl hover:-translate-y-1">
+            <span className="text-3xl mb-3 block">⚖️</span>
+            <h3 className="text-lg font-black uppercase italic tracking-tighter text-rose-500">Tribunal</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Módulo disciplinario y resoluciones oficiales.</p>
+            <div className="mt-4 text-rose-500 text-[9px] font-black uppercase tracking-widest">Ver Expedientes →</div>
+          </Link>
+        ) : userRol === 'jugadora' ? (
+          <CardInvitado icono="⚖️" titulo="Tribunal" descripcion="Módulo disciplinario y resoluciones oficiales." acento="rose-600" navigate={navigate} />
+        ) : (
+          <CardBloqueada icono="⚖️" titulo="Tribunal" descripcion="Módulo disciplinario y resoluciones oficiales." />
+        )}
 
-    {/* 6. ORGANIZACIÓN */}
-    {(userRol === 'superadmin' || userRol === 'admin_liga') ?(
-      <Link to="/AdminConfig" className="group relative overflow-hidden bg-slate-950 border border-blue-500/30 p-6 rounded-[2rem] transition-all hover:border-blue-500 shadow-2xl">
-        <span className="text-3xl mb-3 block">🏢</span>
-        <h3 className="text-lg font-black uppercase italic tracking-tighter text-blue-400">Organización</h3>
-        <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Configuración de marca y sorteo de fixture.</p>
-      </Link>
-    ) : userRol === 'jugadora' ? (
-      <CardInvitado icono="🏢" titulo="Configuración" descripcion="Parámetros base del sistema gestor." acento="blue-500" navigate={navigate} />
-    ) : (
-      <CardBloqueada icono="🏢" titulo="Configuración" descripcion="Parámetros base del sistema gestor." />
-    )}
+        {/* 6. ORGANIZACIÓN */}
+        {(userRol === 'superadmin' || userRol === 'admin_liga') ?(
+          <Link to="/AdminConfig" className="group relative overflow-hidden bg-slate-950 border border-blue-500/30 p-6 rounded-[2rem] transition-all hover:border-blue-500 shadow-2xl">
+            <span className="text-3xl mb-3 block">🏢</span>
+            <h3 className="text-lg font-black uppercase italic tracking-tighter text-blue-400">Organización</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Configuración de marca y sorteo de fixture.</p>
+          </Link>
+        ) : userRol === 'jugadora' ? (
+          <CardInvitado icono="🏢" titulo="Configuración" descripcion="Parámetros base del sistema gestor." acento="blue-500" navigate={navigate} />
+        ) : (
+          <CardBloqueada icono="🏢" titulo="Configuración" descripcion="Parámetros base del sistema gestor." />
+        )}
 
-  </div>
-</section>
+      </div>
+    </section>
 
         {/* --- SECCIÓN 2: RESUMEN DINÁMICO --- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-10 border-t border-slate-900">

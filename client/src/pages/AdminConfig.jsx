@@ -299,7 +299,7 @@ const actualizarPerfil = async () => {
     .from('organizaciones')
     .update({
       nombre: perfil.nombre_liga, // Nombre de la liga (ej: Liga de las Nenas)
-      logo_url: perfil.logo_torneo, // La URL de Cloudinary
+      logo_url: perfil.logo_url, // La URL de Cloudinary
       // color_principal: perfil.color_principal // Si decides agregar selector de color
     })
     .eq('id', userOrgId); // Usamos el ID de la organización del usuario

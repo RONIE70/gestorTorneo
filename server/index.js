@@ -12,7 +12,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+// server/index.js
+const supabase = createClient(
+  process.env.SUPABASE_URL, 
+  process.env.SUPABASE_KEY // Esta ahora será la sb_secret
+);
+
 
 // --- CONFIGURACIÓN CLOUDINARY ---
 cloudinary.config({

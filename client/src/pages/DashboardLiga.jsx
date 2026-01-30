@@ -105,10 +105,12 @@ const DashboardLiga = () => {
   }, {});
 
   return (
-    <div className="p-4 md:p-8 bg-slate-950 min-h-screen text-slate-100 font-sans selection:bg-liga">
-      <div className="max-w-6xl mx-auto space-y-12 pb-20">
+  <div className="p-4 md:p-8 bg-slate-950 min-h-screen text-slate-100 font-sans selection:bg-liga">
+    <div className="max-w-6xl mx-auto space-y-12 pb-20">
 
-        {/* --- HERO SECTION: ESTILO TIMBO (ROJO Y NEGRO) --- */}
+      {/* --- 1. HERO SECTION (MARKETING) --- */}
+      {/* Solo se muestra si el usuario es 'jugadora' (público sin login) */}
+      {userRol === 'jugadora' && (
         <div className="relative overflow-hidden bg-black border border-white/5 py-20 px-8 rounded-[2rem] shadow-2xl">
           <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-red-600 opacity-10 blur-[120px] -z-10"></div>
           
@@ -124,10 +126,9 @@ const DashboardLiga = () => {
               La plataforma más completa para organizar torneos. Fichajes Biométricos digitales, descarga de planillas de juego. Manejo de Tribunal de Faltas e Informes.
             </p>
             
-            {/* BOTÓN DE ACCESO AL TORNEO REINAS (DEMO) */}
             <div className="pt-4 flex flex-wrap gap-4">
                 <Link 
-                    to="/FixturePublico" // O la ruta donde esté el torneo Reinas
+                    to="/FixturePublico"
                     className="px-8 py-4 bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-red-600/20"
                 >
                     Ver Torneo Reinas 👑 
@@ -138,62 +139,24 @@ const DashboardLiga = () => {
             </div>
           </div>
         </div>
+      )}
 
-        {/* --- GRID DE PROPUESTA DE VALOR --- */}
-{/* --- 1. HERO SECTION (MARKETING) --- */}
-{/* Solo se muestra si el usuario es 'jugadora' (público sin login) */}
-{userRol === 'jugadora' && (
-  <div className="relative overflow-hidden bg-black border border-white/5 py-20 px-8 rounded-[2rem] shadow-2xl">
-    <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-red-600 opacity-10 blur-[120px] -z-10"></div>
-    <div className="relative z-10 max-w-3xl text-left space-y-6">
-      <div className="flex items-center gap-2">
-          <span className="w-2 h-2 bg-red-600 rounded-full animate-ping"></span>
-          <span className="text-[10px] font-bold tracking-[0.2em] text-red-500 uppercase">Tecnología aplicada al deporte</span>
+      {/* --- 2. GRID DE PROPUESTA DE VALOR --- */}
+      {/* Opcional: También podés envolver esto en {userRol === 'jugadora' && (...)} si querés que desaparezca */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[
+          { i: "⚡", t: "Velocidad Total", d: "Resultados y tablas que se actualizan apenas termina el partido." },
+          { i: "🛡️", t: "Seguridad Pro", d: "Validación de identidad por OCR y Biometría para evitar suplantaciones." },
+          { i: "📱", t: "Multi-Dispositivo", d: "Administra tu liga desde el celular en el campo de juego o desde tu casa." }
+        ].map((item, idx) => (
+          <div key={idx} className="p-6 bg-slate-900/30 border border-slate-800/50 rounded-[2rem] hover:bg-slate-900/50 transition-colors">
+            <span className="text-2xl mb-2 block">{item.i}</span>
+            <h4 className="text-red-600 text-xs font-black uppercase mb-1 tracking-tighter">{item.t}</h4>
+            <p className="text-[10px] text-slate-500 font-bold uppercase leading-tight">{item.d}</p>
+          </div>
+        ))}
       </div>
-      <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-none text-white">
-        Gestiona tu liga como un <span className="text-red-600 italic">Profesional.</span>
-      </h1>
-      <p className="text-sm md:text-lg text-slate-400 font-medium max-w-xl leading-relaxed">
-        La plataforma más completa para organizar torneos. Fichajes Biométricos digitales, descarga de planillas de juego. Manejo de Tribunal de Faltas e Informes.
-      </p>
       
-      <div className="pt-4 flex flex-wrap gap-4">
-          <Link 
-              to="/FixturePublico"
-              className="px-8 py-4 bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-red-600/20"
-          >
-              Ver Torneo Reinas 👑 
-          </Link>
-          <button className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest rounded-xl border border-white/5 transition-all">
-              Solicitar Demo ✨ 
-          </button>
-      </div>
-    </div>
-  </div>
-)}
-
-{/* --- 2. GRID DE PROPUESTA DE VALOR --- */}
-{/* También lo ocultamos para usuarios logueados */}
-{userRol === 'jugadora' && (
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-    {[
-      { i: "⚡", t: "Velocidad Total", d: "Resultados y tablas que se actualizan apenas termina el partido." },
-      { i: "🛡️", t: "Seguridad Pro", d: "Validación de identidad por OCR y Biometría para evitar suplantaciones." },
-      { i: "📱", t: "Multi-Dispositivo", d: "Administra tu liga desde el celular en el campo de juego o desde tu casa." }
-    ].map((item, idx) => (
-      <div key={idx} className="p-6 bg-slate-900/30 border border-slate-800/50 rounded-[2rem] hover:bg-slate-900/50 transition-colors">
-        <span className="text-2xl mb-2 block">{item.i}</span>
-        <h4 className="text-red-600 text-xs font-black uppercase mb-1 tracking-tighter">
-          {item.t}
-        </h4>
-        <p className="text-[10px] text-slate-500 font-bold uppercase leading-tight">
-          {item.d}
-        </p>
-      </div>
-    ))}
-  </div>
-)}
-
 {/* --- 3. HEADER DE BIENVENIDA (DINÁMICO) --- */}
 <header className="text-center py-12 space-y-6 relative">
   <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px bg-gradient-to-r from-transparent via-red-600/50 to-transparent"></div>

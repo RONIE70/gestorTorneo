@@ -48,7 +48,6 @@ const fetchData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
-      // setUserRol('publico'); <--- BORRÁ ESTO
       setLoadingSession(false);
       return;
     }
@@ -60,16 +59,25 @@ const fetchData = useCallback(async () => {
       .maybeSingle();
 
     if (perfilError || !perfil) {
-      // setUserRol('publico'); <--- BORRÁ ESTO
       setLoadingSession(false);
       return;
     }
 
     setPerfilUsuario(perfil);
 
-    // ID de filtrado blindado
-    const idParaFiltrar = perfil.rol === 'superadmin' ? (perfil?.equipo_id || 4) : (perfil?.equipo_id || 0);
-    setEquipoIdActual(idParaFiltrar);
+    // --- NUEVA LÓGICA INTEGRADA ---
+    let idParaFiltrar = 0;
+
+    if (perfil.rol === 'delegado') {
+      // Si es delegado, forzamos su equipo_id
+      idParaFiltrar = perfil.equipo_id;
+      setEquipoIdActual(perfil.equipo_id);
+    } else {
+      // Si es Admin/Superadmin, empezamos en null para obligar a elegir en el SELECT
+      idParaFiltrar = 0; // Para que no cargue jugadoras de entrada
+      setEquipoIdActual(null);
+    }
+    // ------------------------------
 
     // 1. Cargar Configuración (Logo y Nombre)
     const { data: config } = await supabase
@@ -97,7 +105,8 @@ const fetchData = useCallback(async () => {
         }
     }
 
-    if (idParaFiltrar !== 0) {
+    // Solo cargamos datos de plantel/partidos si ya tenemos un equipo (caso Delegado)
+    if (idParaFiltrar && idParaFiltrar !== 0) {
       // 2. Cargar Plantel
       const { data: jugadorasData } = await supabase
         .from('jugadoras')
@@ -137,7 +146,7 @@ const fetchData = useCallback(async () => {
       setPartidos(partidosData || []);
     }
 
-    // 5. Clubes siempre se cargan
+    // 5. Clubes siempre se cargan (Importante para el SELECT del Admin)
     const { data: clubesData } = await supabase
       .from('equipos')
       .select('*')
@@ -150,7 +159,6 @@ const fetchData = useCallback(async () => {
   } finally {
     setLoadingSession(false);
   }
-  // ELIMINAMOS LAS DEPENDENCIAS QUE DAN ERROR
 }, []);
 
   useEffect(() => { 
@@ -299,17 +307,16 @@ const fetchData = useCallback(async () => {
 const manejarEnvioFichaje = async (e) => {
     e.preventDefault();
     
-    // 1. Validaciones de existencia de archivos y datos
+    // 1. MODIFICACIÓN: Validación inteligente según Rol
+    // El admin debe haber seleccionado un club en el <select> (equipoIdActual)
     if (!equipoIdActual || equipoIdActual === 0 || !filePerfil || !fileDNI) {
-        return alert("⚠️ Debes seleccionar un CLUB, cargar ambas fotos y completar los datos.");
+        return alert("⚠️ Debes seleccionar un CLUB, cargar ambas fotos y completar los datos antes de enviar.");
     }
     
-    // 2. Bloqueo si hay error visual de DNI (el input está en rojo)
     if (errorDni) {
         return alert("⚠️ No puedes continuar: el DNI ingresado ya existe en la base de datos.");
     }
 
-    // Validaciones de formato extra (opcional pero recomendado)
     if (datosFichaje.dni.length < 7) return alert("⚠️ El DNI es demasiado corto.");
 
     setCargandoFichaje(true);
@@ -318,7 +325,6 @@ const manejarEnvioFichaje = async (e) => {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
 
-        // PREPARACIÓN DE FORM DATA (Sin procesar imágenes con face-api)
         const formData = new FormData();
         formData.append('foto', filePerfil);
         formData.append('dni_foto', fileDNI);
@@ -326,32 +332,37 @@ const manejarEnvioFichaje = async (e) => {
         formData.append('apellido', datosFichaje.apellido);
         formData.append('dni', datosFichaje.dni);
         formData.append('fecha_nacimiento', datosFichaje.fecha_nacimiento);
-        formData.append('organizacion_id', perfilUsuario?.organizacion_id);
-        formData.append('equipo_id', equipoIdActual);
         
-        // REGLA DE NEGOCIO: Marcamos para que la PC del SuperAdmin haga la IA
+        // El organizacion_id siempre viene del perfil del que está logueado (Liga de las Nenas)
+        formData.append('organizacion_id', perfilUsuario?.organizacion_id);
+        
+        // El equipo_id ahora es dinámico: 
+        // Si eres delegado, equipoIdActual ya tiene tu club.
+        // Si eres Admin, equipoIdActual tiene el valor del <select> que elegiste.
+        formData.append('equipo_id', equipoIdActual); 
+        
         formData.append('verificacion_manual', true); 
         formData.append('distancia_biometrica', 0);
         formData.append('observaciones_ia', "Pendiente de validación biométrica en PC");
 
-        // ENVÍO AL BACKEND
         const res = await axios.post(`${import.meta.env.VITE_API_URL}/fichar`, formData, { 
             headers: { 'Authorization': `Bearer ${token}` } 
         }); 
 
         if (res.status === 200 || res.status === 201) {
-            alert("🚀 Fichaje enviado con éxito. La organización validará la identidad para habilitar el carnet.");
+            alert("🚀 Fichaje enviado con éxito.");
 
-          // --- ESTA ES LA PARTE CLAVE ---
-            // Asumiendo que tu backend devuelve la jugadora en res.data
-            // Si el backend devuelve { jugadora: {...} }, usa res.data.jugadora
-            setJugadoraRegistrada(res.data);
+            // Asegúrate de que el backend devuelva la jugadora correctamente
+            setJugadoraRegistrada(res.data.jugadora || res.data);
 
-            // Limpieza de estados
+            // Limpieza
             setDatosFichaje({ nombre: '', apellido: '', dni: '', fecha_nacimiento: '' });
             setFilePerfil(null);
             setFileDNI(null);
-            setErrorDni(""); // Limpiamos el error visual
+            setErrorDni("");
+            
+            // Si eres Admin, reseteamos el select para evitar fichajes accidentales en el mismo club
+            if (perfilUsuario?.rol !== 'delegado') setEquipoIdActual(null);
             
             if (typeof fetchData === 'function') fetchData();
         }

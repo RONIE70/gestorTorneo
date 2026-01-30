@@ -316,42 +316,42 @@ return fechaEncontrada.toLocaleDateString('es-AR', { day: '2-digit', month: '2-d
 };
 
 const actualizarPerfil = async () => {
-  if (!userOrgId) return alert("No se detectó el ID de organización");
-  
+  if (!userOrgId) return alert("Error: No se identificó la organización");
   setGuardandoPerfil(true);
+
   try {
-    // 1. Guardar LOGO y NOMBRE en la tabla 'organizaciones'
+    // ACTUALIZACIÓN A: Tabla 'organizaciones' (Esto es lo que lee el NAVBAR)
     const { error: errorOrg } = await supabase
       .from('organizaciones')
       .update({
-        nombre: perfil.nombre_liga,
-        logo_url: perfil.logo_torneo, // Asegúrate de que esta URL sea la de Cloudinary
+        nombre: perfil.nombre_liga, // Aquí va "Liga de las Nenas"
+        logo_url: perfil.logo_torneo  // La URL de Cloudinary
       })
       .eq('id', userOrgId);
 
-    if (errorOrg) throw new Error("Error en organizaciones: " + errorOrg.message);
+    if (errorOrg) throw errorOrg;
 
-    // 2. Guardar WHATSAPP y CONFIG en 'configuracion_liga'
-    // Usamos UPSERT para que si la fila no existe, la cree automáticamente
+    // ACTUALIZACIÓN B: Tabla 'configuracion_liga' (Parámetros internos)
     const { error: errorConfig } = await supabase
       .from('configuracion_liga')
       .upsert({
         organizacion_id: userOrgId,
         nombre_liga: perfil.nombre_liga,
-        nombre_torneo: perfil.nombre_torneo,
         whatsapp_contacto: perfil.whatsapp_contacto,
         logo_url: perfil.logo_torneo,
-        inscripciones_abiertas: perfil.inscripciones_abiertas
-      }, { onConflict: 'organizacion_id' }); // Esto evita duplicados
+        nombre_torneo: perfil.nombre_torneo
+      }, { onConflict: 'organizacion_id' });
 
-    if (errorConfig) throw new Error("Error en configuracion_liga: " + errorConfig.message);
+    if (errorConfig) throw errorConfig;
 
-    alert("✅ Identidad y Contacto actualizados correctamente.");
-    fetchData(); 
+    alert("✅ Marca actualizada. Refresca para ver los cambios en el Navbar.");
     
+    // Forzamos la recarga de datos para que el estado local sea el de la DB
+    await fetchData(); 
+
   } catch (err) {
     console.error(err);
-    alert("❌ Error: " + err.message);
+    alert("❌ Error al sincronizar: " + err.message);
   } finally {
     setGuardandoPerfil(false);
   }

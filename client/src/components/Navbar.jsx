@@ -116,10 +116,10 @@ const Navbar = () => {
   
   <div className="flex flex-col">
     <h1 className="text-xl md:text-2xl font-black tracking-tighter uppercase leading-none text-white italic">
-      Digital <span className="text-red-600">Scorpions</span>
+      {ligaData.nombre}<span className="text-red-600"></span>
     </h1>
     <span className="text-[9px] font-bold tracking-[0.4em] text-slate-500 uppercase mt-1">
-      {ligaData.nombre}
+      Gestor de Torneo
     </span>
   </div>
 </Link>

@@ -116,29 +116,55 @@ return Object.values(tabla).sort((a, b) => b.pts - a.pts || b.dg - a.dg || b.gf 
 }, []);
 
 // --- FUNCIÓN fetchData FUSIONADA Y CORREGIDA PARA PERSISTENCIA TOTAL ---
-// --- FUNCIÓN fetchData FUSIONADA Y CORREGIDA ---
+
 const fetchData = useCallback(async () => {
   if (!userOrgId) return;
 
   setLoading(true);
   try {
+    // 1. Ejecutamos las consultas. 
+    // NOTA: Quitamos perfilData del Promise.all para manejarlo con .maybeSingle() por separado
     const [
       { data: catData },
       { data: clubData },
-      { data: perfilData },
       { data: msgData },
       { data: tData },
       { data: partidosDB }
     ] = await Promise.all([
       supabase.from('categorias').select('*').eq('organizacion_id', userOrgId).order('orden_correlativo', { ascending: true }),
       supabase.from('equipos').select('*').eq('organizacion_id', userOrgId).order('nombre'),
-      supabase.from('configuracion_liga').select('*').eq('organizacion_id', userOrgId).single(),
       supabase.from('mensajes_contacto').select('*').eq('organizacion_id', userOrgId).order('created_at', { ascending: false }),
       supabase.from('configuracion_torneo').select('*').eq('organizacion_id', userOrgId).order('id', { ascending: false }),
       supabase.from('partidos').select('*, local:equipos!local_id(id, nombre, zona), visitante:equipos!visitante_id(id, nombre, zona)').eq('organizacion_id', userOrgId)
     ]);
 
-    // Procesamiento de Partidos
+    // 2. AQUÍ ESTÁ EL CAMBIO: Manejo específico para evitar el error 406
+    const { data: perfilData } = await supabase
+      .from('configuracion_liga')
+      .select('*')
+      .eq('organizacion_id', userOrgId)
+      .maybeSingle(); // <--- Esto evita que falle si la fila no existe todavía
+
+    if (perfilData) {
+      setPerfil(perfilData);
+    } else {
+      // Si no existe fila en configuracion_liga, intentamos traer al menos el nombre de la Org
+      const { data: orgData } = await supabase
+        .from('organizaciones')
+        .select('nombre, logo_url')
+        .eq('id', userOrgId)
+        .single();
+      
+      if (orgData) {
+        setPerfil(prev => ({
+          ...prev,
+          nombre_liga: orgData.nombre,
+          logo_torneo: orgData.logo_url
+        }));
+      }
+    }
+
+    // --- Procesamiento de Partidos y el resto de tus estados ---
     if (partidosDB) {
       const agrupados = partidosDB.reduce((acc, p) => {
         const key = `${p.nro_fecha}-${p.zona || 'General'}`;
@@ -161,19 +187,16 @@ const fetchData = useCallback(async () => {
       setFixtureTemporal(Object.values(agrupados).sort((a, b) => a.numero - b.numero));
     }
 
-    // Seteo de Estados
     if (catData) setCategorias(catData);
     if (clubData) {
-        setClubes(clubData);
-        if (partidosDB) setTablaPosiciones(calcularTablaPosiciones(partidosDB, clubData));
+      setClubes(clubData);
+      if (partidosDB) setTablaPosiciones(calcularTablaPosiciones(partidosDB, clubData));
     }
-    if (perfilData) setPerfil(perfilData);
     if (msgData) setMensajes(msgData);
     if (tData) {
-        setTorneos(tData);
-        // Si no hay torneo seleccionado, seleccionamos el activo o el primero
-        const activo = tData.find(t => t.activo === true) || tData[0];
-        if (activo) setTorneoActivoId(activo.id);
+      setTorneos(tData);
+      const activo = tData.find(t => t.activo === true) || tData[0];
+      if (activo) setTorneoActivoId(activo.id);
     }
 
   } catch (err) {
@@ -182,6 +205,7 @@ const fetchData = useCallback(async () => {
     setLoading(false);
   }
 }, [userOrgId, calcularTablaPosiciones]);
+
 
 useEffect(() => {
   fetchData();
@@ -292,37 +316,45 @@ return fechaEncontrada.toLocaleDateString('es-AR', { day: '2-digit', month: '2-d
 };
 
 const actualizarPerfil = async () => {
-  setGuardandoPerfil(true);
+  if (!userOrgId) return alert("No se detectó el ID de organización");
   
-  // 1. Actualizamos la tabla ORGANIZACIONES (La que lee el Navbar y el Dashboard)
-  const { error: errorOrg } = await supabase
-    .from('organizaciones')
-    .update({
-      nombre: perfil.nombre_liga, // Nombre de la liga (ej: Liga de las Nenas)
-      logo_url: perfil.logo_url, // La URL de Cloudinary
-      // color_principal: perfil.color_principal // Si decides agregar selector de color
-    })
-    .eq('id', userOrgId); // Usamos el ID de la organización del usuario
+  setGuardandoPerfil(true);
+  try {
+    // 1. Guardar LOGO y NOMBRE en la tabla 'organizaciones'
+    const { error: errorOrg } = await supabase
+      .from('organizaciones')
+      .update({
+        nombre: perfil.nombre_liga,
+        logo_url: perfil.logo_torneo, // Asegúrate de que esta URL sea la de Cloudinary
+      })
+      .eq('id', userOrgId);
 
-  // 2. Opcional: Actualizamos la tabla de configuración interna si la usas para otros datos
-  const { error: errorConfig } = await supabase
-    .from('configuracion_liga')
-    .update({
-      nombre_torneo: perfil.nombre_torneo,
-      whatsapp_contacto: perfil.whatsapp_contacto,
-      inscripciones_abiertas: perfil.inscripciones_abiertas,
-      logo_url: perfil.logo_torneo,
-    })
-    .eq('organizacion_id', userOrgId);
+    if (errorOrg) throw new Error("Error en organizaciones: " + errorOrg.message);
 
-  if (errorOrg || errorConfig) {
-    alert("Error al actualizar: " + (errorOrg?.message || errorConfig?.message));
-  } else {
-    alert("✅ Identidad de la Liga y Configuración actualizadas.");
-    // Refrescamos para que los cambios se vean en el componente
+    // 2. Guardar WHATSAPP y CONFIG en 'configuracion_liga'
+    // Usamos UPSERT para que si la fila no existe, la cree automáticamente
+    const { error: errorConfig } = await supabase
+      .from('configuracion_liga')
+      .upsert({
+        organizacion_id: userOrgId,
+        nombre_liga: perfil.nombre_liga,
+        nombre_torneo: perfil.nombre_torneo,
+        whatsapp_contacto: perfil.whatsapp_contacto,
+        logo_url: perfil.logo_torneo,
+        inscripciones_abiertas: perfil.inscripciones_abiertas
+      }, { onConflict: 'organizacion_id' }); // Esto evita duplicados
+
+    if (errorConfig) throw new Error("Error en configuracion_liga: " + errorConfig.message);
+
+    alert("✅ Identidad y Contacto actualizados correctamente.");
     fetchData(); 
+    
+  } catch (err) {
+    console.error(err);
+    alert("❌ Error: " + err.message);
+  } finally {
+    setGuardandoPerfil(false);
   }
-  setGuardandoPerfil(false);
 };
 
 

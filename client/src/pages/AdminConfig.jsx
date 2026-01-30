@@ -310,7 +310,8 @@ const actualizarPerfil = async () => {
     .update({
       nombre_torneo: perfil.nombre_torneo,
       whatsapp_contacto: perfil.whatsapp_contacto,
-      inscripciones_abiertas: perfil.inscripciones_abiertas
+      inscripciones_abiertas: perfil.inscripciones_abiertas,
+      logo_url: perfil.logo_torneo,
     })
     .eq('organizacion_id', userOrgId);
 

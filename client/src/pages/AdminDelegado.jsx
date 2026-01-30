@@ -300,8 +300,8 @@ const manejarEnvioFichaje = async (e) => {
     e.preventDefault();
     
     // 1. Validaciones de existencia de archivos y datos
-    if (!equipoIdActual || !filePerfil || !fileDNI) {
-        return alert("⚠️ Debes cargar ambas fotos y completar los datos antes de enviar.");
+    if (!equipoIdActual || equipoIdActual === 0 || !filePerfil || !fileDNI) {
+        return alert("⚠️ Debes seleccionar un CLUB, cargar ambas fotos y completar los datos.");
     }
     
     // 2. Bloqueo si hay error visual de DNI (el input está en rojo)

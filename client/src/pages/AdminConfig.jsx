@@ -47,7 +47,7 @@ const [diasSeleccionados, setDiasSeleccionados] = useState(['6']);
 const [perfil, setPerfil] = useState({
 email_contacto: '',
 whatsapp_contacto: '',
-nombre_liga: 'nc-s1125',
+nombre_liga: 'Sc-1225',
 nombre_torneo: 'Torneo Oficial 2026',
 logo_torneo: '',
 inscripciones_abiertas: true
@@ -293,21 +293,34 @@ return fechaEncontrada.toLocaleDateString('es-AR', { day: '2-digit', month: '2-d
 
 const actualizarPerfil = async () => {
   setGuardandoPerfil(true);
-  // Aquí guardamos los colores y logo que usará TODA la liga
-  const { error } = await supabase
+  
+  // 1. Actualizamos la tabla ORGANIZACIONES (La que lee el Navbar y el Dashboard)
+  const { error: errorOrg } = await supabase
+    .from('organizaciones')
+    .update({
+      nombre: perfil.nombre_liga, // Nombre de la liga (ej: Liga de las Nenas)
+      logo_url: perfil.logo_torneo, // La URL de Cloudinary
+      // color_principal: perfil.color_principal // Si decides agregar selector de color
+    })
+    .eq('id', userOrgId); // Usamos el ID de la organización del usuario
+
+  // 2. Opcional: Actualizamos la tabla de configuración interna si la usas para otros datos
+  const { error: errorConfig } = await supabase
     .from('configuracion_liga')
     .update({
-      nombre_liga: perfil.nombre_liga,     // Ej: "AFA"
-      logo_url: perfil.logo_torneo,        // Logo que va en el carnet
-      color_fondo_carnet: perfil.color_fondo_carnet,
-      color_texto_carnet: perfil.color_texto_carnet,
+      nombre_torneo: perfil.nombre_torneo,
       whatsapp_contacto: perfil.whatsapp_contacto,
-      organizacion_id: userOrgId // Aseguramos que sea para ESTA liga
+      inscripciones_abiertas: perfil.inscripciones_abiertas
     })
-    .eq('organizacion_id', userOrgId); // Ya no usamos .eq('id', 1)
+    .eq('organizacion_id', userOrgId);
 
-  if (error) alert("Error: " + error.message);
-  else alert("✅ Identidad de la Liga (Marca) actualizada.");
+  if (errorOrg || errorConfig) {
+    alert("Error al actualizar: " + (errorOrg?.message || errorConfig?.message));
+  } else {
+    alert("✅ Identidad de la Liga y Configuración actualizadas.");
+    // Refrescamos para que los cambios se vean en el componente
+    fetchData(); 
+  }
   setGuardandoPerfil(false);
 };
 

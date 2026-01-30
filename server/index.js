@@ -13,9 +13,10 @@ app.use(cors());
 app.use(express.json());
 
 // server/index.js
+// Forzamos que use la variable correcta
 const supabase = createClient(
   process.env.SUPABASE_URL, 
-  process.env.SUPABASE_KEY // Esta ahora será la sb_secret
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY 
 );
 
 

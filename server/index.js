@@ -66,18 +66,24 @@ app.post('/fichar', upload.fields([
         else categoria = "Reinas (+45)";
 
         // --- GUARDADO RÁPIDO ---
-        // Quitamos el OCR pesado de aquí para que responda antes de los 10 segundos
-        const { data, error: dbError } = await supabase
-            .from('jugadoras')
-            .insert([{
-                nombre, apellido, dni, fecha_nacimiento,
-                equipo_id: Number(equipo_id), organizacion_id,
-                foto_url, dni_foto_url, categoria_actual: categoria,
-                verificacion_manual: (verificacion_manual === 'true' || parseFloat(distancia_biometrica) > 0.6),
-                distancia_biometrica: parseFloat(distancia_biometrica) || 0,
-                observaciones_ia: observaciones_ia || "Fichaje procesado"
-            }])
-            .select();
+       // --- GUARDADO RÁPIDO ---
+const { data, error: dbError } = await supabase
+    .from('jugadoras')
+    .insert([{
+        nombre, 
+        apellido, 
+        dni, 
+        fecha_nacimiento,
+        equipo_id: parseInt(equipo_id), // Aseguramos entero
+        organizacion_id: organizacion_id.trim(), // Aseguramos que sea el UUID limpio
+        foto_url, 
+        dni_foto_url, 
+        categoria_actual: categoria,
+        verificacion_manual: (verificacion_manual === 'true' || parseFloat(distancia_biometrica) > 0.6),
+        distancia_biometrica: parseFloat(distancia_biometrica) || 0,
+        observaciones_ia: observaciones_ia || "Fichaje procesado"
+    }])
+    .select();
 
         if (dbError) {
             if (dbError.code === '23505') return res.status(409).json({ error: "DNI DUPLICADO" });

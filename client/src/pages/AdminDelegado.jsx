@@ -342,6 +342,11 @@ const manejarEnvioFichaje = async (e) => {
         if (res.status === 200 || res.status === 201) {
             alert("🚀 Fichaje enviado con éxito. La organización validará la identidad para habilitar el carnet.");
 
+          // --- ESTA ES LA PARTE CLAVE ---
+            // Asumiendo que tu backend devuelve la jugadora en res.data
+            // Si el backend devuelve { jugadora: {...} }, usa res.data.jugadora
+            setJugadoraRegistrada(res.data);
+
             // Limpieza de estados
             setDatosFichaje({ nombre: '', apellido: '', dni: '', fecha_nacimiento: '' });
             setFilePerfil(null);
@@ -510,7 +515,8 @@ const verificarDniDuplicado = async (dni) => {
       {activeTab === 'fichaje' && (
         <div className="max-w-4xl mx-auto animate-in slide-in-from-bottom-8 duration-500">
           {jugadoraRegistrada ? (
-             <div className="flex flex-col items-center gap-6"><CarnetJugadora jugadora={jugadoraRegistrada} config={configLiga}/><button onClick={() => setJugadoraRegistrada(null)} className="bg-blue-600 text-white px-10 py-3 rounded-full font-black uppercase text-[10px]">Nuevo Fichaje</button></div>
+             <div className="flex flex-col items-center gap-6"><CarnetJugadora jugadora={jugadoraRegistrada} config={configLiga}/>
+             <button onClick={() => setJugadoraRegistrada(null)} className="bg-blue-600 text-white px-10 py-3 rounded-full font-black uppercase text-[10px]">Nuevo Fichaje</button></div>
           ) : (
             <div className="bg-slate-900 p-8 rounded-[3rem] border border-slate-800 shadow-2xl">
               <h2 className="text-xl font-black uppercase text-emerald-500 mb-6 italic">Fichaje Oficial</h2>

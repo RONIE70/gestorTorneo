@@ -93,22 +93,31 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         
        {/* IZQUIERDA: LOGO */}
-<Link to="/" className="flex items-center gap-3 flex-shrink-0" onClick={() => setMenuAbierto(false)}>
-  {ligaData.logo ? (
-    // 1. Si la liga tiene logo en la base de datos, usa ese
-    <img src={ligaData.logo} alt="Logo" className="h-8 md:h-10 w-auto object-contain rounded" />
-  ) : (
-    // 2. Si NO hay logo, muestra tu imagen por defecto
-    <img 
-      src="https://assets.pinterest.com/ext/embed.html?id=284078688991531752"  // <-- Poné acá la ruta de tu logo en la carpeta public
-      alt="Logo Defecto" 
-      className="h-8 md:h-10 w-auto object-contain rounded brightness-110" 
-    />
-  )}
+{/* IZQUIERDA: LOGO CON EL ESCORPIÓN */}
+<Link to="/" className="flex items-center gap-4 flex-shrink-0 group" onClick={() => setMenuAbierto(false)}>
+  <div className="relative">
+    {/* CÍRCULO CONTENEDOR DEL ESCORPIÓN */}
+    <div className="h-12 w-12 md:h-14 md:w-14 rounded-full overflow-hidden border-2 border-red-600 shadow-[0_0_20px_rgba(220,38,38,0.3)] bg-white p-0.5 group-hover:scale-110 transition-transform duration-300">
+      <img 
+        src="/escorpion_logo.jpg" // <-- Asegurate de guardar la imagen en public/escorpion_logo.jpg
+        alt="Logo Escorpión" 
+        className="w-full h-full object-cover rounded-full"
+      />
+    </div>
+    {/* Detalle de brillo en la esquina */}
+    <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 rounded-full border-2 border-black flex items-center justify-center">
+      <div className="w-1 h-1 bg-white rounded-full animate-pulse"></div>
+    </div>
+  </div>
   
-  <h1 className="text-xl md:text-2xl font-black tracking-tighter uppercase italic">
-    GESTOR <span className="text-liga">{ligaData.nombre}</span>
-  </h1>
+  <div className="flex flex-col">
+    <h1 className="text-xl md:text-2xl font-black tracking-tighter uppercase leading-none text-white italic">
+      Digital <span className="text-red-600">Scorpions</span>
+    </h1>
+    <span className="text-[9px] font-bold tracking-[0.4em] text-slate-500 uppercase mt-1">
+      {ligaData.nombre}
+    </span>
+  </div>
 </Link>
 
         {/* CENTRO: BUSCADOR (Desktop) */}

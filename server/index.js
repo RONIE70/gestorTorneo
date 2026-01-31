@@ -7,8 +7,7 @@ const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const Tesseract = require('tesseract.js'); // Librería de OCR
-const { jsPDF } = require("jspdf");
-require("jspdf-autotable");
+
 
 const app = express();
 app.use(cors());
@@ -115,6 +114,13 @@ app.get('/', (req, res) => {
     });
 });
 
+app.post('/generar-planilla-pdf', async (req, res) => {
+    const { partidoId, organizacion_id } = req.body;
+    if (!partidoId) return res.status(400).json({ error: "Falta partidoId" });
+    
+    // Respondemos con éxito para que el frontend tome el control
+    res.json({ status: "success", message: "Generando documento dinámico" });
+});
 
 
 // --- RUTA DASHBOARD ---
@@ -128,7 +134,6 @@ app.get('/dashboard-resumen', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 
 
 // --- RUTA APROBAR MANUAL ---

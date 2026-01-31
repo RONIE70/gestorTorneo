@@ -418,83 +418,94 @@ const verificarDniDuplicado = async (dni) => {
 
 
   // 2. Función para generar y descargar
-// --- LÓGICA DE PDF CLIENT-SIDE ---
-  const handleDescargarPlanilla = async () => {
-    if (!filtroCatPlanilla) return alert("Selecciona una categoría");
-    setLoadingSession(true);
-    try {
-      let query = supabase
-        .from('partidos')
-        .select(`id, nro_fecha, categoria, zona, local:equipos!local_id(id, nombre), visitante:equipos!visitante_id(id, nombre)`)
-        .eq('nro_fecha', Number(filtroFechaPlanilla))
-        .eq('categoria', filtroCatPlanilla);
+// --- LÓGICA DE ARMADO DE PLANILLA PDF (MVP LOCAL) ---
+    const handleDescargarPlanilla = async () => {
+        if (!filtroCatPlanilla) return alert("Seleccioná una categoría");
+        
+        setLoadingSession(true);
+        try {
+            // Buscamos el partido directamente en Supabase (Sin pasar por el index del servidor)
+            let query = supabase.from('partidos')
+                .select('id, nro_fecha, categoria, zona, local:equipos!local_id(id, nombre), visitante:equipos!visitante_id(id, nombre)')
+                .eq('organizacion_id', perfilUsuario.organizacion_id)
+                .eq('nro_fecha', Number(filtroFechaPlanilla))
+                .eq('categoria', filtroCatPlanilla);
 
-      if (perfilUsuario.rol === 'delegado') {
-        query = query.or(`local_id.eq.${perfilUsuario.equipo_id},visitante_id.eq.${perfilUsuario.equipo_id}`);
-      }
+            if (perfilUsuario.rol === 'delegado') {
+                query = query.or(`local_id.eq.${perfilUsuario.equipo_id},visitante_id.eq.${perfilUsuario.equipo_id}`);
+            }
 
-      const { data: partido, error } = await query.maybeSingle();
-      if (error || !partido) {
-        alert("No se encontró el partido.");
-        return;
-      }
+            const { data: partido, error: pErr } = await query.maybeSingle();
+            if (pErr || !partido) return alert("No se encontró el partido.");
 
-      const { data: jugLocal } = await supabase.from('jugadoras').select('nombre, apellido, dni').eq('equipo_id', partido.local.id).eq('categoria', partido.categoria).order('apellido');
-      const { data: jugVisita } = await supabase.from('jugadoras').select('nombre, apellido, dni').eq('equipo_id', partido.visitante.id).eq('categoria', partido.categoria).order('apellido');
+            // Traemos las jugadoras de ambos equipos
+            const { data: localP } = await supabase.from('jugadoras').select('nombre, apellido, dni').eq('equipo_id', partido.local.id).eq('categoria', partido.categoria).order('apellido');
+            const { data: visitaP } = await supabase.from('jugadoras').select('nombre, apellido, dni').eq('equipo_id', partido.visitante.id).eq('categoria', partido.categoria).order('apellido');
 
-      ejecutarGeneracionPDF(partido, jugLocal || [], jugVisita || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingSession(false);
+            // Llamamos a la función que DIBUJA las tablas
+            armarDocumentoPDF(partido, localP || [], visitaP || []);
+
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoadingSession(false);
+        }
+    };
+
+    const armarDocumentoPDF = (partido, localP, visitaP) => {
+        const doc = new jsPDF();
+        
+        // Encabezado
+        doc.setFontSize(14);
+        doc.text("PLANILLA DE JUEGO - LA LIGA DE LAS NENAS 2025", 105, 15, { align: 'center' });
+        doc.setFontSize(10);
+        doc.text(`FECHA №: ${partido.nro_fecha} | CATEGORÍA: ${partido.categoria.toUpperCase()} | ZONA: ${partido.zona || 'A DEFINIR'}`, 14, 25);
+
+        const columnas = ["№", "Nombre y Apellido", "DNI", "Firma", "Goles", "A", "R", "FALTAS"];
+
+        // TABLA LOCAL
+        doc.setFont("helvetica", "bold");
+        doc.text(`LOCAL: ${partido.local.nombre}`, 14, 35);
+        doc.autoTable({
+            startY: 38,
+            head: [columnas],
+            body: localP.map(j => ["", `${j.apellido} ${j.nombre}`, j.dni, "", "", "", "", ""]),
+            theme: 'grid',
+            styles: { fontSize: 8 },
+            headStyles: { fillGray: [220, 220, 220], textColor: 0 }
+        });
+
+        // TABLA VISITANTE
+        const finalY = doc.lastAutoTable.finalY;
+        doc.text(`VISITA: ${partido.visitante.nombre}`, 14, finalY + 10);
+        doc.autoTable({
+            startY: finalY + 13,
+            head: [columnas],
+            body: visitaP.map(j => ["", `${j.apellido} ${j.nombre}`, j.dni, "", "", "", "", ""]),
+            theme: 'grid',
+            styles: { fontSize: 8 },
+            headStyles: { fillGray: [220, 220, 220], textColor: 0 }
+        });
+
+        // PIE DE PLANILLA
+        const pieY = doc.lastAutoTable.finalY + 15;
+        doc.text("1ER TIEMPO: _________  2DO TIEMPO: _________  TOTAL GOLES: _________", 14, pieY);
+        doc.text("FIRMA DELEGADO LOCAL: ____________________  FIRMA DELEGADO VISITA: ____________________", 14, pieY + 10);
+
+        doc.save(`Planilla_F${partido.nro_fecha}_${partido.local.nombre}_vs_${partido.visitante.nombre}.pdf`);
+    };
+
+    // --- RENDER DE CARGA ---
+    if (loadingSession) {
+        return (
+            <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="font-black uppercase italic animate-pulse">Cargando datos oficiales...</p>
+                </div>
+            </div>
+        );
     }
-  };
-
-  const ejecutarGeneracionPDF = (partido, localPlayers, visitaPlayers) => {
-    const doc = new jsPDF();
-    doc.setFontSize(14);
-    doc.text("PLANILLA DE JUEGO - LA LIGA DE LAS NENAS 2025", 105, 15, { align: 'center' });
-    doc.setFontSize(10);
-    const zonaTexto = partido.zona ? `ZONA: ${partido.zona}` : "ZONA: Pendiente Sorteo";
-    doc.text(`FECHA №: ${partido.nro_fecha} | CATEGORÍA: ${partido.categoria.toUpperCase()} | ${zonaTexto}`, 14, 25);
-    
-    const columns = ["№", "Nombre y Apellido", "DNI", "Firma", "Goles", "A", "R", "Faltas"];
-    
-    doc.text(`LOCAL: ${partido.local.nombre}`, 14, 35);
-    doc.autoTable({
-      startY: 38,
-      head: [columns],
-      body: localPlayers.map(j => ["", `${j.apellido} ${j.nombre}`, j.dni, "", "", "", "", ""]),
-      theme: 'grid',
-      styles: { fontSize: 8 },
-      headStyles: { fillGray: [200, 200, 200], textColor: 0 }
-    });
-
-    const finalY = doc.lastAutoTable.finalY;
-    doc.text(`VISITA: ${partido.visitante.nombre}`, 14, finalY + 10);
-    doc.autoTable({
-      startY: finalY + 13,
-      head: [columns],
-      body: visitaPlayers.map(j => ["", `${j.apellido} ${j.nombre}`, j.dni, "", "", "", "", ""]),
-      theme: 'grid',
-      styles: { fontSize: 8 },
-      headStyles: { fillGray: [200, 200, 200], textColor: 0 }
-    });
-
-    doc.save(`Planilla_F${partido.nro_fecha}.pdf`);
-  };
-
-  // --- RENDERS ---
-  if (loadingSession) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="font-black uppercase italic animate-pulse">Cargando panel...</p>
-        </div>
-      </div>
-    );
-  }
 
   
   const iniciarEdicion = (e, j) => {
@@ -567,27 +578,21 @@ const verificarDniDuplicado = async (dni) => {
       {activeTab === 'planilla' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
         {/* BLOQUE DE DESCARGA (Ahora dentro de la pestaña correcta) */}
-          <div className="bg-slate-900/50 p-6 rounded-3xl border border-slate-800">
-            <h3 className="text-white font-black uppercase text-sm mb-4 flex items-center gap-2">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-              Descargar Planilla de Juego
-            </h3>
-            <div className="flex flex-wrap gap-4 items-end">
-              <div>
-                <label className="text-[10px] text-slate-500 font-bold ml-2">FECHA №</label>
-                <input type="number" value={filtroFechaPlanilla} onChange={(e) => setFiltroFechaPlanilla(e.target.value)} className="w-20 bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white" />
-              </div>
-              <div className="flex-1">
-                <label className="text-[10px] text-slate-500 font-bold ml-2">CATEGORÍA</label>
-                <select value={filtroCatPlanilla} onChange={(e) => setFiltroCatPlanilla(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white">
-                  <option value="">Seleccionar...</option>
-                  <option value="sub 14">Sub 14</option>
-                  <option value="sub 16">Sub 16</option>
-                  <option value="primera">Primera</option>
-                </select>
-              </div>
-              <button onClick={handleDescargarPlanilla} className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-8 py-4 rounded-xl text-[10px] uppercase">Generar PDF</button>
-            </div>
+          <div className="space-y-6">
+                    {/* BLOQUE DESCARGA PDF */}
+                    <div className="bg-slate-900/50 p-6 rounded-3xl border border-slate-800">
+                        <h3 className="text-white font-black uppercase text-sm mb-4 flex items-center gap-2">Descargar Planilla</h3>
+                        <div className="flex flex-wrap gap-4 items-end">
+                            <input type="number" value={filtroFechaPlanilla} onChange={e => setFiltroFechaPlanilla(e.target.value)} className="w-20 bg-slate-950 border border-slate-800 p-3 rounded-xl text-white" />
+                            <select value={filtroCatPlanilla} onChange={e => setFiltroCatPlanilla(e.target.value)} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl text-white">
+                                <option value="">Seleccionar Categoría...</option>
+                                <option value="sub 14">Sub 14</option>
+                                <option value="sub 16">Sub 16</option>
+                                <option value="primera">Primera</option>
+                            </select>
+                            <button onClick={handleDescargarPlanilla} className="bg-emerald-600 hover:bg-emerald-500 px-8 py-4 rounded-xl font-black text-[10px] uppercase transition-all">Generar PDF</button>
+                        </div>
+                    </div>
           </div>
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 shadow-xl">

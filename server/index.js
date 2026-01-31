@@ -7,6 +7,8 @@ const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const Tesseract = require('tesseract.js'); // Librería de OCR
+const { jsPDF } = require("jspdf");
+require("jspdf-autotable");
 
 const app = express();
 app.use(cors());
@@ -127,118 +129,6 @@ app.get('/dashboard-resumen', async (req, res) => {
     }
 });
 
-const { jsPDF } = require("jspdf");
-require("jspdf-autotable");
-
-app.post('/generar-planilla-pdf', async (req, res) => {
-  try {
-    const { partidoId, organizacion_id } = req.body;
-
-    // 1. Obtener datos del partido y nombres de equipos
-    const { data: partido, error: pErr } = await supabase
-      .from('partidos')
-      .select(`
-        *,
-        local:equipos!local_id(id, nombre),
-        visitante:equipos!visitante_id(id, nombre)
-      `)
-      .eq('id', partidoId)
-      .single();
-
-    if (pErr || !partido) return res.status(404).json({ error: "Partido no encontrado" });
-
-    // 2. Obtener jugadoras de ambos equipos (Lista de Buena Fe por categoría)
-    const { data: jugLocal } = await supabase
-      .from('jugadoras')
-      .select('nombre, apellido, dni, numero')
-      .eq('equipo_id', partido.local_id)
-      .eq('categoria', partido.categoria)
-      .order('apellido', { ascending: true });
-
-    const { data: jugVisita } = await supabase
-      .from('jugadoras')
-      .select('nombre, apellido, dni, numero')
-      .eq('equipo_id', partido.visitante_id)
-      .eq('categoria', partido.categoria)
-      .order('apellido', { ascending: true });
-
-    // 3. Configuración del PDF
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.width;
-    
-    // Encabezado principal
-    doc.setFontSize(14);
-    doc.text("PLANILLA DE JUEGO - LA LIGA DE LAS NENAS 2025", pageWidth / 2, 15, { align: 'center' });
-    
-    doc.setFontSize(10);
-    doc.text(`FECHA: ${partido.nro_fecha || '---'}`, 20, 25);
-    doc.text(`CATEGORÍA: ${partido.categoria.toUpperCase()}`, 80, 25);
-    doc.text(`ZONA: ${partido.zona || 'ÚNICA'}`, 150, 25);
-
-    const columns = ["№", "Nombre y Apellido", "DNI", "Firma", "Goles", "A", "R", "Faltas"];
-
-    // --- TABLA EQUIPO LOCAL ---
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text(`LOCAL: ${partido.local.nombre.toUpperCase()}`, 20, 35);
-    
-    doc.autoTable({
-      startY: 38,
-      head: [columns],
-      body: (jugLocal || []).map(j => [j.numero || "", `${j.nombre} ${j.apellido}`, j.dni, "", "", "", "", ""]),
-      theme: 'grid',
-      styles: { fontSize: 8, cellPadding: 1 },
-      headStyles: { fillGray: [200, 200, 200], textColor: 0, fontStyle: 'bold' },
-      columnStyles: { 0: { cellWidth: 8 }, 2: { cellWidth: 22 } }
-    });
-
-    let currentY = doc.lastAutoTable.finalY + 8;
-
-    // Espacio de control para Local
-    doc.setFontSize(9);
-    doc.text("1ER TIEMPO: _________  2DO TIEMPO: _________  TOTAL GOLES: _________", 20, currentY);
-    
-    currentY += 12;
-
-    // --- TABLA EQUIPO VISITANTE ---
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text(`VISITA: ${partido.visitante.nombre.toUpperCase()}`, 20, currentY);
-
-    doc.autoTable({
-      startY: currentY + 3,
-      head: [columns],
-      body: (jugVisita || []).map(j => [j.numero || "", `${j.nombre} ${j.apellido}`, j.dni, "", "", "", "", ""]),
-      theme: 'grid',
-      styles: { fontSize: 8, cellPadding: 1 },
-      headStyles: { fillGray: [200, 200, 200], textColor: 0, fontStyle: 'bold' },
-      columnStyles: { 0: { cellWidth: 8 }, 2: { cellWidth: 22 } }
-    });
-
-    currentY = doc.lastAutoTable.finalY + 8;
-
-    // Espacio de control para Visita
-    doc.setFontSize(9);
-    doc.text("1ER TIEMPO: _________  2DO TIEMPO: _________  TOTAL GOLES: _________", 20, currentY);
-
-    // Pie de página con firmas de delegados/árbitro
-    currentY += 20;
-    doc.line(20, currentY, 70, currentY); // Firma Local
-    doc.line(140, currentY, 190, currentY); // Firma Visita
-    doc.text("Firma Delegado Local", 30, currentY + 5);
-    doc.text("Firma Delegado Visita", 150, currentY + 5);
-
-    // 4. Salida del archivo
-    const pdfOutput = doc.output('arraybuffer');
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename=Planilla_F${partido.nro_fecha}.pdf`);
-    res.send(Buffer.from(pdfOutput));
-
-  } catch (error) {
-    console.error("Error generando PDF:", error);
-    res.status(500).json({ error: "Error interno del servidor" });
-  }
-});
 
 // --- RUTA APROBAR MANUAL ---
 app.patch('/jugadoras/:id/aprobar', async (req, res) => {

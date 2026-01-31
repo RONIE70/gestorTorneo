@@ -37,7 +37,7 @@ const AdminDelegado = () => {
   const [filtroFechaPlanilla, setFiltroFechaPlanilla] = useState(1);
   const [filtroCatPlanilla, setFiltroCatPlanilla] = useState(""); 
 
-  // eslint-disable-next-line no-unused-vars
+
   const [loadingSession, setLoadingSession] = useState(true);
   const [datosFichaje, setDatosFichaje] = useState({ 
     nombre: '', apellido: '', dni: '', fecha_nacimiento: '', equipo_id: '', club_nombre: '', club_escudo: ''   
@@ -418,26 +418,25 @@ const verificarDniDuplicado = async (dni) => {
 
 
   // 2. Función para generar y descargar
-// --- LÓGICA DE PDF (UNIFICADA Y CORREGIDA) ---
+// --- LÓGICA DE PDF CLIENT-SIDE (MVP) ---
   const handleDescargarPlanilla = async () => {
-    if (!filtroCatPlanilla) return alert("Por favor, selecciona una categoría.");
+    if (!filtroCatPlanilla) return alert("Selecciona una categoría");
     
     setLoadingSession(true);
     try {
+      // Buscamos el partido
       let query = supabase
         .from('partidos')
         .select(`
-          id, 
-          nro_fecha, 
-          categoria, 
-          zona, 
-          local:equipos!local_id(id, nombre), 
+          id, nro_fecha, categoria, zona,
+          local:equipos!local_id(id, nombre),
           visitante:equipos!visitante_id(id, nombre)
         `)
         .eq('organizacion_id', perfilUsuario.organizacion_id)
         .eq('nro_fecha', Number(filtroFechaPlanilla))
         .eq('categoria', filtroCatPlanilla);
 
+      // Si es delegado, filtramos por su equipo
       if (perfilUsuario.rol === 'delegado') {
         query = query.or(`local_id.eq.${perfilUsuario.equipo_id},visitante_id.eq.${perfilUsuario.equipo_id}`);
       }
@@ -445,33 +444,35 @@ const verificarDniDuplicado = async (dni) => {
       const { data: partido, error } = await query.maybeSingle();
 
       if (error || !partido) {
-        alert("No hay partidos programados para estos filtros.");
+        alert("No se encontró un partido programado para esa fecha y categoría.");
         return;
       }
 
-      // Traemos las jugadoras que fueron CITADAS para este partido
-      // Si prefieres que salgan todas las del club (Lista de Buena Fe), mantén el código anterior
+      // Traemos las jugadoras (Lista de Buena Fe)
       const { data: jugLocal } = await supabase
         .from('jugadoras')
         .select('nombre, apellido, dni')
         .eq('equipo_id', partido.local.id)
-        .eq('categoria', partido.categoria);
+        .eq('categoria', partido.categoria)
+        .order('apellido');
 
       const { data: jugVisita } = await supabase
         .from('jugadoras')
         .select('nombre, apellido, dni')
         .eq('equipo_id', partido.visitante.id)
-        .eq('categoria', partido.categoria);
+        .eq('categoria', partido.categoria)
+        .order('apellido');
 
+      // Generamos el PDF localmente
       ejecutarGeneracionPDF(partido, jugLocal || [], jugVisita || []);
+
     } catch (err) {
-      console.error("Error al procesar planilla:", err);
+      console.error("Error:", err);
     } finally {
       setLoadingSession(false);
     }
   };
 
-  // Cambiamos el nombre a uno único para evitar el error de "already declared"
   const ejecutarGeneracionPDF = (partido, localPlayers, visitaPlayers) => {
     const doc = new jsPDF();
     
@@ -480,8 +481,9 @@ const verificarDniDuplicado = async (dni) => {
     doc.text("PLANILLA DE JUEGO - LA LIGA DE LAS NENAS 2025", 105, 15, { align: 'center' });
     
     doc.setFontSize(10);
-    const infoHeader = `FECHA №: ${partido.nro_fecha} | CATEGORÍA: ${partido.categoria.toUpperCase()} | ZONA: ${partido.zona || 'ÚNICA'}`;
-    doc.text(infoHeader, 14, 25);
+    // Mostramos la zona solo si existe (si ya se hizo el sorteo)
+    const zonaTexto = partido.zona ? `ZONA: ${partido.zona}` : "ZONA: Pendiente Sorteo";
+    doc.text(`FECHA №: ${partido.nro_fecha} | CATEGORÍA: ${partido.categoria.toUpperCase()} | ${zonaTexto}`, 14, 25);
 
     const columns = ["№", "Nombre y Apellido", "DNI", "Firma", "Goles", "A", "R", "Faltas"];
     
@@ -491,27 +493,32 @@ const verificarDniDuplicado = async (dni) => {
     doc.autoTable({
       startY: 38,
       head: [columns],
-      body: localPlayers.map(j => ["", `${j.nombre} ${j.apellido}`, j.dni, "", "", "", "", ""]),
+      body: localPlayers.map(j => ["", `${j.apellido} ${j.nombre}`, j.dni, "", "", "", "", ""]),
       theme: 'grid',
-      styles: { fontSize: 8, cellPadding: 1 },
+      styles: { fontSize: 8 },
       headStyles: { fillGray: [200, 200, 200], textColor: 0 }
     });
 
     // TABLA VISITANTE
     const finalY = doc.lastAutoTable.finalY;
+    doc.setFont("helvetica", "bold");
     doc.text(`VISITA: ${partido.visitante.nombre}`, 14, finalY + 10);
     doc.autoTable({
       startY: finalY + 13,
       head: [columns],
-      body: visitaPlayers.map(j => ["", `${j.nombre} ${j.apellido}`, j.dni, "", "", "", "", ""]),
+      body: visitaPlayers.map(j => ["", `${j.apellido} ${j.nombre}`, j.dni, "", "", "", "", ""]),
       theme: 'grid',
-      styles: { fontSize: 8, cellPadding: 1 },
+      styles: { fontSize: 8 },
       headStyles: { fillGray: [200, 200, 200], textColor: 0 }
     });
 
+    // Control de Tiempos al final
+    const pieY = doc.lastAutoTable.finalY + 15;
+    doc.setFontSize(9);
+    doc.text("1ER TIEMPO: _________  2DO TIEMPO: _________  TOTAL GOLES: _________", 14, pieY);
+
     doc.save(`Planilla_F${partido.nro_fecha}_${partido.categoria}.pdf`);
   };
-
 
   if (loadingSession) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">Cargando panel...</div>;
 

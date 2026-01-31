@@ -102,7 +102,7 @@ const Navbar = () => {
     <div className="h-12 w-12 md:h-14 md:w-14 rounded-full overflow-hidden border-2 border-red-600 shadow-[0_0_20px_rgba(220,38,38,0.3)] bg-white p-0.5 group-hover:scale-110 transition-transform duration-300">
       {/* CAMBIO CLAVE: Quitamos el Base64 fijo y usamos el estado dinámico */}
               <img 
-                src={ligaData.logo || "/client/public/logogestor.png"} 
+                src={ligaData.logo || "../logogestor.png"} 
                 alt="Logo Liga" 
                 className="w-full h-full object-cover rounded-full"
               />

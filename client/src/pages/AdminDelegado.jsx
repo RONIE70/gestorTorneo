@@ -52,6 +52,7 @@ const fetchData = useCallback(async () => {
       return;
     }
 
+    // 1. Obtener Perfil del usuario
     const { data: perfil, error: perfilError } = await supabase
       .from('perfiles')
       .select('organizacion_id, equipo_id, rol')
@@ -64,26 +65,23 @@ const fetchData = useCallback(async () => {
     }
 
     setPerfilUsuario(perfil);
+    const userOrgId = perfil.organizacion_id;
 
-    // --- NUEVA LÓGICA INTEGRADA ---
+    // --- LÓGICA DE FILTRADO PARA FICHAR (Admin vs Delegado) ---
     let idParaFiltrar = 0;
-
     if (perfil.rol === 'delegado') {
-      // Si es delegado, forzamos su equipo_id
       idParaFiltrar = perfil.equipo_id;
       setEquipoIdActual(perfil.equipo_id);
     } else {
-      // Si es Admin/Superadmin, empezamos en null para obligar a elegir en el SELECT
-      idParaFiltrar = 0; // Para que no cargue jugadoras de entrada
-      setEquipoIdActual(null);
+      idParaFiltrar = 0; 
+      setEquipoIdActual(null); // Obliga al Admin a usar el SELECT
     }
-    // ------------------------------
 
-    // 1. Cargar Configuración (Logo y Nombre)
+    // 2. CARGAR CONFIGURACIÓN O DATOS BÁSICOS
     const { data: config } = await supabase
       .from('configuracion_liga')
       .select('*')
-      .eq('organizacion_id', perfil.organizacion_id)
+      .eq('organizacion_id', userOrgId)
       .maybeSingle();
     
     if (config) {
@@ -93,25 +91,38 @@ const fetchData = useCallback(async () => {
             img.crossOrigin = 'Anonymous';
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
+                canvas.width = img.width; canvas.height = img.height;
                 const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.drawImage(img, 0, 0);
-                    setLogoBase64(canvas.toDataURL('image/png'));
-                }
+                if (ctx) { ctx.drawImage(img, 0, 0); setLogoBase64(canvas.toDataURL('image/png')); }
             };
             img.src = config.logo_url;
         }
+    } else {
+        const { data: orgData, error: orgError } = await supabase
+          .from('organizaciones')
+          .select('nombre, logo_url')
+          .eq('id', userOrgId)
+          .maybeSingle();
+
+        if (orgError) console.error("Error en organizaciones:", orgError.message);
+
+        if (orgData) {
+            setConfigLiga({
+                nombre_liga: orgData.nombre,
+                logo_url: orgData.logo_url
+            });
+        }
     }
 
-    // Solo cargamos datos de plantel/partidos si ya tenemos un equipo (caso Delegado)
+    // --- RESTAURACIÓN DE PARTIDOS, EXPEDIENTES Y PLANTEL ---
+    // Solo cargamos si hay un equipo asignado (Delegado)
     if (idParaFiltrar && idParaFiltrar !== 0) {
-      // 2. Cargar Plantel
+      
+      // A. Cargar Plantel
       const { data: jugadorasData } = await supabase
         .from('jugadoras')
         .select(`*, sanciones(id, motivo, estado)`)
-        .eq('organizacion_id', perfil.organizacion_id)
+        .eq('organizacion_id', userOrgId)
         .eq('equipo_id', idParaFiltrar);
       
       setPlantel(jugadorasData?.map(j => ({
@@ -119,7 +130,7 @@ const fetchData = useCallback(async () => {
         estaSuspendida: j.sanciones?.some(s => s.estado === 'cumpliendo') || j.sancionada === true
       })) || []);
 
-      // 3. Cargar Expedientes
+      // B. Cargar Expedientes (Sanciones) - RESTAURADO
       const { data: sancData } = await supabase
         .from('sanciones')
         .select(`
@@ -136,21 +147,21 @@ const fetchData = useCallback(async () => {
       
       setExpedientes(sancData || []);
 
-      // 4. Cargar Partidos
+      // C. Cargar Partidos - RESTAURADO
       const { data: partidosData } = await supabase
         .from('partidos')
         .select('*, local:equipos!local_id(nombre), visitante:equipos!visitante_id(nombre)')
         .or(`local_id.eq.${idParaFiltrar},visitante_id.eq.${idParaFiltrar}`)
-        .eq('organizacion_id', perfil.organizacion_id)
+        .eq('organizacion_id', userOrgId)
         .eq('finalizado', false); 
       setPartidos(partidosData || []);
     }
 
-    // 5. Clubes siempre se cargan (Importante para el SELECT del Admin)
+    // 3. CLUBES (Siempre cargamos para el Select del Admin)
     const { data: clubesData } = await supabase
       .from('equipos')
       .select('*')
-      .eq('organizacion_id', perfil.organizacion_id)
+      .eq('organizacion_id', userOrgId)
       .order('nombre');
     setClubes(clubesData || []);
 

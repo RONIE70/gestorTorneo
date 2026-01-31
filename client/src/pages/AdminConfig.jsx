@@ -153,7 +153,7 @@ const fetchData = useCallback(async () => {
         .from('organizaciones')
         .select('nombre, logo_url')
         .eq('id', userOrgId)
-        .single();
+        .maybeSingle();
       
       if (orgData) {
         setPerfil(prev => ({

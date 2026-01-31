@@ -72,22 +72,21 @@ app.post('/fichar', upload.fields([
         else categoria = "Reinas (+45)";
 
         // --- GUARDADO RÁPIDO ---
-       // --- GUARDADO RÁPIDO ---
+// En tu server/index.js (Ruta /fichar)
 const { data, error: dbError } = await supabase
     .from('jugadoras')
     .insert([{
-        nombre, 
-        apellido, 
-        dni, 
-        fecha_nacimiento,
-        equipo_id: parseInt(equipo_id), // Aseguramos entero
-        organizacion_id: organizacion_id.trim(), // Aseguramos que sea el UUID limpio
-        foto_url, 
-        dni_foto_url, 
+        nombre: nombre.trim(),
+        apellido: apellido.trim(),
+        dni: dni.trim(),
+        fecha_nacimiento: fecha_nacimiento,
+        equipo_id: parseInt(equipo_id), // <--- Obligamos a que sea número
+        organizacion_id: organizacion_id, // <--- Debe ser el UUID
+        foto_url: foto_url,
+        dni_foto_url: dni_foto_url,
         categoria_actual: categoria,
-        verificacion_manual: (verificacion_manual === 'true' || parseFloat(distancia_biometrica) > 0.6),
-        distancia_biometrica: parseFloat(distancia_biometrica) || 0,
-        observaciones_ia: observaciones_ia || "Fichaje procesado"
+        verificacion_manual: true,
+        distancia_biometrica: 0
     }])
     .select();
 

@@ -4,7 +4,7 @@ import axios from 'axios';
 import CarnetJugadora from '../components/CarnetJugadora'; 
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 
 const AdminDelegado = () => {
@@ -433,93 +433,85 @@ const verificarDniDuplicado = async (dni) => {
   // 2. Función para generar y descargar
 // --- LÓGICA DE PDF (FRONTEND MVP - DINÁMICO) ---
 const handleDescargarPlanilla = async () => {
-  if (!filtroCatPlanilla) return alert("Por favor, selecciona una categoría.");
-  
-  setLoadingSession(true);
-  try {
-    // 1. Buscamos el partido (Filtro por organización del usuario logueado)
-    let query = supabase
-      .from('partidos')
-      .select(`
-        id, nro_fecha, categoria, zona,
-        local:equipos!local_id(id, nombre),
-        visitante:equipos!visitante_id(id, nombre)
-      `)
-      .eq('organizacion_id', perfilUsuario.organizacion_id)
-      .eq('nro_fecha', Number(filtroFechaPlanilla))
-      .eq('categoria', filtroCatPlanilla);
+    if (!filtroCatPlanilla) return alert("Selecciona una categoría");
+    
+    setLoadingSession(true);
+    try {
+      // 1. Buscamos el partido
+      const { data: partido, error: pErr } = await supabase
+        .from('partidos')
+        .select(`id, nro_fecha, categoria, zona, local:equipos!local_id(id, nombre), visitante:equipos!visitante_id(id, nombre)`)
+        .eq('organizacion_id', perfilUsuario.organizacion_id)
+        .eq('nro_fecha', Number(filtroFechaPlanilla))
+        .eq('categoria', filtroCatPlanilla)
+        .maybeSingle();
 
-    if (perfilUsuario.rol === 'delegado') {
-      query = query.or(`local_id.eq.${perfilUsuario.equipo_id},visitante_id.eq.${perfilUsuario.equipo_id}`);
+      if (pErr || !partido) return alert("No se encontró el partido.");
+
+      // 2. Traemos las jugadoras CORRIGIENDO EL NOMBRE DE LA COLUMNA (categoria_actual)
+      const { data: localP } = await supabase
+        .from('jugadoras')
+        .select('nombre, apellido, dni')
+        .eq('equipo_id', partido.local.id)
+        .eq('categoria_actual', partido.categoria) // <--- CAMBIO AQUÍ
+        .order('apellido');
+
+      const { data: visitaP } = await supabase
+        .from('jugadoras')
+        .select('nombre, apellido, dni')
+        .eq('equipo_id', partido.visitante.id)
+        .eq('categoria_actual', partido.categoria) // <--- CAMBIO AQUÍ
+        .order('apellido');
+
+      // 3. Generamos el PDF
+      generarPDF(partido, localP || [], visitaP || []);
+
+    } catch (err) {
+      console.error("Fallo en descarga:", err);
+    } finally {
+      setLoadingSession(false);
     }
+  };
 
-    const { data: partido, error } = await query.maybeSingle();
-
-    if (error || !partido) {
-      alert("No se encontró un partido programado para esos filtros.");
-      return;
-    }
-
-    // 2. Traemos las listas de buena fe
-    const { data: jugLocal } = await supabase.from('jugadoras').select('nombre, apellido, dni').eq('equipo_id', partido.local.id).eq('categoria', partido.categoria).order('apellido');
-    const { data: jugVisita } = await supabase.from('jugadoras').select('nombre, apellido, dni').eq('equipo_id', partido.visitante.id).eq('categoria', partido.categoria).order('apellido');
-
-    // 3. Generamos el PDF localmente
-    generarPDF(partido, jugLocal || [], jugVisita || []);
-
-  } catch (err) {
-    console.error("Fallo en descarga:", err);
-  } finally {
-    setLoadingSession(false);
-  }
-};
-
-const generarPDF = (partido, localPlayers, visitaPlayers) => {
+  const generarPDF = (partido, localPlayers, visitaPlayers) => {
   const doc = new jsPDF();
-  
-  // USAMOS EL NOMBRE DE LA LIGA DEL PERFIL (Para que sea para cualquier liga)
-  const nombreLigaCabecera = configLiga?.nombre_liga || "PLANILLA DE JUEGO";
-  
-  // Encabezado Dinámico
-  doc.setFontSize(14);
-  doc.text(`${nombreLigaCabecera.toUpperCase()} - PLANILLA DE JUEGO`, 105, 15, { align: 'center' });
-  
-  doc.setFontSize(10);
-  const zonaTexto = partido.zona ? `ZONA: ${partido.zona}` : "ZONA: A DEFINIR";
-  doc.text(`FECHA №: ${partido.nro_fecha} | CATEGORÍA: ${partido.categoria.toUpperCase()} | ${zonaTexto}`, 14, 25);
+  const nombreLiga = configLiga?.nombre_liga || "PLANILLA DE JUEGO";
 
-  const columns = ["№", "Nombre y Apellido", "DNI", "Firma", "Goles", "A", "R", "FALTAS"];
-  
-  // TABLA LOCAL
-  doc.setFont("helvetica", "bold");
-  doc.text(`LOCAL: ${partido.local.nombre}`, 14, 35);
-  doc.autoTable({
-    startY: 38,
-    head: [columns],
+  // Título Principal
+  doc.setFontSize(14);
+  doc.text(`${nombreLiga.toUpperCase()} - PLANILLA DE JUEGO`, 105, 15, { align: 'center' });
+
+  // Tabla Equipo LOCAL
+  autoTable(doc, {
+    startY: 35,
+    head: [['№', 'Nombre y Apellido', 'DNI', 'Firma', 'Goles', 'A', 'R', 'FALTAS']],
     body: localPlayers.map(j => ["", `${j.apellido} ${j.nombre}`, j.dni, "", "", "", "", ""]),
     theme: 'grid',
-    styles: { fontSize: 8 },
-    headStyles: { fillGray: [200, 200, 200], textColor: 0 }
+    headStyles: { fillGray: [200, 200, 200], textColor: 0 },
+    // CORRECCIÓN: Quitamos "data" de los paréntesis porque no se usa
+    didDrawPage: () => {
+      doc.setFontSize(11);
+      doc.text(`LOCAL: ${partido.local.nombre}`, 14, 32);
+    }
   });
 
-  // TABLA VISITANTE
-  const finalY = doc.lastAutoTable.finalY;
-  doc.text(`VISITA: ${partido.visitante.nombre}`, 14, finalY + 10);
-  doc.autoTable({
-    startY: finalY + 13,
-    head: [columns],
+  const finalYLocal = doc.lastAutoTable.finalY;
+  
+  // Tabla Equipo VISITANTE
+  autoTable(doc, {
+    startY: finalYLocal + 15,
+    head: [['№', 'Nombre y Apellido', 'DNI', 'Firma', 'Goles', 'A', 'R', 'FALTAS']],
     body: visitaPlayers.map(j => ["", `${j.apellido} ${j.nombre}`, j.dni, "", "", "", "", ""]),
     theme: 'grid',
-    styles: { fontSize: 8 },
-    headStyles: { fillGray: [200, 200, 200], textColor: 0 }
+    headStyles: { fillGray: [200, 200, 200], textColor: 0 },
+    // CORRECCIÓN: Quitamos "data" de los paréntesis porque no se usa
+    didDrawPage: () => {
+      doc.setFontSize(11);
+      doc.text(`VISITA: ${partido.visitante.nombre}`, 14, finalYLocal + 12);
+    }
   });
 
-  // Pie de planilla con firmas
-  const pieY = doc.lastAutoTable.finalY + 15;
-  doc.text("1ER TIEMPO: _________  2DO TIEMPO: _________  TOTAL GOLES: _________", 14, pieY);
-  doc.text("FIRMA RESP. LOCAL: ___________________   FIRMA RESP. VISITA: ___________________", 14, pieY + 12);
-
-  doc.save(`Planilla_F${partido.nro_fecha}_${partido.categoria}.pdf`);
+  doc.save(`Planilla_${partido.local.nombre}_vs_${partido.visitante.nombre}.pdf`);
 };
 
     // --- RENDER DE CARGA ---

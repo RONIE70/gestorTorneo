@@ -598,19 +598,42 @@ const verificarDniDuplicado = async (dni) => {
   />
 </div>
 
-  <div className="relative group">
-  <label for="clubAsig"  id="clubAsig"  className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
-    Club Asignado
+<div className="relative group">
+  <label htmlFor="clubAsig" className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
+    Club Destino del Fichaje
   </label>
-  <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex items-center gap-3 shadow-inner">
-    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-    <span className="text-xs font-black uppercase text-white tracking-tighter">
-      {clubes.find(c => c.id === equipoIdActual)?.nombre || "Cargando Club..."}
-    </span>
-  </div>
- 
-  {/* Campo oculto para asegurar que el valor viaje en el formulario si fuera necesario */}
-  <input type="hidden" value={equipoIdActual || ''} required />
+  
+  {/* REGLA DE NEGOCIO: Selección dinámica para Admins / Fijo para Delegados */}
+  {(perfilUsuario?.rol === 'admin_liga' || perfilUsuario?.rol === 'superadmin') ? (
+    <select 
+      id="clubAsig"
+      className="bg-slate-950 p-5 rounded-2xl border border-slate-800 w-full text-xs font-black uppercase text-white outline-none focus:border-emerald-500"
+      value={equipoIdActual || ""}
+      onChange={(e) => setEquipoIdActual(Number(e.target.value))}
+      required
+    >
+      <option value="">-- SELECCIONAR CLUB --</option>
+      {clubes.map(club => (
+        <option key={club.id} value={club.id}>{club.nombre}</option>
+      ))}
+    </select>
+  ) : (
+    /* Vista para DELEGADO */
+    <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex items-center gap-3 shadow-inner">
+      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+      <span className="text-xs font-black uppercase text-white tracking-tighter">
+        {clubes.find(c => c.id === equipoIdActual)?.nombre || "Cargando Club..."}
+      </span>
+    </div>
+  )}
+
+  {/* MANTENEMOS TU INPUT HIDDEN: Así respetamos la persistencia que mencionaste */}
+  <input 
+    type="hidden" 
+    name="equipo_id_hidden" 
+    value={equipoIdActual || ''} 
+    required 
+  />
 </div>
                 <div className="col-span-full grid grid-cols-2 gap-4">
                    <div className="space-y-2"><p className="text-[9px] font-black uppercase text-blue-500 ml-2 italic">Foto Carnet Actual</p><input type="file" className="w-full text-[10px] text-slate-500" onChange={e => setFilePerfil(e.target.files[0])} required /></div>

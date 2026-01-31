@@ -559,46 +559,6 @@ const verificarDniDuplicado = async (dni) => {
         </button>
       </div>
 
-      <div className="bg-slate-900/50 p-6 rounded-3xl border border-slate-800 mt-6">
-  <h3 className="text-white font-black uppercase text-sm mb-4 flex items-center gap-2">
-    <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-    Descargar Planilla de Juego
-  </h3>
-  
-  <div className="flex flex-wrap gap-4 items-end">
-    <div>
-      <label className="text-[10px] text-slate-500 uppercase font-bold ml-2">Fecha №</label>
-      <input 
-        type="number" 
-        value={filtroFechaPlanilla}
-        onChange={(e) => setFiltroFechaPlanilla(e.target.value)}
-        className="w-20 bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-xs outline-none focus:border-emerald-500"
-      />
-    </div>
-
-    <div className="flex-1 min-w-[150px]">
-      <label className="text-[10px] text-slate-500 uppercase font-bold ml-2">Categoría</label>
-      <select 
-        value={filtroCatPlanilla}
-        onChange={(e) => setFiltroCatPlanilla(e.target.value)}
-        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-xs outline-none focus:border-emerald-500"
-      >
-        <option value="">Seleccionar...</option>
-        <option value="sub 14">Sub 14</option>
-        <option value="sub 16">Sub 16</option>
-        <option value="primera">Primera</option>
-      </select>
-    </div>
-
-    <button 
-      onClick={handleDescargarPlanilla}
-      className="bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-[10px] px-6 py-4 rounded-xl transition-all shadow-lg active:scale-95"
-    >
-      Generar PDF
-    </button>
-  </div>
-</div>
-
       {/* SECCIÓN DISCIPLINARIA PARA EL DELEGADO */}
       <div className="max-w-full mx-auto mb-8">
         <h3 className="text-xs font-black uppercase text-slate-500 mb-4 ml-4 tracking-widest">Avisos del Tribunal de Disciplina</h3>

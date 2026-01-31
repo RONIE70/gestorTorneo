@@ -29,6 +29,7 @@ const AdminDelegado = () => {
   const navigate = useNavigate();
 
   // --- ESTADOS DE EDICIÓN Y FICHAJE ---
+  
   const [editandoId, setEditandoId] = useState(null);
   const [datosEdicion, setDatosEdicion] = useState({ nombre: '', apellido: '', dni: '', fecha_nacimiento: '' });
   const [filePerfil, setFilePerfil] = useState(null);
@@ -463,6 +464,10 @@ const verificarDniDuplicado = async (dni) => {
 // --- LÓGICA DE PDF (FRONTEND MVP - DINÁMICO) ---
 const handleDescargarPlanilla = async () => {
     if (!filtroCatPlanilla) return alert("Selecciona una categoría");
+    console.log("--- DEBUG DESCARGA ---");
+    console.log("ID Org:", perfilUsuario.organizacion_id);
+    console.log("Nro Fecha (valor):", filtroFechaPlanilla, "| Tipo:", typeof filtroFechaPlanilla);
+    console.log("Categoría (valor):", filtroCatPlanilla);
     
     setLoadingSession(true);
     try {

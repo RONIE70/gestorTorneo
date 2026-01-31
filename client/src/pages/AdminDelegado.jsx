@@ -23,6 +23,8 @@ const AdminDelegado = () => {
   const [seleccionadas, setSeleccionadas] = useState([]);
   const [expedientes, setExpedientes] = useState([]);
   const [configLiga, setConfigLiga] = useState(null);
+  // Obtenemos las categorías únicas de la lista de partidos cargados
+  const categoriasDisponibles = [...new Set(partidos.map(p => p.categoria))].sort();
 
   const navigate = useNavigate();
 
@@ -179,6 +181,17 @@ const fetchData = useCallback(async () => {
   useEffect(() => { 
     fetchData(); 
   }, [fetchData]);
+
+
+  useEffect(() => {
+    if (partidoSeleccionado) {
+      const partidoInfo = partidos.find(p => p.id === parseInt(partidoSeleccionado));
+      if (partidoInfo) {
+        setFiltroFechaPlanilla(partidoInfo.nro_fecha);
+        setFiltroCatPlanilla(partidoInfo.categoria);
+      }
+    }
+  }, [partidoSeleccionado, partidos]);
 
 
   // FUNCIÓN PARA GENERAR EL PDF DEL DICTAMEN CON IDENTIDAD VISUAL NUEVA
@@ -598,12 +611,18 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
                         <h3 className="text-white font-black uppercase text-sm mb-4 flex items-center gap-2">Descargar Planilla</h3>
                         <div className="flex flex-wrap gap-4 items-end">
                             <input type="number" value={filtroFechaPlanilla} onChange={e => setFiltroFechaPlanilla(e.target.value)} className="w-20 bg-slate-950 border border-slate-800 p-3 rounded-xl text-white" />
-                            <select value={filtroCatPlanilla} onChange={e => setFiltroCatPlanilla(e.target.value)} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl text-white">
-                                <option value="">Seleccionar Categoría...</option>
-                                <option value="sub 14">Sub 14</option>
-                                <option value="sub 16">Sub 16</option>
-                                <option value="primera">Primera</option>
-                            </select>
+                            <select 
+  value={filtroCatPlanilla} 
+  onChange={e => setFiltroCatPlanilla(e.target.value)} 
+  className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-emerald-500 transition-all"
+>
+  <option value="">Seleccionar Categoría...</option>
+  {categoriasDisponibles.map(cat => (
+    <option key={cat} value={cat}>
+      {cat.toUpperCase()}
+    </option>
+  ))}
+</select>
                             <button onClick={handleDescargarPlanilla} className="bg-emerald-600 hover:bg-emerald-500 px-8 py-4 rounded-xl font-black text-[10px] uppercase transition-all">Generar PDF</button>
                         </div>
                     </div>

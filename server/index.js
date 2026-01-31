@@ -130,6 +130,7 @@ app.get('/dashboard-resumen', async (req, res) => {
 });
 
 
+
 // --- RUTA APROBAR MANUAL ---
 app.patch('/jugadoras/:id/aprobar', async (req, res) => {
     const { id } = req.params;

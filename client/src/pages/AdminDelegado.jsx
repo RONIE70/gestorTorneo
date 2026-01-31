@@ -181,56 +181,6 @@ const fetchData = useCallback(async () => {
   }, [fetchData]);
 
 
-  const generarPDF = async (partido, localPlayers, visitaPlayers) => {
-  const doc = new jsPDF();
-  const margin = 14;
-
-  // Encabezado
-  doc.setFontSize(14);
-  doc.text("LA LIGA DE LAS NENAS 2025 - PLANILLA DE JUEGO", 105, 15, { align: 'center' });
-  
-  doc.setFontSize(10);
-  doc.text(`FECHA NRO: ${partido.nro_fecha}`, margin, 25);
-  doc.text(`CATEGORÍA: ${partido.categoria}`, 100, 25);
-  doc.text(`ZONA: ${partido.zona || 'Única'}`, 160, 25);
-
-  // --- SECCIÓN LOCAL ---
-  doc.setFontSize(11);
-  doc.setTextColor(40);
-  doc.text(`LOCAL: ${partido.local.nombre}`, margin, 35);
-
-  const columns = ["№", "Nombre y Apellido", "DNI", "Firma", "Goles", "A", "R", "Faltas"];
-  
-  doc.autoTable({
-    startY: 38,
-    head: [columns],
-    body: localPlayers.map(j => ["", `${j.nombre} ${j.apellido}`, j.dni, "", "", "", "", ""]),
-    theme: 'grid',
-    styles: { fontSize: 8, cellPadding: 1 },
-    headStyles: { fillGray: [200, 200, 200], textColor: 0 }
-  });
-
-  // --- SECCIÓN VISITANTE ---
-  const finalYLocal = doc.lastAutoTable.finalY;
-  doc.text(`VISITA: ${partido.visitante.nombre}`, margin, finalYLocal + 10);
-
-  doc.autoTable({
-    startY: finalYLocal + 13,
-    head: [columns],
-    body: visitaPlayers.map(j => ["", `${j.nombre} ${j.apellido}`, j.dni, "", "", "", "", ""]),
-    theme: 'grid',
-    styles: { fontSize: 8, cellPadding: 1 },
-    headStyles: { fillGray: [200, 200, 200], textColor: 0 }
-  });
-
-  // Pie de planilla (Tiempos y Goles)
-  const finalYTotal = doc.lastAutoTable.finalY;
-  doc.text("1ER TIEMPO: _________  2DO TIEMPO: _________  TOTAL GOLES: _________", margin, finalYTotal + 15);
-
-  doc.save(`${partido.local.nombre}_vs_${partido.visitante.nombre}_F${partido.nro_fecha}.pdf`);
-};
-  
-
   // FUNCIÓN PARA GENERAR EL PDF DEL DICTAMEN CON IDENTIDAD VISUAL NUEVA
  const generarPDFDictamenDelegado = (jugadora, config) => {
     const doc = new jsPDF();
@@ -468,47 +418,102 @@ const verificarDniDuplicado = async (dni) => {
 
 
   // 2. Función para generar y descargar
-const handleDescargarPlanilla = async () => {
-  if (!filtroCatPlanilla) {
-    alert("Por favor, selecciona una categoría primero.");
-    return;
-  }
+// --- LÓGICA DE PDF (UNIFICADA Y CORREGIDA) ---
+  const handleDescargarPlanilla = async () => {
+    if (!filtroCatPlanilla) return alert("Por favor, selecciona una categoría.");
+    
+    setLoadingSession(true);
+    try {
+      let query = supabase
+        .from('partidos')
+        .select(`
+          id, 
+          nro_fecha, 
+          categoria, 
+          zona, 
+          local:equipos!local_id(id, nombre), 
+          visitante:equipos!visitante_id(id, nombre)
+        `)
+        .eq('organizacion_id', perfilUsuario.organizacion_id)
+        .eq('nro_fecha', Number(filtroFechaPlanilla))
+        .eq('categoria', filtroCatPlanilla);
 
-  try {
-    setLoadingSession(true); // Reutilizamos tu loader para feedback visual
+      if (perfilUsuario.rol === 'delegado') {
+        query = query.or(`local_id.eq.${perfilUsuario.equipo_id},visitante_id.eq.${perfilUsuario.equipo_id}`);
+      }
 
-    // Buscamos el partido específico en Supabase
-    const { data: partido, error: partidoErr } = await supabase
-      .from('partidos')
-      .select(`
-        id, nro_fecha, categoria, zona,
-        local:equipos!local_id(id, nombre),
-        visitante:equipos!visitante_id(id, nombre)
-      `)
-      .eq('organizacion_id', perfilUsuario.organizacion_id)
-      .eq('nro_fecha', filtroFechaPlanilla)
-      .eq('categoria', filtroCatPlanilla)
-      .or(`local_id.eq.${perfilUsuario.equipo_id},visitante_id.eq.${perfilUsuario.equipo_id}`)
-      .maybeSingle();
+      const { data: partido, error } = await query.maybeSingle();
 
-    if (partidoErr || !partido) {
-      alert("No se encontró un partido programado para esa fecha y categoría.");
-      return;
+      if (error || !partido) {
+        alert("No hay partidos programados para estos filtros.");
+        return;
+      }
+
+      // Traemos las jugadoras que fueron CITADAS para este partido
+      // Si prefieres que salgan todas las del club (Lista de Buena Fe), mantén el código anterior
+      const { data: jugLocal } = await supabase
+        .from('jugadoras')
+        .select('nombre, apellido, dni')
+        .eq('equipo_id', partido.local.id)
+        .eq('categoria', partido.categoria);
+
+      const { data: jugVisita } = await supabase
+        .from('jugadoras')
+        .select('nombre, apellido, dni')
+        .eq('equipo_id', partido.visitante.id)
+        .eq('categoria', partido.categoria);
+
+      ejecutarGeneracionPDF(partido, jugLocal || [], jugVisita || []);
+    } catch (err) {
+      console.error("Error al procesar planilla:", err);
+    } finally {
+      setLoadingSession(false);
     }
+  };
 
-    // Traemos las jugadoras de ambos equipos (Lista de Buena Fe)
-    const { data: jugLocal } = await supabase.from('jugadoras').select('nombre, apellido, dni').eq('equipo_id', partido.local.id).eq('categoria', partido.categoria);
-    const { data: jugVisita } = await supabase.from('jugadoras').select('nombre, apellido, dni').eq('equipo_id', partido.visitante.id).eq('categoria', partido.categoria);
+  // Cambiamos el nombre a uno único para evitar el error de "already declared"
+  const ejecutarGeneracionPDF = (partido, localPlayers, visitaPlayers) => {
+    const doc = new jsPDF();
+    
+    // Encabezado
+    doc.setFontSize(14);
+    doc.text("PLANILLA DE JUEGO - LA LIGA DE LAS NENAS 2025", 105, 15, { align: 'center' });
+    
+    doc.setFontSize(10);
+    const infoHeader = `FECHA №: ${partido.nro_fecha} | CATEGORÍA: ${partido.categoria.toUpperCase()} | ZONA: ${partido.zona || 'ÚNICA'}`;
+    doc.text(infoHeader, 14, 25);
 
-    // LLAMADA A LA GENERACIÓN DEL PDF (Usando jsPDF en el cliente para ahorrar recursos del servidor)
-    await generarPDF(partido, jugLocal || [], jugVisita || []);
+    const columns = ["№", "Nombre y Apellido", "DNI", "Firma", "Goles", "A", "R", "Faltas"];
+    
+    // TABLA LOCAL
+    doc.setFont("helvetica", "bold");
+    doc.text(`LOCAL: ${partido.local.nombre}`, 14, 35);
+    doc.autoTable({
+      startY: 38,
+      head: [columns],
+      body: localPlayers.map(j => ["", `${j.nombre} ${j.apellido}`, j.dni, "", "", "", "", ""]),
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 1 },
+      headStyles: { fillGray: [200, 200, 200], textColor: 0 }
+    });
 
-  } catch (error) {
-    console.error("Error al generar planilla:", error);
-  } finally {
-    setLoadingSession(false);
-  }
-};
+    // TABLA VISITANTE
+    const finalY = doc.lastAutoTable.finalY;
+    doc.text(`VISITA: ${partido.visitante.nombre}`, 14, finalY + 10);
+    doc.autoTable({
+      startY: finalY + 13,
+      head: [columns],
+      body: visitaPlayers.map(j => ["", `${j.nombre} ${j.apellido}`, j.dni, "", "", "", "", ""]),
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 1 },
+      headStyles: { fillGray: [200, 200, 200], textColor: 0 }
+    });
+
+    doc.save(`Planilla_F${partido.nro_fecha}_${partido.categoria}.pdf`);
+  };
+
+
+  if (loadingSession) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">Cargando panel...</div>;
 
   const iniciarEdicion = (e, j) => {
     e.stopPropagation();
@@ -619,6 +624,29 @@ const handleDescargarPlanilla = async () => {
 
       {activeTab === 'planilla' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
+        {/* BLOQUE DE DESCARGA (Ahora dentro de la pestaña correcta) */}
+          <div className="bg-slate-900/50 p-6 rounded-3xl border border-slate-800">
+            <h3 className="text-white font-black uppercase text-sm mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+              Descargar Planilla de Juego
+            </h3>
+            <div className="flex flex-wrap gap-4 items-end">
+              <div>
+                <label className="text-[10px] text-slate-500 font-bold ml-2">FECHA №</label>
+                <input type="number" value={filtroFechaPlanilla} onChange={(e) => setFiltroFechaPlanilla(e.target.value)} className="w-20 bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white" />
+              </div>
+              <div className="flex-1">
+                <label className="text-[10px] text-slate-500 font-bold ml-2">CATEGORÍA</label>
+                <select value={filtroCatPlanilla} onChange={(e) => setFiltroCatPlanilla(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white">
+                  <option value="">Seleccionar...</option>
+                  <option value="sub 14">Sub 14</option>
+                  <option value="sub 16">Sub 16</option>
+                  <option value="primera">Primera</option>
+                </select>
+              </div>
+              <button onClick={handleDescargarPlanilla} className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-8 py-4 rounded-xl text-[10px] uppercase">Generar PDF</button>
+            </div>
+          </div>
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 shadow-xl">
               <h2 className="text-xs font-black uppercase mb-4 text-slate-400 tracking-tighter">1. Próximo Encuentro</h2>

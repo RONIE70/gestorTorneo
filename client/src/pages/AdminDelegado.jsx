@@ -4,6 +4,7 @@ import axios from 'axios';
 import CarnetJugadora from '../components/CarnetJugadora'; 
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 
 const AdminDelegado = () => {
@@ -32,6 +33,9 @@ const AdminDelegado = () => {
   const [fileDNI, setFileDNI] = useState(null);
   const [jugadoraRegistrada, setJugadoraRegistrada] = useState(null);
   const [cargandoFichaje, setCargandoFichaje] = useState(false);
+
+  const [filtroFechaPlanilla, setFiltroFechaPlanilla] = useState(1);
+  const [filtroCatPlanilla, setFiltroCatPlanilla] = useState(""); 
 
   // eslint-disable-next-line no-unused-vars
   const [loadingSession, setLoadingSession] = useState(true);
@@ -175,8 +179,57 @@ const fetchData = useCallback(async () => {
   useEffect(() => { 
     fetchData(); 
   }, [fetchData]);
-  
 
+
+  const generarPDF = async (partido, localPlayers, visitaPlayers) => {
+  const doc = new jsPDF();
+  const margin = 14;
+
+  // Encabezado
+  doc.setFontSize(14);
+  doc.text("LA LIGA DE LAS NENAS 2025 - PLANILLA DE JUEGO", 105, 15, { align: 'center' });
+  
+  doc.setFontSize(10);
+  doc.text(`FECHA NRO: ${partido.nro_fecha}`, margin, 25);
+  doc.text(`CATEGORÍA: ${partido.categoria}`, 100, 25);
+  doc.text(`ZONA: ${partido.zona || 'Única'}`, 160, 25);
+
+  // --- SECCIÓN LOCAL ---
+  doc.setFontSize(11);
+  doc.setTextColor(40);
+  doc.text(`LOCAL: ${partido.local.nombre}`, margin, 35);
+
+  const columns = ["№", "Nombre y Apellido", "DNI", "Firma", "Goles", "A", "R", "Faltas"];
+  
+  doc.autoTable({
+    startY: 38,
+    head: [columns],
+    body: localPlayers.map(j => ["", `${j.nombre} ${j.apellido}`, j.dni, "", "", "", "", ""]),
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 1 },
+    headStyles: { fillGray: [200, 200, 200], textColor: 0 }
+  });
+
+  // --- SECCIÓN VISITANTE ---
+  const finalYLocal = doc.lastAutoTable.finalY;
+  doc.text(`VISITA: ${partido.visitante.nombre}`, margin, finalYLocal + 10);
+
+  doc.autoTable({
+    startY: finalYLocal + 13,
+    head: [columns],
+    body: visitaPlayers.map(j => ["", `${j.nombre} ${j.apellido}`, j.dni, "", "", "", "", ""]),
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 1 },
+    headStyles: { fillGray: [200, 200, 200], textColor: 0 }
+  });
+
+  // Pie de planilla (Tiempos y Goles)
+  const finalYTotal = doc.lastAutoTable.finalY;
+  doc.text("1ER TIEMPO: _________  2DO TIEMPO: _________  TOTAL GOLES: _________", margin, finalYTotal + 15);
+
+  doc.save(`${partido.local.nombre}_vs_${partido.visitante.nombre}_F${partido.nro_fecha}.pdf`);
+};
+  
 
   // FUNCIÓN PARA GENERAR EL PDF DEL DICTAMEN CON IDENTIDAD VISUAL NUEVA
  const generarPDFDictamenDelegado = (jugadora, config) => {
@@ -414,6 +467,49 @@ const verificarDniDuplicado = async (dni) => {
 };
 
 
+  // 2. Función para generar y descargar
+const handleDescargarPlanilla = async () => {
+  if (!filtroCatPlanilla) {
+    alert("Por favor, selecciona una categoría primero.");
+    return;
+  }
+
+  try {
+    setLoadingSession(true); // Reutilizamos tu loader para feedback visual
+
+    // Buscamos el partido específico en Supabase
+    const { data: partido, error: partidoErr } = await supabase
+      .from('partidos')
+      .select(`
+        id, nro_fecha, categoria, zona,
+        local:equipos!local_id(id, nombre),
+        visitante:equipos!visitante_id(id, nombre)
+      `)
+      .eq('organizacion_id', perfilUsuario.organizacion_id)
+      .eq('nro_fecha', filtroFechaPlanilla)
+      .eq('categoria', filtroCatPlanilla)
+      .or(`local_id.eq.${perfilUsuario.equipo_id},visitante_id.eq.${perfilUsuario.equipo_id}`)
+      .maybeSingle();
+
+    if (partidoErr || !partido) {
+      alert("No se encontró un partido programado para esa fecha y categoría.");
+      return;
+    }
+
+    // Traemos las jugadoras de ambos equipos (Lista de Buena Fe)
+    const { data: jugLocal } = await supabase.from('jugadoras').select('nombre, apellido, dni').eq('equipo_id', partido.local.id).eq('categoria', partido.categoria);
+    const { data: jugVisita } = await supabase.from('jugadoras').select('nombre, apellido, dni').eq('equipo_id', partido.visitante.id).eq('categoria', partido.categoria);
+
+    // LLAMADA A LA GENERACIÓN DEL PDF (Usando jsPDF en el cliente para ahorrar recursos del servidor)
+    await generarPDF(partido, jugLocal || [], jugVisita || []);
+
+  } catch (error) {
+    console.error("Error al generar planilla:", error);
+  } finally {
+    setLoadingSession(false);
+  }
+};
+
   const iniciarEdicion = (e, j) => {
     e.stopPropagation();
     setEditandoId(j.id);
@@ -450,6 +546,46 @@ const verificarDniDuplicado = async (dni) => {
           📊 Ver Tabla de Posiciones
         </button>
       </div>
+
+      <div className="bg-slate-900/50 p-6 rounded-3xl border border-slate-800 mt-6">
+  <h3 className="text-white font-black uppercase text-sm mb-4 flex items-center gap-2">
+    <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+    Descargar Planilla de Juego
+  </h3>
+  
+  <div className="flex flex-wrap gap-4 items-end">
+    <div>
+      <label className="text-[10px] text-slate-500 uppercase font-bold ml-2">Fecha №</label>
+      <input 
+        type="number" 
+        value={filtroFechaPlanilla}
+        onChange={(e) => setFiltroFechaPlanilla(e.target.value)}
+        className="w-20 bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-xs outline-none focus:border-emerald-500"
+      />
+    </div>
+
+    <div className="flex-1 min-w-[150px]">
+      <label className="text-[10px] text-slate-500 uppercase font-bold ml-2">Categoría</label>
+      <select 
+        value={filtroCatPlanilla}
+        onChange={(e) => setFiltroCatPlanilla(e.target.value)}
+        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-xs outline-none focus:border-emerald-500"
+      >
+        <option value="">Seleccionar...</option>
+        <option value="sub 14">Sub 14</option>
+        <option value="sub 16">Sub 16</option>
+        <option value="primera">Primera</option>
+      </select>
+    </div>
+
+    <button 
+      onClick={handleDescargarPlanilla}
+      className="bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-[10px] px-6 py-4 rounded-xl transition-all shadow-lg active:scale-95"
+    >
+      Generar PDF
+    </button>
+  </div>
+</div>
 
       {/* SECCIÓN DISCIPLINARIA PARA EL DELEGADO */}
       <div className="max-w-full mx-auto mb-8">

@@ -113,6 +113,8 @@ app.get('/', (req, res) => {
     });
 });
 
+
+
 // --- RUTA DASHBOARD ---
 app.get('/dashboard-resumen', async (req, res) => {
     try {

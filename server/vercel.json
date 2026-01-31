@@ -5,7 +5,16 @@
   ],
   "routes": [
     { 
-      "src": "/(.*)", 
+      
+      "src": "/fichar", 
+      "dest": "index.js" 
+    },
+    {
+      "src": "/AdminDelegado",
+      "dest": "/index.html"
+    },
+      
+    { "src": "/(.*)", 
       "dest": "index.js",
       "headers": {
         "Access-Control-Allow-Origin": "*",

@@ -41,6 +41,8 @@ const AdminDelegado = () => {
 
 
   const [loadingSession, setLoadingSession] = useState(true);
+  const [cargandoPlantel, setCargandoPlantel] = useState(false);
+
   const [datosFichaje, setDatosFichaje] = useState({ 
     nombre: '', apellido: '', dni: '', fecha_nacimiento: '', equipo_id: '', club_nombre: '', club_escudo: ''   
   });
@@ -181,6 +183,33 @@ const fetchData = useCallback(async () => {
   useEffect(() => { 
     fetchData(); 
   }, [fetchData]);
+
+  useEffect(() => {
+    const actualizarPlantelDinamico = async () => {
+      if (!partidoSeleccionado) return;
+      const partidoInfo = partidos.find(p => p.id === parseInt(partidoSeleccionado));
+      if (!partidoInfo) return;
+
+      setCargandoPlantel(true); 
+      try {
+        const { data: jugadorasData, error } = await supabase
+          .from('jugadoras')
+          .select(`*, sanciones(id, motivo, estado)`)
+          .eq('equipo_id', equipoIdActual)
+          .ilike('categoria_actual', partidoInfo.categoria);
+
+        if (!error) {
+          setPlantel(jugadorasData?.map(j => ({
+            ...j,
+            estaSuspendida: j.sanciones?.some(s => s.estado === 'cumpliendo') || j.sancionada === true
+          })) || []);
+        }
+      } finally {
+        setCargandoPlantel(false); 
+      }
+    };
+    actualizarPlantelDinamico();
+  }, [partidoSeleccionado, partidos, equipoIdActual]);
 
 
   useEffect(() => {
@@ -443,7 +472,7 @@ const handleDescargarPlanilla = async () => {
         .select(`id, nro_fecha, categoria, zona, local:equipos!local_id(id, nombre), visitante:equipos!visitante_id(id, nombre)`)
         .eq('organizacion_id', perfilUsuario.organizacion_id)
         .eq('nro_fecha', Number(filtroFechaPlanilla))
-        .eq('categoria', filtroCatPlanilla)
+        .ilike('categoria', filtroCatPlanilla)
         .maybeSingle();
 
       if (pErr || !partido) return alert("No se encontró el partido.");
@@ -453,14 +482,14 @@ const handleDescargarPlanilla = async () => {
         .from('jugadoras')
         .select('nombre, apellido, dni')
         .eq('equipo_id', partido.local.id)
-        .eq('categoria_actual', partido.categoria) // <--- CAMBIO AQUÍ
+        .ilike('categoria_actual', partido.categoria) // <--- CAMBIO AQUÍ
         .order('apellido');
 
       const { data: visitaP } = await supabase
         .from('jugadoras')
         .select('nombre, apellido, dni')
         .eq('equipo_id', partido.visitante.id)
-        .eq('categoria_actual', partido.categoria) // <--- CAMBIO AQUÍ
+        .ilike('categoria_actual', partido.categoria) // <--- CAMBIO AQUÍ
         .order('apellido');
 
       // 3. Generamos el PDF
@@ -595,81 +624,174 @@ const handleDescargarPlanilla = async () => {
       </div>
 
       {activeTab === 'planilla' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
-        {/* BLOQUE DE DESCARGA (Ahora dentro de la pestaña correcta) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
+          
+          {/* COLUMNA 1: SELECCIÓN */}
           <div className="space-y-6">
-                    {/* BLOQUE DESCARGA PDF */}
-                    <div className="bg-slate-900/50 p-6 rounded-3xl border border-slate-800">
-                        <h3 className="text-white font-black uppercase text-sm mb-4 flex items-center gap-2">Descargar Planilla</h3>
-                        <div className="flex flex-wrap gap-4 items-end">
-                            <input type="number" value={filtroFechaPlanilla} onChange={e => setFiltroFechaPlanilla(e.target.value)} className="w-20 bg-slate-950 border border-slate-800 p-3 rounded-xl text-white" />
-                            <select 
-  value={filtroCatPlanilla} 
-  onChange={e => setFiltroCatPlanilla(e.target.value)} 
-  className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl text-white outline-none focus:border-emerald-500 transition-all"
->
-  <option value="">Seleccionar Categoría...</option>
-  {categoriasDisponibles.map(cat => (
-    <option key={cat} value={cat}>
-      {cat.toUpperCase()}
-    </option>
-  ))}
-</select>
-                            <button onClick={handleDescargarPlanilla} className="bg-emerald-600 hover:bg-emerald-500 px-8 py-4 rounded-xl font-black text-[10px] uppercase transition-all">Generar PDF</button>
-                        </div>
-                    </div>
-          </div>
-          <div className="lg:col-span-1 space-y-6">
-            <div className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 shadow-xl">
-              <h2 className="text-xs font-black uppercase mb-4 text-slate-400 tracking-tighter">1. Próximo Encuentro</h2>
-              <select id="jornada" className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs font-bold text-white outline-none" onChange={(e) => setPartidoSeleccionado(e.target.value)}>
-                <option value="">Elegir fecha...</option>
-                {partidos.map(p => (
-                  <option key={p.id} value={p.id}>Fecha {p.nro_fecha}: {p.local.nombre} vs {p.visitante.nombre}</option>
-                ))}
-              </select>
-            </div>
-            <div className="bg-blue-600/5 p-8 rounded-[2rem] border border-blue-500/20 text-center shadow-inner relative overflow-hidden">
-               <div className="relative z-10">
-                  <p className="text-[10px] text-blue-400 font-black uppercase mb-2">Jugadoras Citadas</p>
-                  <span className="text-6xl font-black text-white">{seleccionadas.length}</span>
-                  <button onClick={guardarPlanilla} className="w-full mt-8 bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all">ENVIAR PLANILLA</button>
-               </div>
-            </div>
-          </div>
-          <div className="lg:col-span-2 bg-slate-900 p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl">
-             <h2 className="text-xs font-black uppercase mb-6 text-slate-400 flex justify-between">
-                <span>2. Plantel Disponible</span>
-                <span className="text-blue-500">{plantel.length} Jugadoras</span>
-             </h2>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {plantel.map(j => (
-                  <div key={j.id} onClick={() => toggleJugadora(j)} className={`relative flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${j.estaSuspendida ? 'bg-red-950/20 border-red-900/30 opacity-60' : seleccionadas.includes(j.id) ? 'bg-blue-600/10 border-blue-500' : 'bg-slate-800/40 border-transparent hover:border-slate-700'}`}>
-                    {editandoId === j.id ? (
-                      <div className="flex-1 space-y-2" onClick={e => e.stopPropagation()}>
-                        <input className="w-full bg-slate-950 text-[10px] p-2 rounded-lg border border-slate-700 text-white" value={datosEdicion.apellido} onChange={e => setDatosEdicion({...datosEdicion, apellido: e.target.value})} placeholder="Apellido" />
-                        <div className="flex gap-2">
-                           <button onClick={(e) => guardarActualizacion(e, j.id)} className="flex-1 bg-emerald-600 text-[9px] font-black py-2 rounded-lg uppercase">OK</button>
-                           <button onClick={(e) => { e.stopPropagation(); setEditandoId(null); }} className="flex-1 bg-slate-700 text-[9px] font-black py-2 rounded-lg uppercase">X</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <img src={j.foto_url} className={`w-12 h-12 rounded-xl object-cover ${j.estaSuspendida ? 'grayscale border-2 border-red-600' : ''}`} alt="p" />
-                        <div className="flex-1">
-                          <p className={`font-black text-xs uppercase ${j.estaSuspendida ? 'text-red-500' : 'text-slate-100'}`}>{j.apellido}, {j.nombre.charAt(0)}.</p>
-                          <p className="text-[9px] text-slate-500 font-bold uppercase">{j.estaSuspendida ? 'SUSPENDIDA' : `DNI: ${j.dni}`}</p>
-                        </div>
-                        {!j.estaSuspendida && <button onClick={(e) => iniciarEdicion(e, j)} className="p-2 hover:bg-slate-700 rounded-lg text-[10px]">✏️</button>}
-                      </>
-                    )}
+            <div className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 shadow-xl h-full">
+              <h2 className="text-xs font-black uppercase mb-6 text-blue-500 flex items-center gap-2">
+                <span className="w-6 h-6 bg-blue-600/20 rounded-full flex items-center justify-center text-[10px]">1</span>
+                Seleccionar Encuentro
+              </h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] text-slate-500 uppercase font-bold ml-2">Próximo Partido</label>
+                  <select 
+                    id="jornada" 
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs font-bold text-white outline-none mt-1 focus:border-blue-500" 
+                    onChange={(e) => setPartidoSeleccionado(e.target.value)}
+                    value={partidoSeleccionado}
+                  >
+                    <option value="">Elegir fecha...</option>
+                    {partidos.map(p => (
+                      <option key={p.id} value={p.id}>Fecha {p.nro_fecha}: {p.local.nombre} vs {p.visitante.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="pt-4 border-t border-slate-800">
+                  <label className="text-[10px] text-slate-500 uppercase font-bold ml-2">Configuración de Planilla</label>
+                  <div className="flex gap-2 mt-2">
+                    <input type="number" value={filtroFechaPlanilla} readOnly className="w-16 bg-slate-950 border border-slate-800 p-3 rounded-xl text-xs text-white opacity-50" />
+                    <select 
+                      value={filtroCatPlanilla} 
+                      onChange={e => setFiltroCatPlanilla(e.target.value)} 
+                      className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl text-xs text-white outline-none"
+                    >
+                      <option value="">Categoría...</option>
+                      {categoriasDisponibles.map(cat => (
+                        <option key={cat} value={cat}>{cat.toUpperCase()}</option>
+                      ))}
+                    </select>
                   </div>
-                ))}
-             </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* COLUMNA 2: CITACIONES (CON SOPORTE PARA EDICIÓN) */}
+<div className="lg:col-span-1 space-y-6">
+  <div className="bg-slate-900 p-6 rounded-[2.5rem] border border-slate-800 shadow-2xl h-full relative overflow-hidden">
+    <h2 className="text-xs font-black uppercase mb-6 text-emerald-500 flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span className="w-6 h-6 bg-emerald-600/20 rounded-full flex items-center justify-center text-[10px]">2</span>
+        Citación de Jugadoras
+      </div>
+      {!cargandoPlantel && <span className="text-[10px] text-slate-500">{plantel.length} Total</span>}
+    </h2>
+    
+    <div className="grid grid-cols-1 gap-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+      {cargandoPlantel ? (
+        <div className="flex flex-col items-center py-20 gap-4">
+          <div className="w-8 h-8 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+          <p className="text-[10px] text-slate-500 font-black animate-pulse uppercase">Sincronizando...</p>
+        </div>
+      ) : plantel.map(j => (
+        <div 
+          key={j.id} 
+          onClick={() => toggleJugadora(j)} 
+          className={`relative flex flex-col p-4 rounded-2xl border-2 transition-all cursor-pointer ${
+            j.estaSuspendida ? 'bg-red-950/20 border-red-900/30 opacity-60' : 
+            seleccionadas.includes(j.id) ? 'bg-emerald-600/10 border-emerald-500' : 
+            'bg-slate-800/40 border-transparent hover:border-slate-700'
+          }`}
+        >
+          {/* MODO EDICIÓN ACTIVO */}
+          {editandoId === j.id ? (
+            <div className="space-y-2 w-full" onClick={e => e.stopPropagation()}>
+              <input 
+                className="w-full bg-slate-950 text-[10px] p-2 rounded-lg border border-slate-700 text-white uppercase" 
+                value={datosEdicion.apellido} 
+                onChange={e => setDatosEdicion({...datosEdicion, apellido: e.target.value})} 
+                placeholder="APELLIDO" 
+              />
+              <div className="flex gap-2">
+                <button 
+                  onClick={(e) => guardarActualizacion(e, j.id)} 
+                  className="flex-1 bg-emerald-600 text-[9px] font-black py-2 rounded-lg uppercase text-white"
+                >
+                  Guardar
+                </button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setEditandoId(null); }} 
+                  className="flex-1 bg-slate-700 text-[9px] font-black py-2 rounded-lg uppercase text-white"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* VISTA NORMAL */
+            <div className="flex items-center gap-4 w-full">
+              <img src={j.foto_url} className="w-10 h-10 rounded-xl object-cover shadow-lg" alt="p" />
+              <div className="flex-1">
+                <p className={`font-black text-[10px] uppercase ${j.estaSuspendida ? 'text-red-500' : 'text-slate-100'}`}>
+                  {j.apellido}, {j.nombre.charAt(0)}.
+                </p>
+                <p className="text-[8px] text-slate-500 font-bold uppercase">
+                  {j.estaSuspendida ? 'SUSPENDIDA' : `DNI: ${j.dni}`}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {!j.estaSuspendida && (
+                  <button 
+                    onClick={(e) => iniciarEdicion(e, j)} 
+                    className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-[10px] transition-colors"
+                  >
+                    ✏️
+                  </button>
+                )}
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  seleccionadas.includes(j.id) ? 'bg-emerald-500 border-emerald-500' : 'border-slate-700'
+                }`}>
+                  {seleccionadas.includes(j.id) && <span className="text-[10px] text-white">✓</span>}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
+          {/* COLUMNA 3: ENVÍO Y DESCARGA */}
+          <div className="space-y-6">
+            <div className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 shadow-xl flex flex-col justify-between h-full">
+              <h2 className="text-xs font-black uppercase mb-6 text-rose-500 flex items-center gap-2">
+                <span className="w-6 h-6 bg-rose-600/20 rounded-full flex items-center justify-center text-[10px]">3</span>
+                Finalizar Trámite
+              </h2>
+
+              <div className="bg-blue-600/5 p-8 rounded-[2rem] border border-blue-500/20 text-center shadow-inner mb-6">
+                <p className="text-[10px] text-blue-400 font-black uppercase mb-2">Total Citadas</p>
+                <span className="text-6xl font-black text-white">{seleccionadas.length}</span>
+              </div>
+
+              <div className="space-y-3">
+                <button 
+                  onClick={guardarPlanilla} 
+                  className="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95"
+                >
+                  🚀 ENVIAR AL ÁRBITRO
+                </button>
+                
+                <button 
+                  onClick={handleDescargarPlanilla} 
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black px-8 py-4 rounded-2xl text-[10px] uppercase transition-all shadow-lg active:scale-95"
+                >
+                  📥 GENERAR COPIA PDF
+                </button>
+              </div>
+
+              <p className="text-[9px] text-slate-600 uppercase font-bold text-center mt-6 leading-tight italic">
+                * Una vez enviada, la planilla será visible para el árbitro.
+              </p>
+            </div>
           </div>
         </div>
       )}
-
+      
       {activeTab === 'fichaje' && (
         <div className="max-w-4xl mx-auto animate-in slide-in-from-bottom-8 duration-500">
           {jugadoraRegistrada ? (

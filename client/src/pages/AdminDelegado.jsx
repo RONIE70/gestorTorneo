@@ -646,7 +646,7 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
   doc.setLineWidth(0.4);
   
   // Encabezado (Más estrecho para evitar solapamiento)
-  const tableWidth = 70; // Ancho total reducido de 80 a 70
+  const tableWidth = 65; // Ancho total reducido de 80 a 70
   doc.setFillColor(240, 240, 240);
   doc.rect(14, resY, tableWidth, 8, 'FD'); 
   doc.setFontSize(8);
@@ -656,8 +656,8 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
   // Función para filas ajustadas
   const drawExcelRow = (x, y, label) => {
     doc.setLineWidth(0.2);
-    doc.rect(x, y, 50, 10); // Celda Nombre reducida de 55 a 50
-    doc.rect(x + 50, y, 20, 10); // Celda Score reducida de 25 a 20
+    doc.rect(x, y, 45, 10); // Celda Nombre reducida de 55 a 50
+    doc.rect(x + 45, y, 18, 10); // Celda Score reducida de 25 a 20
     doc.setFont("helvetica", "bold");
     doc.text(label, x + 2, y + 6.5);
   };

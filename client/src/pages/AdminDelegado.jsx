@@ -538,41 +538,136 @@ const handleDescargarPlanilla = async () => {
 
   const generarPDF = (partido, localPlayers, visitaPlayers) => {
   const doc = new jsPDF();
-  const nombreLiga = configLiga?.nombre_liga || "PLANILLA DE JUEGO";
+  
+  // --- CONFIGURACIÓN DE COLORES Y ESTILOS ---
+  const colorMagenta = [217, 0, 130]; 
+  const nombreLiga = configLiga?.nombre_liga || "LIGA OFICIAL";
 
-  // Título Principal
-  doc.setFontSize(14);
-  doc.text(`${nombreLiga.toUpperCase()} - PLANILLA DE JUEGO`, 105, 15, { align: 'center' });
-
-  // Tabla Equipo LOCAL
-  autoTable(doc, {
-    startY: 35,
-    head: [['№', 'Nombre y Apellido', 'DNI', 'Firma', 'Goles', 'A', 'R', 'FALTAS']],
-    body: localPlayers.map(j => ["", `${j.apellido} ${j.nombre}`, j.dni, "", "", "", "", ""]),
-    theme: 'grid',
-    headStyles: { fillGray: [200, 200, 200], textColor: 0 },
-    // CORRECCIÓN: Quitamos "data" de los paréntesis porque no se usa
-    didDrawPage: () => {
-      doc.setFontSize(11);
-      doc.text(`LOCAL: ${partido.local.nombre}`, 14, 32);
+  // --- 1. ENCABEZADO CON LOGO DINÁMICO ---
+  if (logoBase64) {
+    try {
+      // Insertamos el logo en la esquina superior izquierda
+      doc.addImage(logoBase64, 'PNG', 14, 8, 22, 22);
+    } catch (e) {
+      console.warn("Error al cargar logo en PDF:", e);
     }
+  }
+
+  // Título Principal (Desplazado un poco a la derecha si hay logo)
+  doc.setFontSize(16);
+  doc.setTextColor(...colorMagenta);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${nombreLiga.toUpperCase()}`, 105, 15, { align: 'center' });
+  
+  doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  doc.text("PLANILLA DE JUEGO OFICIAL", 105, 21, { align: 'center' });
+
+  // Bloque de Datos Técnicos
+  doc.setFontSize(9);
+  doc.setTextColor(40, 40, 40);
+  doc.text(`FECHA NRO: ${partido.nro_fecha}`, 45, 30); // Ajustado para no pisar el logo
+  doc.text(`FECHA REAL: ${partido.fecha_calendario || ' / / '}`, 85, 30);
+  doc.text(`CATEGORÍA: ${partido.categoria.toUpperCase()}`, 130, 30);
+  doc.text(`ZONA: ${partido.zona || '---'}`, 175, 30);
+  doc.line(14, 33, 196, 33); 
+
+  // --- 2. CONFIGURACIÓN DE TABLAS ---
+  const configuracionTabla = {
+    theme: 'grid',
+    headStyles: { fillGray: [240, 240, 240], textColor: 0, fontSize: 7, fontStyle: 'bold', halign: 'center' },
+    styles: { fontSize: 8, cellPadding: 1.5 },
+    columnStyles: {
+      0: { cellWidth: 8, halign: 'center' },   // №
+      1: { cellWidth: 52 },                   // Nombre y Apellido
+      2: { cellWidth: 18, halign: 'center' },  // DNI
+      3: { cellWidth: 32 },                   // FIRMA JUGADORA
+      4: { cellWidth: 8, halign: 'center' },   // G
+      5: { cellWidth: 8, halign: 'center' },   // A
+      6: { cellWidth: 8, halign: 'center' },   // R
+      7: { cellWidth: 26, halign: 'center' },  // FALTAS 1T (Cuadraditos)
+      8: { cellWidth: 26, halign: 'center' }   // FALTAS 2T (Cuadraditos)
+    }
+  };
+
+  // Dibujado de los 5 cuadraditos de faltas
+  const drawFaltaChecks = (data) => {
+    if (data.column.index === 7 || data.column.index === 8) {
+      const { x, y, width, height } = data.cell;
+      const size = 3.2; 
+      const spacing = 1.2;
+      const totalWidth = (size * 5) + (spacing * 4);
+      const startX = x + (width - totalWidth) / 2;
+      const startY = y + (height - size) / 2;
+
+      for (let i = 0; i < 5; i++) {
+        doc.setDrawColor(180);
+        doc.rect(startX + (i * (size + spacing)), startY, size, size);
+      }
+    }
+  };
+
+  // --- TABLA LOCAL ---
+  doc.setFontSize(11);
+  doc.setTextColor(...colorMagenta);
+  doc.setFont("helvetica", "bold");
+  doc.text(`LOCAL: ${partido.local.nombre}`, 14, 40);
+
+  autoTable(doc, {
+    ...configuracionTabla,
+    startY: 43,
+    head: [['№', 'NOMBRE Y APELLIDO', 'DNI', 'FIRMA JUGADORA', 'G', 'A', 'R', 'FALTAS 1T', 'FALTAS 2T']],
+    body: localPlayers.map(j => ["", j.apellido.toUpperCase() + " " + j.nombre, j.dni, "", "", "", "", "", ""]),
+    didDrawCell: drawFaltaChecks
   });
 
   const finalYLocal = doc.lastAutoTable.finalY;
-  
-  // Tabla Equipo VISITANTE
+
+  // --- TABLA VISITANTE ---
+  doc.setFontSize(11);
+  doc.text(`VISITA: ${partido.visitante.nombre}`, 14, finalYLocal + 10);
   autoTable(doc, {
-    startY: finalYLocal + 15,
-    head: [['№', 'Nombre y Apellido', 'DNI', 'Firma', 'Goles', 'A', 'R', 'FALTAS']],
-    body: visitaPlayers.map(j => ["", `${j.apellido} ${j.nombre}`, j.dni, "", "", "", "", ""]),
-    theme: 'grid',
-    headStyles: { fillGray: [200, 200, 200], textColor: 0 },
-    // CORRECCIÓN: Quitamos "data" de los paréntesis porque no se usa
-    didDrawPage: () => {
-      doc.setFontSize(11);
-      doc.text(`VISITA: ${partido.visitante.nombre}`, 14, finalYLocal + 12);
-    }
+    ...configuracionTabla,
+    startY: finalYLocal + 13,
+    head: [['№', 'NOMBRE Y APELLIDO', 'DNI', 'FIRMA JUGADORA', 'G', 'A', 'R', 'FALTAS 1T', 'FALTAS 2T']],
+    body: visitaPlayers.map(j => ["", j.apellido.toUpperCase() + " " + j.nombre, j.dni, "", "", "", "", "", ""]),
+    didDrawCell: drawFaltaChecks
   });
+
+  // --- 3. CIERRE: RESULTADOS Y FIRMAS ---
+  const signY = Math.max(doc.lastAutoTable.finalY + 15, 250);
+
+  // Recuadro Resultado
+  doc.setDrawColor(200);
+  doc.setFillColor(248, 248, 248);
+  doc.rect(14, signY - 5, 60, 25, 'FD');
+  doc.setTextColor(0);
+  doc.setFontSize(8);
+  doc.text("RESULTADO FINAL", 18, signY + 2);
+  doc.text(`${partido.local.nombre}: ____`, 18, signY + 10);
+  doc.text(`${partido.visitante.nombre}: ____`, 18, signY + 18);
+
+  // Firmas Finales
+  const lineW = 38;
+  const lineY = signY + 12;
+
+  doc.setFontSize(7);
+  // Árbitro
+  doc.line(80, lineY, 80 + lineW, lineY);
+  doc.text("FIRMA ÁRBITRO", 80 + (lineW/2), lineY + 5, { align: 'center' });
+
+  // Delegado Local
+  doc.line(122, lineY, 122 + lineW, lineY);
+  doc.text("FIRMA DEL. LOCAL", 122 + (lineW/2), lineY + 5, { align: 'center' });
+
+  // Delegado Visita
+  doc.line(164, lineY, 164 + lineW, lineY);
+  doc.text("FIRMA DEL. VISITA", 164 + (lineW/2), lineY + 5, { align: 'center' });
+
+  // Pie de página SaaS
+  doc.setFontSize(6);
+  doc.setTextColor(150);
+  doc.text("SISTEMA DE GESTIÓN DEPORTIVA - PLANILLA OFICIAL AUTOMATIZADA", 105, 292, { align: 'center' });
 
   doc.save(`Planilla_${partido.local.nombre}_vs_${partido.visitante.nombre}.pdf`);
 };

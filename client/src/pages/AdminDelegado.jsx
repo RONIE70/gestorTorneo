@@ -491,49 +491,50 @@ const verificarDniDuplicado = async (dni) => {
   // 2. Función para generar y descargar
 // --- LÓGICA DE PDF (FRONTEND MVP - DINÁMICO) ---
 const handleDescargarPlanilla = async () => {
-    if (!filtroCatPlanilla) return alert("Selecciona una categoría");
-    console.log("--- DEBUG DESCARGA ---");
-    console.log("ID Org:", perfilUsuario.organizacion_id);
-    console.log("Nro Fecha (valor):", filtroFechaPlanilla, "| Tipo:", typeof filtroFechaPlanilla);
-    console.log("Categoría (valor):", filtroCatPlanilla);
-    
-    setLoadingSession(true);
-    try {
-      // 1. Buscamos el partido
-      const { data: partido, error: pErr } = await supabase
-        .from('partidos')
-        .select(`id, nro_fecha, categoria, zona, local:equipos!local_id(id, nombre), visitante:equipos!visitante_id(id, nombre)`)
-        .eq('organizacion_id', perfilUsuario.organizacion_id)
-        //.eq('nro_fecha', Number(filtroFechaPlanilla))
-        //.ilike('categoria', filtroCatPlanilla)
-        .single();
+  if (!partidoSeleccionado) return alert("Selecciona un partido");
 
-      if (pErr || !partido) return alert("No se encontró el partido.");
+  setLoadingSession(true);
+  try {
+    // 1. Traemos el partido (Asegurándonos de traer los IDs de los equipos)
+    const { data: partido, error: pErr } = await supabase
+      .from('partidos')
+      .select('id, local_id, visitante_id, categoria, nro_fecha') // Usamos los nombres reales de tu tabla
+      .eq('id', partidoSeleccionado)
+      .single();
 
-      // 2. Traemos jugadoras (Usamos ILIKE por el tema de Unicas/UNICAS)
+    if (pErr || !partido) throw new Error("Partido no encontrado");
+
+    // 2. Traemos jugadoras usando los IDs planos de la tabla
     const { data: localP } = await supabase
       .from('jugadoras')
       .select('nombre, apellido, dni')
-      .eq('equipo_id', partido.local.id)
+      .eq('equipo_id', partido.local_id) // <--- Cambiado a local_id según tu tabla
       .ilike('categoria_actual', partido.categoria)
       .order('apellido');
 
     const { data: visitaP } = await supabase
       .from('jugadoras')
       .select('nombre, apellido, dni')
-      .eq('equipo_id', partido.visitante.id)
+      .eq('equipo_id', partido.visitante_id) // <--- Cambiado a visitante_id
       .ilike('categoria_actual', partido.categoria)
       .order('apellido');
 
-    // 3. Llamamos a generarPDF (la versión de planilla, no la de dictamen)
-    generarPDF(partido, localP || [], visitaP || []);
+    // 3. Para el PDF, necesitamos los nombres de los equipos (puedes buscarlos o pasarlos)
+    // Si tu función generarPDF espera objetos local/visitante, envíalos así:
+    const partidoParaPDF = {
+      ...partido,
+      local: { nombre: clubes.find(c => c.id === partido.local_id)?.nombre || "Local" },
+      visitante: { nombre: clubes.find(c => c.id === partido.visitante_id)?.nombre || "Visitante" }
+    };
 
-    } catch (err) {
-      console.error("Fallo en descarga:", err);
-    } finally {
-      setLoadingSession(false);
-    }
-  };
+    generarPDF(partidoParaPDF, localP || [], visitaP || []);
+
+  } catch (err) {
+    console.error("Error:", err.message);
+  } finally {
+    setLoadingSession(false);
+  }
+};
 
   const generarPDF = (partido, localPlayers, visitaPlayers) => {
   const doc = new jsPDF();

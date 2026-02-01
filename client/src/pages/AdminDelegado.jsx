@@ -646,7 +646,7 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
   doc.setLineWidth(0.4);
   
   // Encabezado (Más estrecho para evitar solapamiento)
-  const tableWidth = 65; // Ancho total reducido de 80 a 70
+  const tableWidth = 63; // Ancho total reducido de 80 a 70
   doc.setFillColor(240, 240, 240);
   doc.rect(14, resY, tableWidth, 8, 'FD'); 
   doc.setFontSize(8);

@@ -506,27 +506,27 @@ const handleDescargarPlanilla = async () => {
         .eq('organizacion_id', perfilUsuario.organizacion_id)
         //.eq('nro_fecha', Number(filtroFechaPlanilla))
         //.ilike('categoria', filtroCatPlanilla)
-        .maybeSingle();
+        .single();
 
       if (pErr || !partido) return alert("No se encontró el partido.");
 
-      // 2. Traemos las jugadoras CORRIGIENDO EL NOMBRE DE LA COLUMNA (categoria_actual)
-      const { data: localP } = await supabase
-        .from('jugadoras')
-        .select('nombre, apellido, dni')
-        .eq('equipo_id', partido.local.id)
-        .ilike('categoria_actual', partido.categoria) // <--- CAMBIO AQUÍ
-        .order('apellido');
+      // 2. Traemos jugadoras (Usamos ILIKE por el tema de Unicas/UNICAS)
+    const { data: localP } = await supabase
+      .from('jugadoras')
+      .select('nombre, apellido, dni')
+      .eq('equipo_id', partido.local.id)
+      .ilike('categoria_actual', partido.categoria)
+      .order('apellido');
 
-      const { data: visitaP } = await supabase
-        .from('jugadoras')
-        .select('nombre, apellido, dni')
-        .eq('equipo_id', partido.visitante.id)
-        .ilike('categoria_actual', partido.categoria) // <--- CAMBIO AQUÍ
-        .order('apellido');
+    const { data: visitaP } = await supabase
+      .from('jugadoras')
+      .select('nombre, apellido, dni')
+      .eq('equipo_id', partido.visitante.id)
+      .ilike('categoria_actual', partido.categoria)
+      .order('apellido');
 
-      // 3. Generamos el PDF
-      generarPDF(partido, localP || [], visitaP || []);
+    // 3. Llamamos a generarPDF (la versión de planilla, no la de dictamen)
+    generarPDF(partido, localP || [], visitaP || []);
 
     } catch (err) {
       console.error("Fallo en descarga:", err);

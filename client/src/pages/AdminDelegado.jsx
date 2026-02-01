@@ -298,13 +298,41 @@ const fetchData = useCallback(async () => {
 
     // --- 4. PIE DE PÁGINA, QR Y FIRMA ---
     // QR de validación (apunta a la verificación pública)
-    const urlQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/verificar/" + jugadora.id)}`;
+   // --- 4. PIE DE PÁGINA, QR Y FIRMA ---
+const urlQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/verificar/" + jugadora.id)}`;
+
+// Usamos una técnica de precarga para evitar que el 404 rompa el PDF
+const imgQR = new Image();
+imgQR.crossOrigin = "Anonymous";
+imgQR.src = urlQR;
+
+imgQR.onload = () => {
     try {
-      doc.addImage(urlQR, 'PNG', 20, 245, 30, 30);
+        doc.addImage(imgQR, 'PNG', 20, 245, 30, 30);
     // eslint-disable-next-line no-unused-vars
-    } catch (err) {
-      console.warn("QR no disponible");
+    } catch (e) {
+        console.warn("No se pudo añadir el QR al PDF");
     }
+    finalizarYGuardar();
+};
+
+imgQR.onerror = () => {
+    console.warn("Error 404 o CORS al traer el QR");
+    finalizarYGuardar();
+};
+
+// Función auxiliar para no repetir código
+const finalizarYGuardar = () => {
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text("Escanee el código para verificar la vigencia de esta sanción en tiempo real.", 55, 260);
+    doc.save(`Dictamen_Oficial_${jugadora.apellido}.pdf`);
+};
+
+// Si por alguna razón la imagen tarda demasiado, lanzamos el guardado igual a los 2 segundos
+setTimeout(() => {
+    if (doc.internal.pages.length > 0) finalizarYGuardar();
+}, 2000);
 
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
@@ -476,8 +504,8 @@ const handleDescargarPlanilla = async () => {
         .from('partidos')
         .select(`id, nro_fecha, categoria, zona, local:equipos!local_id(id, nombre), visitante:equipos!visitante_id(id, nombre)`)
         .eq('organizacion_id', perfilUsuario.organizacion_id)
-        .eq('nro_fecha', Number(filtroFechaPlanilla))
-        .ilike('categoria', filtroCatPlanilla)
+        //.eq('nro_fecha', Number(filtroFechaPlanilla))
+        //.ilike('categoria', filtroCatPlanilla)
         .maybeSingle();
 
       if (pErr || !partido) return alert("No se encontró el partido.");

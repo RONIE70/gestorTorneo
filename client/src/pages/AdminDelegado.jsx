@@ -536,7 +536,7 @@ const handleDescargarPlanilla = async () => {
   }
 };
 
- const generarPDF = (partido, localPlayers, visitaPlayers) => {
+const generarPDF = (partido, localPlayers, visitaPlayers) => {
   const doc = new jsPDF();
   const colorMagenta = [217, 0, 130]; 
   const nombreLiga = configLiga?.nombre_liga || "LIGA OFICIAL";
@@ -551,11 +551,12 @@ const handleDescargarPlanilla = async () => {
   doc.setTextColor(...colorMagenta);
   doc.setFont("helvetica", "bold");
   doc.text(`${nombreLiga.toUpperCase()}`, 105, 15, { align: 'center' });
+  
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
   doc.text("PLANILLA DE JUEGO OFICIAL", 105, 21, { align: 'center' });
 
-  // Información del Partido
+  // Información del Encuentro
   doc.setFontSize(9);
   doc.setTextColor(40, 40, 40);
   doc.text(`FECHA NRO: ${partido.nro_fecha}`, 45, 30);
@@ -567,23 +568,43 @@ const handleDescargarPlanilla = async () => {
   // --- 2. CONFIGURACIÓN DE TABLAS JUGADORAS ---
   const configuracionTabla = {
     theme: 'grid',
-    headStyles: { fillColor: [26, 188, 156], textColor: 255, fontSize: 8, fontStyle: 'bold', halign: 'center' },
+    headStyles: { fillColor: [240, 240, 240], textColor: 0, fontSize: 8, fontStyle: 'bold', halign: 'center' },
     styles: { fontSize: 8, cellPadding: 2 },
     columnStyles: {
       0: { cellWidth: 10, halign: 'center' },   // N°
-      1: { cellWidth: 70 },                   // Nombre y Apellido
+      1: { cellWidth: 70 },                    // Nombre y Apellido
       2: { cellWidth: 25, halign: 'center' },  // DNI
-      3: { cellWidth: 45 },                   // FIRMA JUGADORA
-      4: { cellWidth: 15, halign: 'center' },  // G (Más ancho ahora)
+      3: { cellWidth: 45 },                    // FIRMA JUGADORA
+      4: { cellWidth: 15, halign: 'center' },  // GOLES (Ancho)
       5: { cellWidth: 10, halign: 'center' },  // A
       6: { cellWidth: 10, halign: 'center' }   // R
     }
   };
 
-  // Tabla Local
+  // --- FUNCIÓN PARA DIBUJAR FALTAS HORIZONTALES ---
+  const drawBloqueFaltas = (startX, startY) => {
+    doc.setFontSize(8);
+    doc.setTextColor(0);
+    doc.setFont("helvetica", "bold");
+    
+    // Faltas 1T
+    doc.text("FALTAS 1T:", startX, startY);
+    for (let i = 0; i < 5; i++) {
+      doc.rect(startX + 20 + (i * 6), startY - 3.5, 4.5, 4.5);
+    }
+
+    // Faltas 2T (A continuación)
+    doc.text("FALTAS 2T:", startX + 60, startY);
+    for (let i = 0; i < 5; i++) {
+      doc.rect(startX + 80 + (i * 6), startY - 3.5, 4.5, 4.5);
+    }
+  };
+
+  // --- TABLA LOCAL ---
   doc.setFontSize(11);
   doc.setTextColor(...colorMagenta);
   doc.text(`LOCAL: ${partido.local.nombre}`, 14, 42);
+  
   autoTable(doc, {
     ...configuracionTabla,
     startY: 45,
@@ -591,38 +612,26 @@ const handleDescargarPlanilla = async () => {
     body: localPlayers.map((j, i) => [i + 1, j.apellido.toUpperCase() + " " + j.nombre, j.dni, "", "", "", ""]),
   });
 
-  let finalY = doc.lastAutoTable.finalY;
+  let currentY = doc.lastAutoTable.finalY + 8;
+  drawBloqueFaltas(14, currentY);
 
-  // --- 3. BLOQUE GLOBAL DE FALTAS (Vertical y por Equipo) ---
-  const drawFaltasGlobales = (startX, startY, titulo) => {
-    doc.setFontSize(8);
-    doc.setTextColor(0);
-    doc.text(titulo, startX, startY);
-    const size = 5;
-    const spacing = 2;
-    for (let i = 0; i < 5; i++) {
-      doc.setDrawColor(100);
-      doc.rect(startX + 25, startY - 4 + (i * (size + spacing)), size, size); // Cuadraditos verticales
-    }
-  };
-
-  drawFaltasGlobales(140, finalY + 10, "FALTAS EQUIPO LOCAL (5)");
-
-  // Tabla Visitante
+  // --- TABLA VISITANTE ---
+  currentY += 12;
   doc.setFontSize(11);
   doc.setTextColor(...colorMagenta);
-  doc.text(`VISITA: ${partido.visitante.nombre}`, 14, finalY + 15);
+  doc.text(`VISITA: ${partido.visitante.nombre}`, 14, currentY);
+  
   autoTable(doc, {
     ...configuracionTabla,
-    startY: finalY + 18,
+    startY: currentY + 3,
     head: [['N°', 'NOMBRE Y APELLIDO', 'DNI', 'FIRMA JUGADORA', 'GOLES', 'A', 'R']],
     body: visitaPlayers.map((j, i) => [i + 1, j.apellido.toUpperCase() + " " + j.nombre, j.dni, "", "", "", ""]),
   });
 
-  finalY = doc.lastAutoTable.finalY;
-  drawFaltasGlobales(140, finalY + 10, "FALTAS EQUIPO VISITA (5)");
+  currentY = doc.lastAutoTable.finalY + 8;
+  drawBloqueFaltas(14, currentY);
 
-  // --- 4. CUADRO DE RESULTADOS ESTILO EXCEL ---
+  // --- 3. CUADRO DE RESULTADOS ESTILO EXCEL ---
   const resY = 255;
   doc.setDrawColor(0);
   doc.setLineWidth(0.5);
@@ -634,29 +643,30 @@ const handleDescargarPlanilla = async () => {
   doc.setTextColor(0);
   doc.text("TABLA DE RESULTADOS FINALES", 54, resY + 5.5, { align: 'center' });
 
-  // Celdas de Excel
-  const drawExcelCell = (x, y, w, h, text) => {
-    doc.rect(x, y, w, h);
-    doc.text(text, x + 2, y + 6);
+  // Celdas tipo Excel
+  doc.setLineWidth(0.2);
+  const drawExcelRow = (x, y, label) => {
+    doc.rect(x, y, 55, 10);
+    doc.rect(x + 55, y, 25, 10);
+    doc.setFont("helvetica", "bold");
+    doc.text(label, x + 3, y + 6.5);
   };
 
-  drawExcelCell(14, resY + 8, 55, 10, `LOCAL: ${partido.local.nombre.substring(0, 20)}`);
-  drawExcelCell(69, resY + 8, 25, 10, ""); // Espacio para el número
-  
-  drawExcelCell(14, resY + 18, 55, 10, `VISITA: ${partido.visitante.nombre.substring(0, 20)}`);
-  drawExcelCell(69, resY + 18, 25, 10, ""); // Espacio para el número
+  drawExcelRow(14, resY + 8, `LOCAL: ${partido.local.nombre.substring(0, 18)}`);
+  drawExcelRow(14, resY + 18, `VISITA: ${partido.visitante.nombre.substring(0, 18)}`);
 
-  // --- 5. FIRMAS FINALES ---
+  // --- 4. FIRMAS FINALES ---
   doc.setFontSize(7);
   const lineY = 285;
-  doc.line(105, lineY, 135, lineY);
-  doc.text("FIRMA ÁRBITRO", 120, lineY + 4, { align: 'center' });
+  
+  doc.line(80, lineY, 115, lineY);
+  doc.text("FIRMA ÁRBITRO", 97.5, lineY + 4, { align: 'center' });
 
-  doc.line(145, lineY, 175, lineY);
-  doc.text("DEL. LOCAL", 160, lineY + 4, { align: 'center' });
+  doc.line(125, lineY, 160, lineY);
+  doc.text("FIRMA DEL. LOCAL", 142.5, lineY + 4, { align: 'center' });
 
-  doc.line(180, lineY, 205, lineY);
-  doc.text("DEL. VISITA", 192.5, lineY + 4, { align: 'center' });
+  doc.line(170, lineY, 205, lineY);
+  doc.text("FIRMA DEL. VISITA", 187.5, lineY + 4, { align: 'center' });
 
   doc.save(`Planilla_${partido.local.nombre}_vs_${partido.visitante.nombre}.pdf`);
 };

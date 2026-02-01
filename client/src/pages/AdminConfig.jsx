@@ -464,6 +464,12 @@ const { error: errorLimpieza } = await supabase
 if (errorLimpieza) throw new Error("No se pudo resetear la tabla de partidos.");
 await supabase.from('equipos').update({ zona: null }).neq('id', 0);
 
+// ACTUALIZACIÓN VITAL: Guardar la modalidad en el torneo para el Trigger
+  await supabase
+    .from('configuracion_torneo')
+    .update({ tipo_playoff: modalidadSeleccionada })
+    .eq('id', torneoActivoId);
+
 // --- 2. PREPARACIÓN DE EQUIPOS ---
 let fixtureFinal = [];
 const cabezas = clubes.filter(c => c.es_cabeza_serie);
@@ -508,6 +514,15 @@ else if (modalidadSeleccionada === 'semis_y_final') {
 encuentrosPlayoff.push({ id: 's-1', loc: { id: null, nombre: "1° ZONA A" }, vis: { id: null, nombre: "2° ZONA B" }, etapa: 'SEMIFINAL 1' });
 encuentrosPlayoff.push({ id: 's-2', loc: { id: null, nombre: "1° ZONA B" }, vis: { id: null, nombre: "2° ZONA A" }, etapa: 'SEMIFINAL 2' });
 }
+else if (modalidadSeleccionada === 'mejores_6') {
+  encuentrosPlayoff.push({ id: 'llave-1', loc: { id: null, nombre: "1° GENERAL" }, vis: { id: null, nombre: "6° GENERAL" }, etapa: 'LLAVE 1' });
+  encuentrosPlayoff.push({ id: 'llave-2', loc: { id: null, nombre: "2° GENERAL" }, vis: { id: null, nombre: "5° GENERAL" }, etapa: 'LLAVE 2' });
+  encuentrosPlayoff.push({ id: 'llave-3', loc: { id: null, nombre: "3° GENERAL" }, vis: { id: null, nombre: "4° GENERAL" }, etapa: 'LLAVE 3' });
+}
+else if (modalidadSeleccionada === 'mundialito') {
+  encuentrosPlayoff.push({ id: 'm-1', loc: { id: null, nombre: "1° NORTE" }, vis: { id: null, nombre: "2° SUR" }, etapa: 'MUNDIALITO 1' });
+  encuentrosPlayoff.push({ id: 'm-2', loc: { id: null, nombre: "1° SUR" }, vis: { id: null, nombre: "2° NORTE" }, etapa: 'MUNDIALITO 2' });
+}
 
 // --- NUEVA MODALIDAD AGREGADA AQUÍ ---
 else if (modalidadSeleccionada === 'finales_por_puesto') {
@@ -518,6 +533,7 @@ loc: { id: null, nombre: "1° ZONA A" },
 vis: { id: null, nombre: "1° ZONA B" },
 etapa: 'GRAN FINAL'
 });
+
 
 // Partido por el tercer puesto
 encuentrosPlayoff.push({
@@ -1039,7 +1055,9 @@ Selecciona cómo se definirán los clasificados
 { id: 'eliminacion_directa', label: 'Final Directa', desc: 'Solo cruce por el campeonato (1° A vs 1° B)' },
 { id: 'finales_por_puesto', label: 'Finales por Puesto', desc: '1ros por el Título y 2dos por el 3° Puesto' }, // OPCIÓN NUEVA
 { id: 'semis_y_final', label: 'Semifinales y Final', desc: 'Cruces entre 1° y 2° de cada zona' },
-{ id: 'ida_vuelta', label: 'Ida y Vuelta', desc: 'Cruces eliminatorios de doble partido' }
+{ id: 'ida_vuelta', label: 'Ida y Vuelta', desc: 'Cruces eliminatorios de doble partido' },
+{ id: 'mejores_6', label: 'Play-off (6 Mejores)', desc: 'Cruces: 1vs6, 2vs5 y 3vs4 de la General' }, // NUEVA
+{ id: 'mundialito', label: 'Mundialito Geográfico', desc: 'Cruces por cercanía (Norte vs Sur)' }, // NUEVA
 ].map((opt) => (
 <button
 key={opt.id}

@@ -82,6 +82,7 @@ const AdminArbitros = () => {
   });
   const [firmas, setFirmas] = useState({ arb: '', loc: '', vis: '' });
   const [enviando, setEnviando] = useState(false);
+  const fechasDisponibles = [...new Set(partidos.map(p => p.nro_fecha))].sort((a, b) => a - b);
 
   useEffect(() => { 
     fetchPartidos(); 
@@ -104,9 +105,17 @@ const AdminArbitros = () => {
   const fetchPartidos = async () => {
     setLoading(true);
     try {
-      const { data } = await supabase.from('partidos').select('*, local:equipos!local_id(nombre), visitante:equipos!visitante_id(nombre)').eq('finalizado', false).order('nro_fecha', { ascending: true });
+      const { data } = await 
+      supabase.from('partidos')
+      .select('*, local:equipos!local_id(nombre), visitante:equipos!visitante_id(nombre)')
+      .eq('finalizado', false)
+      .order('nro_fecha', { ascending: true });
+
       if (data && data.length > 0) {
         setPartidos(data);
+        const primeraFecha = Math.min(...data.map(p => p.nro_fecha));
+        setFechaSeleccionada(primeraFecha);
+        
         const unicos = data.reduce((acc, p) => {
           const key = `${p.nro_fecha}-${p.local_id}-${p.visitante_id}-${p.zona}`;
           if (!acc[key]) acc[key] = { nro_fecha: p.nro_fecha, local: p.local, visitante: p.visitante, local_id: p.local_id, visitante_id: p.visitante_id, zona: p.zona };
@@ -139,6 +148,8 @@ const AdminArbitros = () => {
       setIncidenciasResumen(prev => ({ ...prev, detallesSanciones: [...prev.detallesSanciones, { nombre: esExtraCampo ? jugadoraInfo.apellido : `${jugadoraInfo.apellido}, ${jugadoraInfo.nombre}`, tipo: esExtraCampo ? `EXPULSIÓN ${tipo}` : tipo, club: esLocal ? partidoActivo.local.nombre : partidoActivo.visitante.nombre, foto: jugadoraInfo.foto_url || null }] }));
     }
   };
+
+  
 
   const generarPDFResultado = (partido, golesL, golesV, incidencias, firmas) => {
   const doc = new jsPDF();
@@ -286,12 +297,38 @@ const AdminArbitros = () => {
     <div className="p-4 md:p-8 bg-slate-950 min-h-screen text-white font-sans">
       {!partidoActivo ? (
         <div className="max-w-5xl mx-auto space-y-8">
-          <header className="border-l-4 border-amber-500 pl-4"><h1 className="text-3xl font-black uppercase italic tracking-tighter">Planilla de <span className="text-amber-500">Juego</span></h1></header>
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
-              <button key={n} onClick={() => { setFechaSeleccionada(n); setCruceActivo(null); }} className={`px-6 py-3 rounded-2xl text-xs font-black transition-all flex-shrink-0 ${fechaSeleccionada === n ? 'bg-amber-500 text-slate-950' : 'bg-slate-900 text-slate-500 border border-slate-800'}`}>FECHA {n}</button>
-            ))}
+          <header className="border-l-4 border-amber-500 pl-4">
+            <h1 className="text-3xl font-black uppercase italic tracking-tighter">
+              Planilla de <span className="text-amber-500">Juego</span>
+            </h1>
+          </header>
+
+          {/* --- PASO 2: REEMPLAZO DEL SELECTOR DE FECHAS FIJO POR EL DINÁMICO --- */}
+          <div className="flex gap-2 overflow-x-auto pb-4 custom-scrollbar">
+            {fechasDisponibles.length > 0 ? (
+              fechasDisponibles.map(n => (
+                <button 
+                  key={n} 
+                  onClick={() => { 
+                    setFechaSeleccionada(n); 
+                    setCruceActivo(null); 
+                  }} 
+                  className={`px-6 py-3 rounded-2xl text-xs font-black transition-all flex-shrink-0 ${
+                    fechaSeleccionada === n 
+                      ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20' 
+                      : 'bg-slate-900 text-slate-500 border border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  FECHA {n}
+                </button>
+              ))
+            ) : (
+              <div className="bg-slate-900 p-4 rounded-xl border border-dashed border-slate-800 w-full text-center">
+                <p className="text-[10px] text-slate-600 uppercase font-black">No hay fechas programadas o pendientes</p>
+              </div>
+            )}
           </div>
+          {/* --- FIN DEL REEMPLAZO --- */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-1 space-y-4">
               <h2 className="text-[10px] font-black uppercase text-blue-500 ml-2 tracking-widest">Encuentros</h2>

@@ -7,28 +7,36 @@ const AdminJugadoras = () => {
   const [cargando, setCargando] = useState(true);
   const [userOrgId, setUserOrgId] = useState(null); // <--- ESTADO PARA EL FILTRO SaaS
 
-  // 1. OBTENER EL CONTEXTO DE LA LIGA (VITAL PARA SEGURIDAD)
-  useEffect(() => {
-    const obtenerContextoOrg = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const { data: perfil } = await supabase
-            .from('perfiles')
-            .select('organizacion_id')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (perfil) setUserOrgId(perfil.organizacion_id);
-        }
-      } catch (err) {
-        console.error("Error obteniendo organización:", err.message);
-      }
-    };
-    obtenerContextoOrg();
-  }, []);
+// 1. Efecto para obtener el ID de la organización al montar
+useEffect(() => {
+  const obtenerContextoOrg = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const { data: perfil } = await supabase
+        .from('perfiles')
+        .select('organizacion_id')
+        .eq('id', session.user.id)
+        .single();
+      
+      if (perfil) setUserOrgId(perfil.organizacion_id);
+    }
+  };
+  obtenerContextoOrg();
+}, []);
 
-  // 2. FUNCIÓN DE CARGA FILTRADA POR ORGANIZACIÓN
+// 2. Efecto para cargar las jugadoras solo cuando el ID de la organización esté listo
+useEffect(() => {
+  const cargarDatos = async () => {
+    // Si todavía no tenemos el ID de la liga, no intentamos cargar nada
+    if (userOrgId) {
+      await obtenerJugadoras();
+    }
+  };
+  
+  cargarDatos();
+}, [obtenerJugadoras, userOrgId]); // Añadimos userOrgId como dependencia
+ 
+// 2. FUNCIÓN DE CARGA FILTRADA POR ORGANIZACIÓN
   const obtenerJugadoras = useCallback(async () => {
   // 1. Verificación de seguridad: si no hay OrgId, no hacemos nada
   if (!userOrgId) return; 
@@ -62,19 +70,7 @@ const AdminJugadoras = () => {
   }
 }, [userOrgId]); // Solo cambia si cambia la liga
 
-// SOLUCIÓN AL ERROR DE ASYNC EN EFFECT:
-useEffect(() => {
-  // Ejecutamos la carga de forma segura
-  const cargarDatos = async () => {
-    await obtenerJugadoras();
-  };
-  
-  cargarDatos();
-}, [obtenerJugadoras]);
 
-  //useEffect(() => {
-  //  obtenerJugadoras();
-  //}, [obtenerJugadoras]);
 
   // 3. FUNCIÓN PARA APROBAR CON CONTEXTO
   const aprobar = async (id) => {

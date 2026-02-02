@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import * as faceapi from 'face-api.js';
 import EXIF from 'exif-js'; // Asegúrate de tenerlo instalado: npm install exif-js
@@ -10,6 +10,23 @@ const ValidadorBiometrico = () => {
     const [resultadoIA, setResultadoIA] = useState(null);
     const [resultadoForense, setResultadoForense] = useState(null);
     const [procesando, setProcesando] = useState(false);
+    const [userOrgId, setUserOrgId] = useState(null);
+    
+
+    useEffect(() => {
+        const obtenerContexto = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                const { data: perfil } = await supabase
+                    .from('perfiles')
+                    .select('organizacion_id')
+                    .eq('id', session.user.id)
+                    .single();
+                if (perfil) setUserOrgId(perfil.organizacion_id);
+            }
+        };
+        obtenerContexto();
+    }, []);
 
     // 1. CARGA DE MODELOS PESADOS (PC)
     useEffect(() => {
@@ -28,32 +45,43 @@ const ValidadorBiometrico = () => {
             }
         };
         loadModels();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const fetchPendientes = async () => {
+   
+// Usamos useCallback para que la función no cambie en cada render
+const fetchPendientes = useCallback(async () => {
+    if (!userOrgId) return;
+
     try {
         const { data, error } = await supabase
             .from('jugadoras')
             .select(`
                 *,
-                equipos:equipo_id (
+                equipos:equipo_id!inner (
                     nombre
                 )
-            `) // Notación especial: "nombre_relacion:columna_id (campos)"
+            `)
+            .eq('organizacion_id', userOrgId)
             .eq('verificacion_biometrica_estado', 'pendiente')
             .order('id', { ascending: false });
 
         if (error) {
-            console.error("Error detallado de Supabase:", error.message);
+            console.error("Error Supabase:", error.message);
             return;
         }
-
-        console.log("✅ Datos con club cargados:", data);
         setPendientes(data || []);
     } catch (err) {
         console.error("Error inesperado:", err);
     }
-};
+}, [userOrgId]); 
+
+useEffect(() => {
+    if (userOrgId) {
+        fetchPendientes();
+    }
+}, [userOrgId, fetchPendientes]);
+// Solo se recrea si cambia el ID de la organización
 
 const analizarForense = (url) => {
     return new Promise((resolve) => {
@@ -160,7 +188,8 @@ const analizarForense = (url) => {
                 fecha_validacion: new Date().toISOString(),
                 observaciones_ia: resultadoForense?.mensaje || ""
             })
-            .eq('id', id);
+            .eq('id', id)
+            .eq('organizacion_id', userOrgId);
 
         if (!error) {
             setSeleccionada(null);

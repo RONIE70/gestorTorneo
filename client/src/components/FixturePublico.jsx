@@ -23,6 +23,8 @@ const FixturePublico = () => {
           local:equipos!local_id(nombre, escudo_url),
           visitante:equipos!visitante_id(nombre, escudo_url)
         `)
+        .or('zona.eq.Zona A,zona.eq.Zona B,zona.eq.PLAY-OFFS')
+        .eq('finalizado', false)
         .order('nro_fecha', { ascending: true });
 
       if (error) throw error;

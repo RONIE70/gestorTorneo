@@ -271,6 +271,13 @@ const DashboardLiga = () => {
                 <h2 className="text-xl font-black uppercase italic text-liga tracking-tighter">
                   {data.proximos?.length > 0 ? 'Próxima Fecha' : 'Estado del Torneo'}
                 </h2>
+                {/* NUEVO BOTÓN: TABLA DE POSICIONES */}
+    <button 
+      onClick={() => navigate('posiciones')} 
+      className="flex items-center gap-2 text-[10px] font-black uppercase text-emerald-400 hover:text-emerald-300 transition-colors"
+    >
+      <span className="text-sm">📊</span> TABLA DE POSICIONES
+    </button>
                 <Link to="/FixturePublico" className="text-[10px] font-black text-slate-500 uppercase hover:text-white transition-colors underline decoration-blue-500/50 underline-offset-4 tracking-widest">👉 Calendario Completo</Link>
               </div>
               <div className="grid gap-3">

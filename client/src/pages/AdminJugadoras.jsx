@@ -30,32 +30,51 @@ const AdminJugadoras = () => {
 
   // 2. FUNCIÓN DE CARGA FILTRADA POR ORGANIZACIÓN
   const obtenerJugadoras = useCallback(async () => {
-    if (!userOrgId) return; // No disparamos la carga hasta tener el ID de la liga
+  // 1. Verificación de seguridad: si no hay OrgId, no hacemos nada
+  if (!userOrgId) return; 
 
-    try {
-      // Usamos directamente Supabase con el filtro de organización
-      const { data, error } = await supabase
-        .from('jugadoras')
-        .select(`
-          *,
-          equipos:equipo_id(nombre)
-        `)
-        .eq('organizacion_id', userOrgId) // <--- ESTE ES EL FILTRO DE SEGURIDAD
-        .order('created_at', { ascending: false });
+  try {
+    setCargando(true);
+    
+    // 2. Filtro INNER: Solo trae jugadoras que tengan un equipo_id 
+    // que exista en la tabla de equipos de TU organización.
+    const { data, error } = await supabase
+      .from('jugadoras')
+      .select(`
+        *,
+        equipos:equipo_id!inner(id, nombre, organizacion_id)
+      `)
+      .eq('organizacion_id', userOrgId)
+      // Reforzamos que el equipo también pertenezca a la misma organización
+      .eq('equipos.organizacion_id', userOrgId) 
+      .order('apellido');
 
-      if (error) throw error;
-      
+    if (error) {
+      console.warn("Aviso:", error.message);
+      setJugadoras([]);
+    } else {
       setJugadoras(data);
-      setCargando(false);
-    } catch (err) {
-      console.error("Error al obtener jugadoras:", err);
-      setCargando(false);
     }
-  }, [userOrgId]); // Se activa cuando obtenemos el ID de la organización
+  } catch (err) {
+    console.error("Error crítico:", err);
+  } finally {
+    setCargando(false);
+  }
+}, [userOrgId]); // Solo cambia si cambia la liga
 
-  useEffect(() => {
-    obtenerJugadoras();
-  }, [obtenerJugadoras]);
+// SOLUCIÓN AL ERROR DE ASYNC EN EFFECT:
+useEffect(() => {
+  // Ejecutamos la carga de forma segura
+  const cargarDatos = async () => {
+    await obtenerJugadoras();
+  };
+  
+  cargarDatos();
+}, [obtenerJugadoras]);
+
+  //useEffect(() => {
+  //  obtenerJugadoras();
+  //}, [obtenerJugadoras]);
 
   // 3. FUNCIÓN PARA APROBAR CON CONTEXTO
   const aprobar = async (id) => {

@@ -4,7 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 import { supabase } from './supabaseClient';
-import React,{ useState, useEffect } from 'react';
+import React,{ useEffect } from 'react';
 
 // Páginas y Componentes
 import DashboardLiga from './pages/DashboardLiga';
@@ -28,42 +28,45 @@ import ValidadorBiometrico from './components/ValidadorBiometrico';
 
 
 function App() {
-  const [perfil, setPerfil] = useState(null);
-
-  // --- LÓGICA DE TEMATIZACIÓN DINÁMICA ---
+ // --- LÓGICA DE TEMATIZACIÓN DINÁMICA (REEMPLAZO) ---
   useEffect(() => {
-    const obtenerConfiguracionVisual = async () => {
+    const aplicarTematizacion = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          // Buscamos los colores en la configuración de la liga del usuario
-          const { data: perfilData } = await supabase
-            .from('perfiles')
-            .select('organizacion_id, configuracion_liga(color_primario, color_secundario)')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (perfilData?.configuracion_liga) {
-            setPerfil(perfilData.configuracion_liga);
+        if (!session) return;
+
+        // 1. Obtenemos primero la organización del usuario
+        const { data: perfilUsuario } = await supabase
+          .from('perfiles')
+          .select('organizacion_id')
+          .eq('id', session.user.id)
+          .single();
+
+        if (perfilUsuario?.organizacion_id) {
+          // 2. Buscamos la configuración de esa liga específica
+          const { data: config } = await supabase
+            .from('configuracion_liga')
+            .select('color_primario, color_secundario')
+            .eq('organizacion_id', perfilUsuario.organizacion_id)
+            .maybeSingle();
+
+          if (config) {
+            // Aplicamos directamente al DOM para evitar esperas de estado
+            if (config.color_primario) {
+              document.documentElement.style.setProperty('--color-primario', config.color_primario);
+            }
+            if (config.color_secundario) {
+              document.documentElement.style.setProperty('--color-secundario', config.color_secundario);
+            }
           }
         }
       } catch (err) {
-        console.error("Error cargando colores:", err);
+        console.error("Fallo en tematización SaaS:", err);
       }
     };
 
-    obtenerConfiguracionVisual();
+    aplicarTematizacion();
   }, []);
-
-  // Aplicar las variables CSS al documento
-  useEffect(() => {
-    if (perfil?.color_primario) {
-      document.documentElement.style.setProperty('--color-primario', perfil.color_primario);
-    }
-    if (perfil?.color_secundario) {
-      document.documentElement.style.setProperty('--color-secundario', perfil.color_secundario);
-    }
-  }, [perfil]);
 
   return (
     <Router>

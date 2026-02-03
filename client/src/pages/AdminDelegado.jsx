@@ -5,7 +5,7 @@ import CarnetJugadora from '../components/CarnetJugadora';
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import Tesseract from 'tesseract.js';
+import Tesseract from 'tesseract.js'
 
 
 const AdminDelegado = () => {

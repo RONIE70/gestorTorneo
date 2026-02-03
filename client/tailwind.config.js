@@ -10,8 +10,7 @@ export default {
         // Mapeamos las variables CSS a nombres de clases de Tailwind
         primary: 'var(--color-primario)',
         secondary: 'var(--color-secundario)',
-        'liga-principal': 'var(--color-primario)',
-        'liga-secundario': 'var(--color-secundario)',
+      
       },
     },
   },

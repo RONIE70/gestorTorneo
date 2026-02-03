@@ -6,8 +6,3 @@
   --color-primario: #d90082; /* Magenta por defecto */
   --color-secundario: #1e293b; /* Slate-800 por defecto */
 }
-
-/* Ahora puedes usar Tailwind con estas variables */
-.btn-primary {
-  background-color: var(--color-primario);
-}

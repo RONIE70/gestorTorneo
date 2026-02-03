@@ -5,6 +5,7 @@ import CarnetJugadora from '../components/CarnetJugadora';
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import Tesseract from 'tesseract.js';
 
 
 const AdminDelegado = () => {
@@ -23,6 +24,8 @@ const AdminDelegado = () => {
   const [seleccionadas, setSeleccionadas] = useState([]);
   const [expedientes, setExpedientes] = useState([]);
   const [configLiga, setConfigLiga] = useState(null);
+  // eslint-disable-next-line no-unused-vars
+  const [leyendoOCR, setLeyendoOCR] = useState(false);
   // Obtenemos las categorías únicas de la lista de partidos cargados
   const categoriasDisponibles = [...new Set(partidos.map(p => p.categoria))].sort();
 
@@ -399,8 +402,62 @@ setTimeout(() => {
     }
   };
 
-  
 
+const escanearDNI = async (archivo) => {
+  if (!archivo) return;
+  setLeyendoOCR(true);
+  const urlTemporal = URL.createObjectURL(archivo);
+  
+  try {
+    const { data: { text } } = await Tesseract.recognize(urlTemporal, 'spa');
+    console.log("Texto extraído:", text); // Para debug en consola
+
+    // --- 1. EXTRAER DNI (8 dígitos) ---
+    const dniMatch = text.match(/\b\d{7,8}\b/) || text.match(/\d{2}\.?\d{3}\.?\d{3}/);
+    let dniFinal = "";
+    if (dniMatch) {
+      dniFinal = dniMatch[0].replace(/\./g, '');
+    }
+
+    // --- 2. EXTRAER NOMBRE Y APELLIDO (Lógica de líneas) ---
+    const lineas = text.split('\n').map(l => l.trim().toUpperCase()).filter(l => l.length > 2);
+    
+    let apellidoFinal = "";
+    let nombreFinal = "";
+
+    lineas.forEach((linea, index) => {
+      // Buscamos palabras clave en el DNI argentino (APELLIDOS / NOMBRES)
+      if (linea.includes("APELLIDO")) {
+        // El apellido suele ser la línea siguiente o estar después de los dos puntos
+        apellidoFinal = lineas[index + 1] || "";
+      }
+      if (linea.includes("NOMBRE")) {
+        nombreFinal = lineas[index + 1] || "";
+      }
+    });
+
+    // Limpieza de caracteres basura (filtramos si el OCR leyó símbolos raros)
+    const limpiarTexto = (t) => t.replace(/[^A-ZÁÉÍÓÚÑ\s]/g, '').trim();
+
+    // --- 3. ACTUALIZAR ESTADO DE FICHAJE ---
+    setDatosFichaje(prev => ({
+      ...prev,
+      dni: dniFinal || prev.dni,
+      apellido: limpiarTexto(apellidoFinal) || prev.apellido,
+      nombre: limpiarTexto(nombreFinal) || prev.nombre
+    }));
+
+    if (dniFinal) verificarDniDuplicado(dniFinal);
+
+  } catch (err) {
+    console.error("Error OCR completo:", err);
+  } finally {
+    setLeyendoOCR(false);
+    URL.revokeObjectURL(urlTemporal);
+  }
+};
+
+  
 const manejarEnvioFichaje = async (e) => {
     e.preventDefault();
     
@@ -1069,7 +1126,23 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
 </div>
                 <div className="col-span-full grid grid-cols-2 gap-4">
                    <div className="space-y-2"><p className="text-[9px] font-black uppercase text-blue-500 ml-2 italic">Foto Carnet Actual</p><input type="file" className="w-full text-[10px] text-slate-500" onChange={e => setFilePerfil(e.target.files[0])} required /></div>
-                   <div className="space-y-2"><p className="text-[9px] font-black uppercase text-emerald-500 ml-2 italic">Foto frente DNI </p><input type="file" className="w-full text-[10px] text-slate-500" onChange={e => setFileDNI(e.target.files[0])} required /></div>
+                   <div className="space-y-2">
+  <p className="text-[9px] font-black uppercase text-emerald-500 ml-2 italic">
+    Foto frente DNI 
+  </p>
+  <input 
+    type="file" 
+    className="w-full text-[10px] text-slate-500" 
+    onChange={(e) => {
+      const archivo = e.target.files[0];
+      if (archivo) {
+        setFileDNI(archivo); // Mantiene tu lógica para biometría/servidor
+        escanearDNI(archivo); // Dispara la lectura automática del texto
+      }
+    }} 
+    required 
+  />
+</div>
                 </div>
                 <button disabled={cargandoFichaje} className={`col-span-full py-5 rounded-2xl font-black text-xs uppercase shadow-xl ${cargandoFichaje ? 'bg-slate-700 text-slate-500' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}>
                   {cargandoFichaje ? "PROCESANDO BIOMETRÍA..." : "VALIDAR Y GENERAR CREDENCIAL"}

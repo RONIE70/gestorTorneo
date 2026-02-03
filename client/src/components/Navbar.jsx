@@ -191,7 +191,7 @@ const Navbar = () => {
           ) : (
             <Link 
               to="/login"
-              className="bg-primary hover:bg-primary-500 text-white text-[10px] font-black px-6 py-2.5 rounded-xl uppercase shadow-xl transition-all active:scale-95"
+              className="bg-red hover:bg-primary-500 text-white text-[10px] font-black px-6 py-2.5 rounded-xl uppercase shadow-xl transition-all active:scale-95"
             >
               Ingresar
             </Link>
@@ -266,7 +266,7 @@ const Navbar = () => {
             <Link 
               to="/login" 
               onClick={() => setMenuAbierto(false)} 
-              className="bg-primary text-white text-center py-4 rounded-xl font-black uppercase text-xs shadow-lg"
+              className="text-white text-center py-4 rounded-xl font-black uppercase text-xs shadow-lg"
             >
               Ingresar al Portal
             </Link>

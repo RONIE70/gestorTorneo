@@ -169,7 +169,7 @@ const DashboardLiga = () => {
             {userRol === 'jugadora' ? (
               <>Estás explorando la <span className="font-black italic uppercase text-red-600">Pantalla Demo</span></>
             ) : (
-              <>Bienvenido al <span className="font-black italic uppercase text-red-600">Centro de Control</span></>
+              <>Bienvenido al <span className="bg-primary border-secondary font-black italic uppercase text-red-600">Centro de Control</span></>
             )}
             <br />
             <span className="text-slate-400 text-2xl md:text-3xl font-medium tracking-normal mt-2 block">

@@ -118,7 +118,7 @@ const Navbar = () => {
     <h1 className="text-xl md:text-2xl font-black tracking-tighter uppercase leading-none text-white italic">
       {ligaData.nombre}<span className="text-red-600"></span>
     </h1>
-    <span className="text-[9px] font-bold tracking-[0.4em] text-slate-500 uppercase mt-1">
+    <span className="bg-primary border-secondary text-[9px] font-bold tracking-[0.4em] text-slate-500 uppercase mt-1">
       Gestor de Torneo
     </span>
   </div>
@@ -191,7 +191,7 @@ const Navbar = () => {
           ) : (
             <Link 
               to="/login"
-              className="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black px-6 py-2.5 rounded-xl uppercase shadow-xl transition-all active:scale-95"
+              className="bg-primary border-secondary hover:bg-blue-500 text-white text-[10px] font-black px-6 py-2.5 rounded-xl uppercase shadow-xl transition-all active:scale-95"
             >
               Ingresar
             </Link>
@@ -266,7 +266,7 @@ const Navbar = () => {
             <Link 
               to="/login" 
               onClick={() => setMenuAbierto(false)} 
-              className="bg-blue-600 text-white text-center py-4 rounded-xl font-black uppercase text-xs shadow-lg"
+              className="bg-primary border-secondary text-white text-center py-4 rounded-xl font-black uppercase text-xs shadow-lg"
             >
               Ingresar al Portal
             </Link>

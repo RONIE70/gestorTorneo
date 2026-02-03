@@ -128,18 +128,27 @@ const fetchData = useCallback(async () => {
     if (idParaFiltrar && idParaFiltrar !== 0) {
       
       // A. Cargar Plantel
-      const { data: jugadorasData } = await supabase
-        .from('jugadoras')
-        .select(`*, sanciones(id, motivo, estado,
-        equipos:equipo_id (id, nombre, escudo_url))`)
-        .eq('organizacion_id', userOrgId)
-        .eq('equipo_id', idParaFiltrar);
+      const { data: jugadorasData, error: errorPlantel } = await supabase
+    .from('jugadoras')
+    .select(`
+      *, 
+      sanciones(id, motivo, estado),
+      equipos!equipo_id (id, nombre, escudo_url)
+    `) // !equipo_id le dice a Supabase qué columna usar para el JOIN
+    .eq('organizacion_id', userOrgId)
+    .eq('equipo_id', idParaFiltrar);
+
+  if (errorPlantel) {
+    console.error("Error 400 en Plantel:", errorPlantel.message);
+    setPlantel([]);
+  } else {
+      
       
       setPlantel(jugadorasData?.map(j => ({
         ...j,
         estaSuspendida: j.sanciones?.some(s => s.estado === 'cumpliendo') || j.sancionada === true
       })) || []);
-
+    }
       // B. Cargar Expedientes (Sanciones) - RESTAURADO
       const { data: sancData } = await supabase
         .from('sanciones')
@@ -204,8 +213,8 @@ const fetchData = useCallback(async () => {
           setPlantel(jugadorasData?.map(j => ({
             ...j,
             estaSuspendida: j.sanciones?.some(s => s.estado === 'cumpliendo') || j.sancionada === true,
-            club_nombre: j.equipos?.nombre, 
-            club_escudo: j.equipos?.escudo_url
+            club_nombre: j.equipos?.nombre || 'S/D',
+            club_escudo: j.equipos?.escudo_url || null
           })) || []);
         }
       } finally {

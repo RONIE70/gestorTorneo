@@ -5,7 +5,7 @@ import CarnetJugadora from '../components/CarnetJugadora';
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import Tesseract from 'tesseract.js'
+//import Tesseract from 'tesseract.js'
 
 
 const AdminDelegado = () => {
@@ -403,7 +403,7 @@ setTimeout(() => {
   };
 
 
-const escanearDNI = async (archivo) => {
+/*const escanearDNI = async (archivo) => {
   if (!archivo) return;
   setLeyendoOCR(true);
   const urlTemporal = URL.createObjectURL(archivo);
@@ -455,7 +455,7 @@ const escanearDNI = async (archivo) => {
     setLeyendoOCR(false);
     URL.revokeObjectURL(urlTemporal);
   }
-};
+};*/
 
   
 const manejarEnvioFichaje = async (e) => {
@@ -1137,7 +1137,7 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
       const archivo = e.target.files[0];
       if (archivo) {
         setFileDNI(archivo); // Mantiene tu lógica para biometría/servidor
-        escanearDNI(archivo); // Dispara la lectura automática del texto
+        //escanearDNI(archivo); // Dispara la lectura automática del texto
       }
     }} 
     required 

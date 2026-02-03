@@ -1,9 +1,10 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 // Componentes de Estructura
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
+import { supabase } from './supabaseClient';
+import React,{ useState, useEffect } from 'react';
 
 // Páginas y Componentes
 import DashboardLiga from './pages/DashboardLiga';
@@ -27,6 +28,43 @@ import ValidadorBiometrico from './components/ValidadorBiometrico';
 
 
 function App() {
+  const [perfil, setPerfil] = useState(null);
+
+  // --- LÓGICA DE TEMATIZACIÓN DINÁMICA ---
+  useEffect(() => {
+    const obtenerConfiguracionVisual = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          // Buscamos los colores en la configuración de la liga del usuario
+          const { data: perfilData } = await supabase
+            .from('perfiles')
+            .select('organizacion_id, configuracion_liga(color_primario, color_secundario)')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (perfilData?.configuracion_liga) {
+            setPerfil(perfilData.configuracion_liga);
+          }
+        }
+      } catch (err) {
+        console.error("Error cargando colores:", err);
+      }
+    };
+
+    obtenerConfiguracionVisual();
+  }, []);
+
+  // Aplicar las variables CSS al documento
+  useEffect(() => {
+    if (perfil?.color_primario) {
+      document.documentElement.style.setProperty('--color-primario', perfil.color_primario);
+    }
+    if (perfil?.color_secundario) {
+      document.documentElement.style.setProperty('--color-secundario', perfil.color_secundario);
+    }
+  }, [perfil]);
+
   return (
     <Router>
       <div className="min-h-screen bg-slate-950 text-white selection:bg-blue-500 selection:text-white">

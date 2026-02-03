@@ -130,7 +130,8 @@ const fetchData = useCallback(async () => {
       // A. Cargar Plantel
       const { data: jugadorasData } = await supabase
         .from('jugadoras')
-        .select(`*, sanciones(id, motivo, estado)`)
+        .select(`*, sanciones(id, motivo, estado,
+        equipos:equipo_id (id, nombre, logo_url))`)
         .eq('organizacion_id', userOrgId)
         .eq('equipo_id', idParaFiltrar);
       
@@ -202,7 +203,9 @@ const fetchData = useCallback(async () => {
         if (!error) {
           setPlantel(jugadorasData?.map(j => ({
             ...j,
-            estaSuspendida: j.sanciones?.some(s => s.estado === 'cumpliendo') || j.sancionada === true
+            estaSuspendida: j.sanciones?.some(s => s.estado === 'cumpliendo') || j.sancionada === true,
+            club_nombre: j.equipos?.nombre, 
+            club_escudo: j.equipos?.logo_url
           })) || []);
         }
       } finally {

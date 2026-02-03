@@ -440,8 +440,20 @@ const manejarEnvioFichaje = async (e) => {
         if (res.status === 200 || res.status === 201) {
             alert("🚀 Fichaje enviado con éxito.");
 
+            // Buscamos el nombre del club localmente para no re-consultar
+    const nombreClubSeleccionado = clubes.find(c => c.id === equipoIdActual)?.nombre;
+    const escudoClubSeleccionado = clubes.find(c => c.id === equipoIdActual)?.logo_url;
+
+    const jugadoraConClub = {
+        ...(res.data.jugadora || res.data),
+        club_nombre: nombreClubSeleccionado,
+        club_escudo: escudoClubSeleccionado,
+        equipos: { nombre: nombreClubSeleccionado } // Para compatibilidad total
+    };
+            
+
             // Asegúrate de que el backend devuelva la jugadora correctamente
-            setJugadoraRegistrada(res.data.jugadora || res.data);
+            setJugadoraRegistrada(jugadoraConClub);
 
             // Limpieza
             setDatosFichaje({ nombre: '', apellido: '', dni: '', fecha_nacimiento: '' });

@@ -131,7 +131,7 @@ const fetchData = useCallback(async () => {
       const { data: jugadorasData } = await supabase
         .from('jugadoras')
         .select(`*, sanciones(id, motivo, estado,
-        equipos:equipo_id (id, nombre, logo_url))`)
+        equipos:equipo_id (id, nombre, escudo_url))`)
         .eq('organizacion_id', userOrgId)
         .eq('equipo_id', idParaFiltrar);
       
@@ -205,7 +205,7 @@ const fetchData = useCallback(async () => {
             ...j,
             estaSuspendida: j.sanciones?.some(s => s.estado === 'cumpliendo') || j.sancionada === true,
             club_nombre: j.equipos?.nombre, 
-            club_escudo: j.equipos?.logo_url
+            club_escudo: j.equipos?.escudo_url
           })) || []);
         }
       } finally {
@@ -442,7 +442,7 @@ const manejarEnvioFichaje = async (e) => {
 
             // Buscamos el nombre del club localmente para no re-consultar
     const nombreClubSeleccionado = clubes.find(c => c.id === equipoIdActual)?.nombre;
-    const escudoClubSeleccionado = clubes.find(c => c.id === equipoIdActual)?.logo_url;
+    const escudoClubSeleccionado = clubes.find(c => c.id === equipoIdActual)?.escudo_url;
 
     const jugadoraConClub = {
         ...(res.data.jugadora || res.data),

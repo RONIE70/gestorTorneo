@@ -16,10 +16,10 @@ const CarnetJugadora = ({ jugadora, config }) => {
 
   if (!jugadora) return <div className="text-slate-500 text-[10px]">Cargando datos...</div>;
 
+  // ESTA ES LA VARIABLE QUE DABA ERROR: Ahora se usa en el QR del Dorso
   const urlValidacion = `https://gestor-torneo-ncs1125.vercel.app/verificar/${jugadora?.id || 'demo'}`;
 
   const handleDescargarPDF = async () => {
-    // Tamaño estándar 8.5 x 5.5 cm (ID-1)
     const pdf = new jsPDF('l', 'mm', [85.6, 54]);
     const opcionesCanvas = { 
       scale: 4, 
@@ -38,7 +38,6 @@ const CarnetJugadora = ({ jugadora, config }) => {
     pdf.save(`Carnet_${jugadora.apellido}.pdf`);
   };
 
-  // Medidas exactas para el contenedor del DOM (proporción 8.5/5.5)
   const cardContainerStyle = {
     width: '323px',  
     height: '204px', 
@@ -50,13 +49,12 @@ const CarnetJugadora = ({ jugadora, config }) => {
     <div className="flex flex-col items-center mt-6 space-y-6">
       <div className="flex flex-col gap-6 scale-110">
         
-        {/* FRENTE CON CORRECCIONES DE TEXTO Y MARCA DE AGUA */}
+        {/* FRENTE */}
         <div 
           ref={carnetRef} 
           style={cardContainerStyle} 
           className="rounded-xl p-3 shadow-2xl relative overflow-hidden border border-white/10 flex flex-col justify-between"
         >
-          {/* Marca de agua transparente en el fondo */}
           <span className="absolute -right-2 -bottom-2 text-[55px] font-black italic opacity-10 pointer-events-none whitespace-nowrap uppercase">
             {config?.nombre_liga?.split(' ')[0] || 'LIGA'}
           </span>
@@ -76,7 +74,6 @@ const CarnetJugadora = ({ jugadora, config }) => {
           </div>
 
           <div className="flex gap-3 z-10 flex-1 mt-2">
-            {/* Foto de Perfil */}
             <div className="w-[90px] h-[115px] bg-black/20 border-2 border-white/20 overflow-hidden rounded-lg shadow-lg">
               <img 
                 src={jugadora.foto_url || 'https://placehold.co/150x200/000/FFF?text=FOTO'} 
@@ -86,7 +83,6 @@ const CarnetJugadora = ({ jugadora, config }) => {
               />
             </div>
 
-            {/* Bloque de Datos */}
             <div className="flex-1 flex flex-col justify-between py-0.5">
               <div className="space-y-1">
                 <h3 className="text-[15px] font-black uppercase leading-[1] tracking-tighter break-words">
@@ -110,7 +106,6 @@ const CarnetJugadora = ({ jugadora, config }) => {
                 </div>
               </div>
 
-              {/* Status de Verificación */}
               <div className={`mt-1 inline-flex items-center px-2 py-1 rounded-md border ${
                 jugadora.verificacion_manual || (jugadora.distancia_biometrica > 0.6)
                   ? 'bg-amber-500/10 border-amber-500/30 text-amber-500' 
@@ -126,13 +121,40 @@ const CarnetJugadora = ({ jugadora, config }) => {
           </div>
         </div>
 
-        <img 
-    src={config.logo_url} 
-    className="w-full h-full object-contain opacity-70 mix-blend-multiply" 
-    alt="Logo" 
-    crossOrigin="anonymous"
-    style={{ filter: 'contrast(120%)' }} // Ayuda a que el blanco desaparezca mejor
-  />
+        {/* DORSO - AQUÍ SE USA urlValidacion */}
+        <div 
+          ref={dorsoRef} 
+          style={cardContainerStyle} 
+          className="rounded-xl p-4 shadow-2xl relative overflow-hidden border border-white/10 flex items-center justify-between"
+        >
+           <div className="z-10 w-1/2 flex flex-col items-center">
+              {/* Logo circular con transparencia y mezcla */}
+              <div className="w-32 h-32 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-4 backdrop-blur-sm overflow-hidden">
+                {config?.logo_url && (
+                  <img 
+                    src={config.logo_url} 
+                    className="w-full h-full object-contain opacity-80 mix-blend-multiply" 
+                    alt="Logo" 
+                    crossOrigin="anonymous"
+                    style={{ filter: 'contrast(120%)' }} 
+                  />
+                )}
+              </div>
+              <p className="text-[6px] font-black uppercase mt-4 opacity-40 text-center tracking-[0.2em] leading-tight">
+                DOCUMENTO OFICIAL<br/>INTRANSFERIBLE
+              </p>
+           </div>
+
+           <div className="z-10 w-1/2 flex flex-col items-center">
+              <div className="bg-white p-2 rounded-lg shadow-2xl">
+                  {/* AQUÍ SE USA LA VARIABLE PARA EL QR */}
+                  <QRCodeSVG value={urlValidacion} size={85} level={"H"} />
+              </div>
+              <p className="text-[6px] font-black mt-2 opacity-60 uppercase tracking-widest">
+                VERIFICACIÓN DIGITAL
+              </p>
+           </div>
+        </div>
       </div>
 
       <button 

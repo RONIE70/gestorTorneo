@@ -33,10 +33,7 @@
       "src": "/AdminDelegado",
       "dest": "/index.html"
     },
-    {
-      "src": "/",
-      "dest": "/index.html"
-    },
+    
     {
       "src": "/FixturePublico",
       "dest": "/index.html"

@@ -5,13 +5,13 @@ import { QRCodeSVG } from 'qrcode.react';
 
 const CarnetJugadora = ({ jugadora, config }) => {
   const carnetRef = useRef();
+  const dorsoRef = useRef();
 
-  // --- SOLUCIÓN: Si config es null, creamos un objeto seguro ---
   const safeConfig = config || {
     color_fondo_carnet: '#de1777', // Rosa SC-1225
     color_texto_carnet: '#ffffff',
     color_recuadro_carnet: '#000000',
-    nombre_liga: 'CARGANDO...',
+    nombre_liga: 'LIGA DE LAS NENAS',
     logo_url: null
   };
 
@@ -19,185 +19,155 @@ const CarnetJugadora = ({ jugadora, config }) => {
     fondo: safeConfig.color_fondo_carnet,
     texto: safeConfig.color_texto_carnet,
     acento: safeConfig.color_recuadro_carnet,
-    logoLiga: safeConfig.logo_url || safeConfig.logo_torneo || null,
+    logoLiga: safeConfig.logo_url || null,
     escudoClub: jugadora?.club_escudo || null
   };
 
-  // Si no hay jugadora, mostramos un mensaje pequeño en lugar de nada
-  if (!jugadora) return <div className="text-slate-500 text-[10px]">Esperando datos de jugadora...</div>;
+  if (!jugadora) return <div className="text-slate-500 text-[10px]">Esperando datos...</div>;
 
   const urlValidacion = `https://gestor-torneo-ncs1125.vercel.app/verificar/${jugadora?.id || 'demo'}`;
-  
-  // ... (aquí sigue el resto de tu código usando EstilosLiga y safeConfig)
+
   const handleDescargarPDF = async () => {
-    const element = carnetRef.current;
-    const canvas = await html2canvas(element, { 
-      scale: 3, 
-      useCORS: true, 
-      allowTaint: true,
-      backgroundColor: null 
-    });
-    
-    const imgData = canvas.toDataURL('image/png');
-    // Ajustamos el PDF para que quepan ambas caras (frente y dorso)
-    const pdf = new jsPDF('p', 'mm', [90, 130]); 
-    pdf.addImage(imgData, 'PNG', 2, 2, 85.6, 120);
+    const pdf = new jsPDF('l', 'mm', [85.6, 54]); // Tamaño ID-1 estándar
+
+    // Renderizar Frente
+    const canvasFrente = await html2canvas(carnetRef.current, { scale: 4, useCORS: true });
+    const imgFrente = canvasFrente.toDataURL('image/png');
+    pdf.addImage(imgFrente, 'PNG', 0, 0, 85.6, 54);
+
+    // Agregar Nueva Página para el Dorso
+    pdf.addPage([85.6, 54], 'l');
+    const canvasDorso = await html2canvas(dorsoRef.current, { scale: 4, useCORS: true });
+    const imgDorso = canvasDorso.toDataURL('image/png');
+    pdf.addImage(imgDorso, 'PNG', 0, 0, 85.6, 54);
+
     pdf.save(`Carnet_${jugadora.apellido}_${jugadora.dni}.pdf`);
   };
 
+  // Estilo base para las tarjetas para asegurar que midan 8.5 x 5.5 cm en el DOM
+  const cardStyle = {
+    width: '323px',  // ~85.6mm
+    height: '204px', // ~53.9mm
+    background: `linear-gradient(180deg, ${EstilosLiga.fondo} 0%, #000000 100%)`,
+    color: EstilosLiga.texto
+  };
+
   return (
-    <div className="flex flex-col items-center mt-10 animate-fade-in">
-      <div ref={carnetRef} className="p-2 bg-transparent flex flex-col gap-4">
+    <div className="flex flex-col items-center mt-10 space-y-6">
+      <div className="flex flex-col gap-8">
         
-        {/* VISTA FRONTAL (FRENTE) */}
+        {/* FRENTE */}
         <div 
-          style={{ 
-            background: `linear-gradient(180deg, ${EstilosLiga.fondo} 0%, #000000 100%)`,
-            color: EstilosLiga.texto 
-          }}
-          className="w-[350px] h-[210px] rounded-lg p-2 shadow-2xl relative overflow-hidden border border-white/20 flex flex-col justify-between"
+          ref={carnetRef}
+          style={cardStyle}
+          className="rounded-xl p-3 shadow-2xl relative overflow-hidden border border-white/20 flex flex-col justify-between select-none"
         >
-          {/* Header Estilo Imagen */}
-          <div className="z-10 flex justify-between items-start ">
+          <div className="z-10 flex justify-between items-start">
             <div className="flex-1">
-            <h2 className="text-2xl font-black italic uppercase tracking-tighter leading-none">
-                {config?.nombre_liga || 'LIGA DE LAS NENAS'}
-            </h2>
-            <p className="text-[5px] font-bold uppercase tracking-[0.3em] mt-0 opacity-80">
-        TEMPORADA OFICIAL 2026
-      </p>
+              <h2 className="text-xl font-black italic uppercase tracking-tighter leading-none mb-1">
+                {safeConfig.nombre_liga}
+              </h2>
+              <p className="text-[6px] font-bold uppercase tracking-[0.2em] opacity-80">
+                TEMPORADA OFICIAL 2026
+              </p>
             </div>
+            {/* Escudo Club Arriba Derecha */}
+            {EstilosLiga.escudoClub && (
+              <img src={EstilosLiga.escudoClub} className="h-8 w-12 object-contain" alt="club" />
+            )}
           </div>
 
-          <div className="flex gap-4 mt-1 z-10">
-    {/* Foto de Perfil Enmarcada (TAMAÑO CARNET) */}
-    <div className="w-[100px] h-[122px] bg-slate-900 border-2 border-white overflow-hidden rounded-md shadow-2xl flex-shrink-1">
-       <img 
-        src={jugadora.foto_url ? jugadora.foto_url : 'https://res.cloudinary.com/dgtc9qfmv/image/upload/v1769225344/jugadoras_ncs1125/psfkrawct1sywrbqfaca.jpg'} 
-        className="w-full h-full object-cover"
-        alt={`${jugadora.nombre} ${jugadora.apellido}`}
-        crossOrigin="anonymous"
-        onError={(e) => {
-          e.target.src = 'https://placehold.co/150x200/00355E/FFFFFF?text=FOTO';
-        }}
-      />
+          <div className="flex gap-3 mt-1 z-10 flex-1 overflow-hidden">
+            {/* Foto Perfil */}
+            <div className="w-[85px] h-[105px] bg-slate-900 border border-white/50 overflow-hidden rounded shadow-lg">
+              <img 
+                src={jugadora.foto_url || 'https://placehold.co/150x200/000/FFF?text=FOTO'} 
+                className="w-full h-full object-cover"
+                crossOrigin="anonymous"
+                alt="Perfil"
+              />
+            </div>
 
-      </div>
-
-            {/* Datos Derecha con Recuadros */}
-            <div className="flex-1 space-y-2">
-                <div className="space-y-0.5">
-                    <p className="text-[8px] font-black uppercase italic">CLUB:</p>
-                    <div style={{ backgroundColor: EstilosLiga.fondo }} className="h-6 rounded-sm border border-black/130 flex items-center px-2">
-                        <span className="text-[10px] font-bold truncate uppercase">{jugadora.club_nombre || 'S/D'}</span>
-                    </div>
+            {/* Datos */}
+            <div className="flex-1 flex flex-col justify-between">
+              <div className="space-y-1">
+                <div>
+                  <p className="text-[7px] font-black uppercase opacity-70">APELLIDO Y NOMBRE</p>
+                  <h3 className="text-[13px] font-black uppercase leading-none truncate">
+                    {jugadora.apellido} {jugadora.nombre}
+                  </h3>
                 </div>
-
+                
                 <div className="flex gap-2">
-                    <div className="flex-1 space-y-0.5">
-                        <p className="text-[8px] font-black uppercase italic">F. NACIMIENTO:</p>
-                        <div style={{ backgroundColor: EstilosLiga.fondo }} className="h-6 rounded-sm border border-black/130 flex items-center px-1">
-                            <span className="text-[10px] font-bold uppercase">{jugadora.fecha_nacimiento || 'XX/XX/XXXX'}</span>
-                        </div>
-                    </div>
-                    <div className="w-24 space-y-0.5">
-                        <p className="text-[8px] font-black uppercase italic">CATEGORÍA:</p>
-                        <div style={{ backgroundColor: EstilosLiga.fondo }} className="h-6 rounded-sm border border-black/130 flex items-center px-2">
-                            <span className="text-[10px] font-bold uppercase truncate">{jugadora.categoria_actual || '2026'}</span>
-                        </div>
-                    </div>
+                  <div className="flex-1">
+                    <p className="text-[7px] font-black uppercase opacity-70">D.N.I.</p>
+                    <p className="text-[11px] font-bold">{jugadora.dni}</p>
+                  </div>
+                  <div className="w-16">
+                    <p className="text-[7px] font-black uppercase opacity-70">CATEGORÍA</p>
+                    <p className="text-[11px] font-bold">{jugadora.categoria_actual || '2026'}</p>
+                  </div>
                 </div>
 
-                <div className="pt-0">
-                    <h3 className="text-lg font-black uppercase italic tracking-tighter text-white leading-none">
-                        {jugadora.nombre} {jugadora.apellido}
-                    </h3>
-                    
+                <div>
+                  <p className="text-[7px] font-black uppercase opacity-70">CLUB</p>
+                  <p className="text-[10px] font-bold truncate">{jugadora.club_nombre || 'S/D'}</p>
                 </div>
-                <div className="bg-black/140 px-0 py-0.5 rounded border border-white/10 w-full text-center">
-            <p className="text-[13px] font-black tracking-widest text-white">
-                D.N.I. {jugadora.dni}
-            </p>
-        </div>
+              </div>
+
+              {/* Sello Biométrico */}
+              <div className={`mt-1 inline-block px-2 py-0.5 rounded border ${
+                jugadora.verificacion_manual || (jugadora.distancia_biometrica > 0.6)
+                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-500' 
+                  : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+              }`}>
+                <p className="text-[7px] font-black uppercase leading-none">
+                  {jugadora.verificacion_manual || (jugadora.distancia_biometrica > 0.6) 
+                    ? 'VERIFICACIÓN PENDIENTE' 
+                    : 'BIOMETRÍA OK'}
+                </p>
+              </div>
             </div>
           </div>
-
-          {/* Logo Circular Acento */}
-          <div className="absolute top-2 right-6 w-18 h-10 bg-white/20 
-           flex items-center justify-center backdrop-blur-sm border border-white/130">
-             {EstilosLiga.escudoClub ? (
-                <img src={EstilosLiga.escudoClub} className="w-14 h-10 object-contain" alt="escudo club"/>
-             ) : (
-                <div className="text-white text-[8px] font-black"></div>
-             )}
-          </div>
-       {/* Sello Dinámico de Validación */}
-<div className={`absolute bottom-2 left-4 border px-3 py-1 rounded-xl z-20 ${
-  jugadora.verificacion_manual || (jugadora.distancia_biometrica > 0.6)
-    ? 'bg-amber-500/10 border-amber-500/20' 
-    : 'bg-emerald-500/10 border-emerald-500/20'
-}`}>
-  <p className={`text-[8px] font-black uppercase tracking-tighter leading-none ${
-    jugadora.verificacion_manual || (jugadora.distancia_biometrica > 0.6)
-      ? 'text-amber-500' 
-      : 'text-emerald-400'
-  }`}>
-    {jugadora.verificacion_manual || (jugadora.distancia_biometrica > 0.6) 
-      ? 'VERIFICACIÓN PENDIENTE' 
-      : 'BIOMETRÍA OK'}
-  </p>
-</div>
-          </div>
-
-        {/* VISTA TRASERA (DORSO) */}
-        <div 
-          style={{ 
-            background: `linear-gradient(180deg, ${EstilosLiga.fondo} 0%, #000000 100%)`,
-            color: EstilosLiga.texto 
-          }}
-          className="w-[350px] h-[210px] rounded-lg p-4 shadow-2xl relative overflow-hidden border border-white/20 flex items-center justify-between"
-        >
-           {/* Logo Grande Fondo */}
-           <div className="absolute -left-10 w-48 h-48 bg-white/10 rounded-full blur-2xl"></div>
-           
-           <div className="z-10 w-1/2 flex flex-col items-center justify-center">
-                <div className="w-32 h-32 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center shadow-inner relative">
-                    {EstilosLiga.logoLiga ? (
-                        <img src={EstilosLiga.logoLiga} className="w-24 h-24 object-contain opacity-80" alt="Marca de Agua" crossOrigin="anonymous"/>
-                    ) : (
-                        <div className="text-white/30 text-xs font-black italic">sin logo</div>
-                    )}
-                </div>
-                <h2 className="text-xs font-black italic uppercase tracking-tighter mt-4 text-center">
-                    {config?.nombre_liga || 'L   D   L   N  - LANUS'}
-                </h2>
-           </div>
-
-           {/* QR XL */}
-           <div className="z-10 w-1/2 flex flex-col items-center justify-center">
-                <div className="bg-white p-3 rounded-lg shadow-2xl">
-                    <QRCodeSVG 
-                        value={urlValidacion} 
-                        size={100} 
-                        level={"H"} 
-                    />
-                </div>
-                <p className="text-[7px] font-black uppercase mt-4 tracking-widest opacity-80 text-center">
-                    •FUTSAL FEMENINO INFANTIL•
-                </p>
-           </div>
-           
-           <span className="absolute bottom-2 right-4 text-[8px] font-mono opacity-60">DIGITAL SC</span>
+          <span className="absolute -bottom-1 -right-1 text-[40px] font-black italic opacity-5 pointer-events-none">
+            {safeConfig.nombre_liga.split(' ')[0]}
+          </span>
         </div>
 
+        {/* DORSO */}
+        <div 
+          ref={dorsoRef}
+          style={cardStyle}
+          className="rounded-xl p-4 shadow-2xl relative overflow-hidden border border-white/20 flex items-center justify-between"
+        >
+           <div className="z-10 w-1/2 flex flex-col items-center">
+              <div className="w-24 h-24 rounded-full bg-white/5 border border-white/10 flex items-center justify-center p-4">
+                {EstilosLiga.logoLiga && (
+                  <img src={EstilosLiga.logoLiga} className="w-full h-full object-contain opacity-40" alt="Logo" crossOrigin="anonymous"/>
+                )}
+              </div>
+              <p className="text-[6px] font-black uppercase mt-4 opacity-50 text-center tracking-widest leading-tight">
+                PROPIEDAD OFICIAL DE LA LIGA<br/>DOCUMENTO INTRANSFERIBLE
+              </p>
+           </div>
+
+           <div className="z-10 w-1/2 flex flex-col items-center">
+              <div className="bg-white p-2 rounded shadow-xl">
+                  <QRCodeSVG value={urlValidacion} size={85} level={"H"} />
+              </div>
+              <p className="text-[6px] font-black mt-2 opacity-80 uppercase tracking-tighter">
+                Escanear para verificar vigencia
+              </p>
+           </div>
+        </div>
       </div>
 
       <button 
         onClick={handleDescargarPDF} 
         style={{ backgroundColor: EstilosLiga.fondo }}
-        className="mt-4 hover:scale-105 active:scale-90 text-white text-[9px] font-black py-5 px-9 rounded-2xl shadow-2xl transition-all flex items-center gap-3 uppercase tracking-[0.2em] border border-white/20"
+        className="hover:scale-105 active:scale-95 text-white text-[11px] font-black py-4 px-10 rounded-full shadow-xl transition-all uppercase tracking-widest border-b-4 border-black/30"
       >
-        📥 Descargar Carnet 
+        📥 Descargar Carnet PDF
       </button>
     </div>
   );

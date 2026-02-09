@@ -29,6 +29,18 @@
       "src": "/(.*)",
       "dest": "/index.html"
     },
+    {
+      "src": "/AdminDelegado",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/FixturePublico",
+      "dest": "/index.html"
+    },
       
     { "src": "/(.*)", 
       "dest": "index.js",

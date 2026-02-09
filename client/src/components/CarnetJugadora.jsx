@@ -126,33 +126,13 @@ const CarnetJugadora = ({ jugadora, config }) => {
           </div>
         </div>
 
-        {/* DORSO CON LOGO MAXIMIZADO */}
-        <div 
-          ref={dorsoRef} 
-          style={cardContainerStyle} 
-          className="rounded-xl p-4 shadow-2xl relative overflow-hidden border border-white/10 flex items-center justify-between"
-        >
-           <div className="z-10 w-1/2 flex flex-col items-center">
-              {/* Logo de la liga resaltado */}
-              <div className="w-32 h-32 rounded-full bg-white/5 border border-white/10 flex items-center justify-center p-2 backdrop-blur-sm">
-                {config?.logo_url && (
-                  <img src={config.logo_url} className="w-full h-full object-contain opacity-70" alt="Logo" crossOrigin="anonymous"/>
-                )}
-              </div>
-              <p className="text-[6px] font-black uppercase mt-2 opacity-50 text-center tracking-[0.2em]">
-                DOCUMENTO OFICIAL INTRANSFERIBLE
-              </p>
-           </div>
-
-           <div className="z-10 w-1/2 flex flex-col items-center">
-              <div className="bg-white p-2 rounded-lg shadow-2xl">
-                  <QRCodeSVG value={urlValidacion} size={85} level={"H"} />
-              </div>
-              <p className="text-[6px] font-black mt-2 opacity-60 uppercase tracking-widest">
-                VERIFICACIÓN DIGITAL
-              </p>
-           </div>
-        </div>
+        <img 
+    src={config.logo_url} 
+    className="w-full h-full object-contain opacity-70 mix-blend-multiply" 
+    alt="Logo" 
+    crossOrigin="anonymous"
+    style={{ filter: 'contrast(120%)' }} // Ayuda a que el blanco desaparezca mejor
+  />
       </div>
 
       <button 

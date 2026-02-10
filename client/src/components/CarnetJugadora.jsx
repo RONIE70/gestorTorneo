@@ -69,7 +69,7 @@ const CarnetJugadora = ({ jugadora, config }) => {
               </p>
             </div>
             {jugadora.club_escudo && (
-              <img src={jugadora.club_escudo} className="h-10 w-14 object-contain" alt="club" />
+              <img src={jugadora.club_escudo} className="h-10 w-12 object-contain" alt="club" />
             )}
           </div>
 
@@ -129,7 +129,7 @@ const CarnetJugadora = ({ jugadora, config }) => {
         >
            <div className="z-10 w-1/2 flex flex-col items-center">
               {/* Logo circular con transparencia y mezcla */}
-              <div className="w-32 h-32 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-4 backdrop-blur-sm overflow-hidden">
+              <div className="w-36 h-32 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-4 backdrop-blur-sm overflow-hidden">
                 {config?.logo_url && (
                   <img 
                     src={config.logo_url} 

@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
+//import React from 'react';
+import GestionFichajesAdmin from './GestionFichajesAdmin';
 
 const SuperAdminDashboard = () => {
   const navigate = useNavigate();
+  
+  // --- NUEVO: ESTADO PARA EL PERFIL DEL SUPERADMIN ---
+  const [perfil, setPerfil] = useState(null);
   
   // --- ESTADOS DE FORMULARIO ---
   const [nombreLiga, setNombreLiga] = useState('');
@@ -17,11 +22,25 @@ const SuperAdminDashboard = () => {
   const [rankingLigas, setRankingLigas] = useState([]);
   const [kitBienvenida, setKitBienvenida] = useState(null);
 
-  // --- CARGA INICIAL DE KPIs Y RANKING ---
+  // --- CARGA INICIAL ---
   useEffect(() => {
+    fetchPerfil(); // Carga tus datos de SuperAdmin
     fetchGlobalStats();
     fetchRankingLigas();
   }, []);
+
+  // --- NUEVA FUNCIÓN: OBTIENE TUS DATOS DE SESIÓN ---
+  const fetchPerfil = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase
+        .from('perfiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      setPerfil(data);
+    }
+  };
 
   const fetchGlobalStats = async () => {
     try {
@@ -157,7 +176,24 @@ const SuperAdminDashboard = () => {
             </h3>
           </div>
         </div>
-
+        {/* GESTIÓN DE CARNETS (MODIFICADO PARA PASAR EL PERFIL) */}
+        <section className="bg-slate-900/30 rounded-3xl border border-white/5 overflow-hidden shadow-2xl">
+          <div className="p-6 border-b border-white/5 bg-white/5 flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-black uppercase italic">Impresión Masiva de Carnets</h2>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Preparación de lienzo 1 mt²</p>
+            </div>
+          </div>
+          
+          {/* Aquí le pasamos el estado 'perfil' que cargamos arriba */}
+          {perfil ? (
+            <GestionFichajesAdmin perfil={perfil} />
+          ) : (
+            <div className="p-10 text-center text-slate-500 uppercase font-black text-xs animate-pulse">
+              Cargando entorno de impresión...
+            </div>
+          )}
+        </section>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           
           {/* RANKING Y ACCIONES */}

@@ -17,15 +17,29 @@ const CarnetJugadora = ({ jugadora, config }) => {
   if (!jugadora) return <div className="text-slate-500 text-[10px]">Cargando datos...</div>;
 
   // ESTA ES LA VARIABLE QUE DABA ERROR: Ahora se usa en el QR del Dorso
-  const urlValidacion = `https://gestor-torneo.vercel.app/verificar/${jugadora?.id || 'demo'}`;
-
+  // La URL ahora coincide exactamente con tu <Route path="/verificar/:id" ... />
+const urlValidacion = `https://gestor-torneo.vercel.app/verificar/${jugadora?.id || 'demo'}`;
+ 
   const handleDescargarPDF = async () => {
     const pdf = new jsPDF('l', 'mm', [85.6, 54]);
     const opcionesCanvas = { 
       scale: 4, 
       useCORS: true, 
       backgroundColor: null,
-      logging: false 
+      logging: false, 
+      imageTimeout: 0,
+      onclone: (clonedDoc) => {
+        // Esto asegura que los gradientes se mantengan en el renderizado
+        clonedDoc.querySelectorAll('.carnet-container').forEach(el => {
+          el.style.webkitPrintColorAdjust = 'exact';
+          // --- ESTO ES LO QUE SOLUCIONA EL MÓVIL ---
+          el.style.width = '323px';  // Forzamos ancho de PC
+          el.style.height = '204px'; // Forzamos alto de PC
+          el.style.transform = 'scale(1)'; // Quitamos cualquier zoom del móvil
+          el.style.margin = '0';
+          el.style.padding = '12px'; // Equivalente al p-3 de Tailwind
+        });
+      }
     };
 
     const canvasFrente = await html2canvas(carnetRef.current, opcionesCanvas);
@@ -42,7 +56,10 @@ const CarnetJugadora = ({ jugadora, config }) => {
     width: '323px',  
     height: '204px', 
     background: `linear-gradient(145deg, ${EstilosPactados.magenta} 0%, ${EstilosPactados.negro} 75%)`,
-    color: EstilosPactados.texto
+    color: EstilosPactados.texto,
+    // FORZADO DE COLOR AQUÍ:
+    WebkitPrintColorAdjust: 'exact',
+    printColorAdjust: 'exact'
   };
 
   return (

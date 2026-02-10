@@ -15,7 +15,8 @@ const GestionFichajesAdmin = ({ perfil }) => {
         // Traemos jugadoras y adjuntamos el nombre de su organización (liga)
         let query = supabase
           .from('jugadoras')
-          .select('*, organizaciones(nombre)');
+          .select('*, organizaciones(nombre, logo_url)')
+          
 
         // Si no eres superadmin, solo ves tu liga
         if (perfil.rol !== 'superadmin') {
@@ -93,7 +94,12 @@ const GestionFichajesAdmin = ({ perfil }) => {
       <div className="lg:col-span-2 p-8 flex flex-col items-center justify-center bg-black/40">
         {seleccionada ? (
           <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center">
-            <CarnetJugadora jugadora={seleccionada} config={perfil} />
+            <CarnetJugadora jugadora={seleccionada} 
+            config={{
+    nombre_liga: seleccionada.organizaciones?.nombre,
+    logo_url: seleccionada.organizaciones?.logo_url || perfil.logo_url 
+    // ^ Si la liga tiene logo usa ese, sino usa el tuyo de SuperAdmin
+  }} />
             <div className="mt-8 p-4 bg-white/5 rounded-2xl border border-white/10 text-center max-w-sm">
               <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest leading-relaxed">
                 Listo para el lienzo de 1 mt².<br/>

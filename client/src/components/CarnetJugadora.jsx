@@ -17,7 +17,7 @@ const CarnetJugadora = ({ jugadora, config }) => {
   if (!jugadora) return <div className="text-slate-500 text-[10px]">Cargando datos...</div>;
 
   // ESTA ES LA VARIABLE QUE DABA ERROR: Ahora se usa en el QR del Dorso
-  const urlValidacion = `https://gestor-torneo-ncs1125.vercel.app/verificar/${jugadora?.id || 'demo'}`;
+  const urlValidacion = `https://gestor-torneo.vercel.app/verificar/${jugadora?.id || 'demo'}`;
 
   const handleDescargarPDF = async () => {
     const pdf = new jsPDF('l', 'mm', [85.6, 54]);

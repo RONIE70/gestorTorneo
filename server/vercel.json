@@ -5,24 +5,23 @@
   ],
   "routes": [
     { 
-      
       "src": "/fichar", 
       "dest": "index.js" 
-    },
-    {
-      "src": "/verificar/(.*)",
-      "dest": "/index.html"
     },
     {
       "src": "/AdminDelegado",
       "dest": "/index.html"
     },
     {
-      "src": "/((?!api|fichar).* )",
+      "src": "/verificar/(.*)",
       "dest": "/index.html"
     },
-      
-    { "src": "/(.*)", 
+    {
+      "src": "/((?!api|fichar).*)",
+      "dest": "/index.html"
+    },
+    { 
+      "src": "/(.*)", 
       "dest": "index.js",
       "headers": {
         "Access-Control-Allow-Origin": "*",

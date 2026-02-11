@@ -2,9 +2,26 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="https://img.icons8.com/neon/96/globe.png" width="96" height="96" />
+    <link rel="icon" type="image/svg+xml" href="https://img.icons8.com/neon/96/globe.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GT SC1225</title>
+    
+    <script>
+      (function() {
+        var currentUrl = window.location.href;
+        // Si la URL contiene el prefijo problemático
+        if (currentUrl.includes('GRU1:')) {
+          console.log("Detectado prefijo GRU1. Limpiando ruta...");
+          // Extraemos solo la parte que empieza con http
+          var match = currentUrl.match(/https?:\/\/[^\s]+/);
+          if (match) {
+            var cleanUrl = match[0];
+            // Redirigimos a la URL limpia instantáneamente
+            window.location.replace(cleanUrl);
+          }
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

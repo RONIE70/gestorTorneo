@@ -4,8 +4,6 @@ import { supabase } from '../supabaseClient';
 const AdminMaestro = () => {
   // --- 2.1. ESTADO GLOBAL DE IDENTIDAD (SaaS) ---
   const [userOrgId, setUserOrgId] = useState(null);
-  
-  // Estado para forzar el refresco del historial cuando guardamos
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // --- ESTADOS PARA LA CONFIGURACIÓN ACTUAL ---
@@ -21,33 +19,35 @@ const AdminMaestro = () => {
   const [cargandoConfig, setCargandoConfig] = useState(true);
 
   // --- 1. FUNCIÓN PARA OBTENER EL CONTEXTO DE ORGANIZACIÓN ---
-useEffect(() => {
-  const obtenerContextoOrg = async () => {
-    // Si ya tenemos el ID, no lo buscamos de nuevo (Freno 1)
-    if (userOrgId) return; 
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: perfil, error } = await supabase
-          .from('perfiles')
-          .select('organizacion_id')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (error) throw error;
-        
-        // Solo actualizamos si el valor es diferente al que ya tenemos (Freno 2)
-        if (perfil && perfil.organizacion_id !== userOrgId) {
-          setUserOrgId(perfil.organizacion_id);
+  useEffect(() => {
+    const obtenerContextoOrg = async () => {
+      // Quitamos el freno que causaba el bucle y usamos try/finally
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const { data: perfil, error } = await supabase
+            .from('perfiles')
+            .select('organizacion_id')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (error) throw error;
+          
+          if (perfil && perfil.organizacion_id !== userOrgId) {
+            setUserOrgId(perfil.organizacion_id);
+          }
         }
+      } catch (err) {
+        console.error("Error obteniendo organización:", err.message);
+      } finally {
+        // Si no hay perfil o hay error, igual dejamos de cargar el estado inicial
+        if (!userOrgId) setCargandoConfig(false);
       }
-    } catch (err) {
-      console.error("Error obteniendo organización:", err.message);
-    }
-  };
-  obtenerContextoOrg();
-}, [userOrgId]); // Añadimos la dependencia aquí
+    };
+    obtenerContextoOrg();
+    // Dejamos la dependencia vacía para que solo corra al montar el componente
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); 
 
   // --- 2. CARGA DE CONFIGURACIÓN FILTRADA POR ORGANIZACIÓN ---
   useEffect(() => {
@@ -76,7 +76,7 @@ useEffect(() => {
   }, [userOrgId]);
 
 
-  // --- 3. FUNCIÓN PARA GUARDAR (USANDO UPSERT PARA CREAR/ACTUALIZAR) ---
+  // --- 3. FUNCIÓN PARA GUARDAR ---
   const guardarCambiosTorneo = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     
@@ -102,7 +102,6 @@ useEffect(() => {
       alert("✅ Torneo registrado bajo la identidad de tu Liga.");
       
       setConfigActual(data);
-      // Incrementamos el trigger para que el Historial detecte el cambio y se recargue
       setRefreshTrigger(prev => prev + 1);
     } catch (err) {
       alert("❌ Error: " + err.message);
@@ -184,9 +183,13 @@ const HistorialTorneos = ({ userOrgId, onEdit, refreshTrigger }) => {
   const [historial, setHistorial] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Función para cargar el historial (ahora definida dentro para ser accesible)
   const fetchHistorial = useCallback(async () => {
-    if (!userOrgId) return;
+    // FIX CRÍTICO: Si no hay orgId, apagamos el loading antes de salir
+    if (!userOrgId) {
+      setLoading(false); 
+      return;
+    }
+
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -204,15 +207,12 @@ const HistorialTorneos = ({ userOrgId, onEdit, refreshTrigger }) => {
     }
   }, [userOrgId]);
 
-  // Se dispara al cargar el componente, cuando cambia la Org o cuando se activa el refreshTrigger
   useEffect(() => {
     fetchHistorial();
   }, [fetchHistorial, refreshTrigger]);
 
-  // Función para activar un torneo (definida aquí donde se usa el botón)
   const activarTorneo = async (torneoId) => {
   try {
-    // 1. Apagamos todos (importante usar el filtro de org)
     const { error: errorOff } = await supabase
       .from('configuracion_torneo')
       .update({ activo: false })
@@ -220,7 +220,6 @@ const HistorialTorneos = ({ userOrgId, onEdit, refreshTrigger }) => {
     
     if (errorOff) throw errorOff;
 
-    // 2. Encendemos el elegido
     const { error: errorOn } = await supabase
       .from('configuracion_torneo')
       .update({ activo: true })
@@ -229,8 +228,6 @@ const HistorialTorneos = ({ userOrgId, onEdit, refreshTrigger }) => {
     if (errorOn) throw errorOn;
 
     alert("🚀 Torneo activado correctamente");
-    
-    // Llamamos a la función estable para refrescar la vista
     fetchHistorial(); 
   } catch (err) {
     console.error("Error al activar:", err.message);
@@ -238,43 +235,48 @@ const HistorialTorneos = ({ userOrgId, onEdit, refreshTrigger }) => {
   }
 };
 
+  // Renderizado condicional del loading corregido
   if (loading) return <div className="text-center py-10 animate-pulse text-slate-600 text-[10px] font-black">Sincronizando con la Liga...</div>;
 
   return (
     <div className="bg-slate-900/50 border border-slate-800 p-8 rounded-[3rem] shadow-2xl">
       <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-8">ARCHIVO DE TORNEOS</h3>
       <div className="grid gap-4 max-h-[550px] overflow-y-auto pr-2 custom-scrollbar">
-        {historial.map((torneo) => (
-          <div 
-            key={torneo.id} 
-            className="bg-slate-950 p-6 rounded-2xl border border-slate-800 flex justify-between items-center group hover:border-blue-500/50 transition-all"
-          >
-            <div className="space-y-1 cursor-pointer" onClick={() => onEdit(torneo)}>
-              <div className="flex items-center gap-3">
-                <span className={`w-2 h-2 rounded-full ${torneo.activo ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-slate-800'}`}></span>
-                <span className="text-blue-500 font-black italic text-xs">#{torneo.id}</span>
-                <h4 className="font-bold uppercase text-slate-200 text-sm">
-                  {torneo.nombre_edicion || 'Sin Nombre'}
-                </h4>
+        {historial.length === 0 ? (
+          <p className="text-slate-600 text-[10px] font-black uppercase text-center py-10">No hay torneos registrados</p>
+        ) : (
+          historial.map((torneo) => (
+            <div 
+              key={torneo.id} 
+              className="bg-slate-950 p-6 rounded-2xl border border-slate-800 flex justify-between items-center group hover:border-blue-500/50 transition-all"
+            >
+              <div className="space-y-1 cursor-pointer" onClick={() => onEdit(torneo)}>
+                <div className="flex items-center gap-3">
+                  <span className={`w-2 h-2 rounded-full ${torneo.activo ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-slate-800'}`}></span>
+                  <span className="text-blue-500 font-black italic text-xs">#{torneo.id}</span>
+                  <h4 className="font-bold uppercase text-slate-200 text-sm">
+                    {torneo.nombre_edicion || 'Sin Nombre'}
+                  </h4>
+                </div>
+                <p className="text-[10px] text-slate-500 font-medium tracking-tight">
+                  Año: {torneo.año_lectivo} | Módulo: ${torneo.valor_modulo}
+                </p>
               </div>
-              <p className="text-[10px] text-slate-500 font-medium tracking-tight">
-                Año: {torneo.año_lectivo} | Módulo: ${torneo.valor_modulo}
-              </p>
+              
+              <div className="flex items-center gap-4">
+                {!torneo.activo && (
+                  <button 
+                    onClick={() => activarTorneo(torneo.id)}
+                    className="bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white px-3 py-1.5 rounded-xl text-[8px] font-black uppercase border border-blue-500/20 transition-all"
+                  >
+                    Activar
+                  </button>
+                )}
+                <span className="text-[18px] cursor-pointer" onClick={() => onEdit(torneo)}>📂</span>
+              </div>
             </div>
-            
-            <div className="flex items-center gap-4">
-              {!torneo.activo && (
-                <button 
-                  onClick={() => activarTorneo(torneo.id)}
-                  className="bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white px-3 py-1.5 rounded-xl text-[8px] font-black uppercase border border-blue-500/20 transition-all"
-                >
-                  Activar
-                </button>
-              )}
-              <span className="text-[18px] cursor-pointer" onClick={() => onEdit(torneo)}>📂</span>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

@@ -31,16 +31,35 @@ const SuperAdminDashboard = () => {
 
   // --- NUEVA FUNCIÓN: OBTIENE TUS DATOS DE SESIÓN ---
   const fetchPerfil = async () => {
+  try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data } = await supabase
-        .from('perfiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+    
+    if (!user) {
+      console.error("No hay sesión de usuario");
+      setLoading(false); // Apagamos el "Sincronizando"
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('perfiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      console.error("Error obteniendo perfil:", error);
+      // Si hay error, al menos seteamos un perfil básico para que no explote
+      setPerfil({ rol: 'invitado' }); 
+    } else {
+      console.log("🛡️ PERFIL CARGADO:", data);
       setPerfil(data);
     }
-  };
+  } catch (err) {
+    console.error("Error fatal en fetchPerfil:", err);
+  } finally {
+    setLoading(false); // <--- ESTO ES LO MÁS IMPORTANTE PARA QUITAR EL "SINCRONIZANDO"
+  }
+};
 
   const fetchGlobalStats = async () => {
     try {

@@ -16,20 +16,10 @@ const CarnetJugadora = ({ jugadora, config }) => {
 
   if (!jugadora) return <div className="text-slate-500 text-[10px]">Cargando datos...</div>;
 
-  // ESTA ES LA VARIABLE QUE DABA ERROR: Ahora se usa en el QR del Dorso
-  // La URL ahora coincide exactamente con tu <Route path="/verificar/:id" ... />
-// Definimos la URL base de tu app en Vercel
-const urlBase = "https://gestor-torneo.vercel.app";
+  // --- LÓGICA DE URL PARA EL QR (Fusionada) ---
+  const urlBase = "https://gestor-torneo.vercel.app";
+  const urlValidacion = `${urlBase}/verificar/${jugadora.id}`;
 
-// Generamos el link de verificación con el ID de la jugadora
-const urlValidacion = `${urlBase}/verificar/${jugadora.id}`;
-
-// En tu componente de QR:
-<QRCode 
-  value={urlValidacion}
-  size={120}
-  level="H" // Nivel alto de corrección por si el carnet se raya
-/>
   const handleDescargarPDF = async () => {
     const pdf = new jsPDF('l', 'mm', [85.6, 54]);
     const opcionesCanvas = { 
@@ -40,14 +30,14 @@ const urlValidacion = `${urlBase}/verificar/${jugadora.id}`;
       imageTimeout: 0,
       onclone: (clonedDoc) => {
         // Esto asegura que los gradientes se mantengan en el renderizado
-        clonedDoc.querySelectorAll('.carnet-container').forEach(el => {
+        clonedDoc.querySelectorAll('.carnet-container-pdf').forEach(el => {
           el.style.webkitPrintColorAdjust = 'exact';
           // --- ESTO ES LO QUE SOLUCIONA EL MÓVIL ---
           el.style.width = '323px';  // Forzamos ancho de PC
           el.style.height = '204px'; // Forzamos alto de PC
           el.style.transform = 'scale(1)'; // Quitamos cualquier zoom del móvil
           el.style.margin = '0';
-          el.style.padding = '12px'; // Equivalente al p-3 de Tailwind
+          el.style.padding = '12px'; 
         });
       }
     };
@@ -67,7 +57,6 @@ const urlValidacion = `${urlBase}/verificar/${jugadora.id}`;
     height: '204px', 
     background: `linear-gradient(145deg, ${EstilosPactados.magenta} 0%, ${EstilosPactados.negro} 75%)`,
     color: EstilosPactados.texto,
-    // FORZADO DE COLOR AQUÍ:
     WebkitPrintColorAdjust: 'exact',
     printColorAdjust: 'exact'
   };
@@ -80,7 +69,7 @@ const urlValidacion = `${urlBase}/verificar/${jugadora.id}`;
         <div 
           ref={carnetRef} 
           style={cardContainerStyle} 
-          className="rounded-xl p-3 shadow-2xl relative overflow-hidden border border-white/10 flex flex-col justify-between"
+          className="rounded-xl p-3 shadow-2xl relative overflow-hidden border border-white/10 flex flex-col justify-between carnet-container-pdf"
         >
           <span className="absolute -right-2 -bottom-2 text-[55px] font-black italic opacity-10 pointer-events-none whitespace-nowrap uppercase">
             {config?.nombre_liga?.split(' ')[0] || 'LIGA'}
@@ -96,13 +85,13 @@ const urlValidacion = `${urlBase}/verificar/${jugadora.id}`;
               </p>
             </div>
             {(jugadora.club_escudo || jugadora.equipos?.escudo_url) && (
-    <img 
-      src={jugadora.club_escudo || jugadora.equipos?.escudo_url} 
-      className="h-10 w-12 object-contain" 
-      alt="club"
-      crossOrigin="anonymous" // ESTO ES VITAL PARA EL PDF
-    />
-  )}
+              <img 
+                src={jugadora.club_escudo || jugadora.equipos?.escudo_url} 
+                className="h-10 w-12 object-contain" 
+                alt="club"
+                crossOrigin="anonymous" 
+              />
+            )}
           </div>
 
           <div className="flex gap-3 z-10 flex-1 mt-2">
@@ -153,14 +142,13 @@ const urlValidacion = `${urlBase}/verificar/${jugadora.id}`;
           </div>
         </div>
 
-        {/* DORSO - AQUÍ SE USA urlValidacion */}
+        {/* DORSO */}
         <div 
           ref={dorsoRef} 
           style={cardContainerStyle} 
-          className="rounded-xl p-4 shadow-2xl relative overflow-hidden border border-white/10 flex items-center justify-between"
+          className="rounded-xl p-4 shadow-2xl relative overflow-hidden border border-white/10 flex items-center justify-between carnet-container-pdf"
         >
            <div className="z-10 w-1/2 flex flex-col items-center">
-              {/* Logo circular con transparencia y mezcla */}
               <div className="w-36 h-32 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-4 backdrop-blur-sm overflow-hidden">
                 {config?.logo_url && (
                   <img 
@@ -179,7 +167,7 @@ const urlValidacion = `${urlBase}/verificar/${jugadora.id}`;
 
            <div className="z-10 w-1/2 flex flex-col items-center">
               <div className="bg-white p-2 rounded-lg shadow-2xl">
-                  {/* AQUÍ SE USA LA VARIABLE PARA EL QR */}
+                  {/* QR INTEGRADO CORRECTAMENTE */}
                   <QRCodeSVG value={urlValidacion} size={85} level={"H"} />
               </div>
               <p className="text-[6px] font-black mt-2 opacity-60 uppercase tracking-widest">

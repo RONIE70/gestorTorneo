@@ -2,9 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="https://img.icons8.com/neon/96/globe.png" width="96" height="96" />
+    <link rel="icon" type="image/svg+xml" href="https://img.icons8.com/neon/96/globe.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GT SC1225</title>
+    
+    <script>
+      // Este script limpia el prefijo GRU1 solo si es necesario y evita bucles
+      (function() {
+        var url = window.location.href;
+        if (url.includes('GRU1:')) {
+          var cleanUrl = url.replace(/^.*(https?:\/\/)/, '$1');
+          if (cleanUrl !== url) {
+            window.location.replace(cleanUrl);
+          }
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

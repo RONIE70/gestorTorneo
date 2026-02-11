@@ -85,9 +85,14 @@ const urlValidacion = `https://gestor-torneo.vercel.app/verificar/${jugadora?.id
                 TEMPORADA OFICIAL 2026
               </p>
             </div>
-            {jugadora.club_escudo && (
-              <img src={jugadora.club_escudo} className="h-10 w-12 object-contain" alt="club" />
-            )}
+            {(jugadora.club_escudo || jugadora.equipos?.escudo_url) && (
+    <img 
+      src={jugadora.club_escudo || jugadora.equipos?.escudo_url} 
+      className="h-10 w-12 object-contain" 
+      alt="club"
+      crossOrigin="anonymous" // ESTO ES VITAL PARA EL PDF
+    />
+  )}
           </div>
 
           <div className="flex gap-3 z-10 flex-1 mt-2">

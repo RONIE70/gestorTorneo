@@ -10,6 +10,10 @@
       "dest": "index.js" 
     },
     {
+      "src": "/verificar/(.*)",
+      "dest": "/index.html"
+    },
+    {
       "src": "/AdminDelegado",
       "dest": "/index.html"
     },

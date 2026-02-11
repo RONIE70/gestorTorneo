@@ -7,16 +7,12 @@
     <title>GT SC1225</title>
     
     <script>
+      // Este script limpia el prefijo GRU1 solo si es necesario y evita bucles
       (function() {
-        var currentUrl = window.location.href;
-        // Si la URL contiene el prefijo problemático
-        if (currentUrl.includes('GRU1:')) {
-          console.log("Detectado prefijo GRU1. Limpiando ruta...");
-          // Extraemos solo la parte que empieza con http
-          var match = currentUrl.match(/https?:\/\/[^\s]+/);
-          if (match) {
-            var cleanUrl = match[0];
-            // Redirigimos a la URL limpia instantáneamente
+        var url = window.location.href;
+        if (url.includes('GRU1:')) {
+          var cleanUrl = url.replace(/^.*(https?:\/\/)/, '$1');
+          if (cleanUrl !== url) {
             window.location.replace(cleanUrl);
           }
         }

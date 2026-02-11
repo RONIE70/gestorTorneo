@@ -119,7 +119,7 @@ const urlValidacion = `https://gestor-torneo.vercel.app/verificar/${jugadora?.id
 
                 <div>
                   <p className="text-[6px] font-black opacity-60 uppercase">CLUB</p>
-                  <p className="text-[11px] font-bold truncate uppercase">{jugadora.club_nombre || 'DE TAQUITO'}</p>
+                  <p className="text-[11px] font-bold truncate uppercase">{jugadora.equipos?.nombre || jugadora.club_nombre || 'SIN EQUIPO'}</p>
                 </div>
               </div>
 

@@ -14,9 +14,18 @@ const GestionFichajesAdmin = ({ perfil }) => {
       try {
         // Traemos jugadoras y adjuntamos el nombre de su organización (liga)
         let query = supabase
-          .from('jugadoras')
-          .select('*, organizaciones(nombre, logo_url)')
-          
+      .from('jugadoras')
+      .select(`
+        *,
+        equipos (
+          nombre,
+          escudo_url
+        ),
+        organizaciones (
+          nombre,
+          logo_url
+        )
+      `);
 
         // Si no eres superadmin, solo ves tu liga
         if (perfil.rol !== 'superadmin') {

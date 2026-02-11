@@ -99,24 +99,32 @@ const GestionFichajesAdmin = ({ perfil }) => {
         </div>
       </div>
 
-      {/* VISTA PREVIA Y DESCARGA */}
-      <div className="lg:col-span-2 p-8 flex flex-col items-center justify-center bg-black/40">
-        {seleccionada ? (
-          <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center">
-            <CarnetJugadora jugadora={seleccionada} 
-            config={{
-    nombre_liga: seleccionada.organizaciones?.nombre,
-    logo_url: seleccionada.organizaciones?.logo_url || perfil.logo_url 
-    // ^ Si la liga tiene logo usa ese, sino usa el tuyo de SuperAdmin
-  }} />
-            <div className="mt-8 p-4 bg-white/5 rounded-2xl border border-white/10 text-center max-w-sm">
-              <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest leading-relaxed">
-                Listo para el lienzo de 1 mt².<br/>
-                Medida final: 8.5 cm x 5.5 cm
-              </p>
-            </div>
-          </div>
-        ) : (
+    {/* VISTA PREVIA Y DESCARGA */}
+<div className="lg:col-span-2 p-8 flex flex-col items-center justify-center bg-black/40">
+  {seleccionada ? (
+    <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center">
+      
+      {/* MODIFICACIÓN AQUÍ: Aplanamos los datos para el carnet */}
+      <CarnetJugadora 
+        jugadora={{
+          ...seleccionada,
+          club_nombre: seleccionada.equipos?.nombre,      // <-- Esto trae "ESTRELLA DEL SUR"
+          club_escudo: seleccionada.equipos?.escudo_url   // <-- Esto trae el LOGO real
+        }} 
+        config={{
+          nombre_liga: seleccionada.organizaciones?.nombre,
+          logo_url: seleccionada.organizaciones?.logo_url || perfil.logo_url 
+        }} 
+      />
+
+      <div className="mt-8 p-4 bg-white/5 rounded-2xl border border-white/10 text-center max-w-sm">
+        <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest leading-relaxed">
+          Listo para el lienzo de 1 mt².<br/>
+          Medida final: 8.5 cm x 5.5 cm
+        </p>
+      </div>
+    </div>
+  ) : (
           <div className="text-center space-y-4 opacity-30">
             <div className="text-5xl">📇</div>
             <p className="text-xs font-black uppercase tracking-[0.3em]">Selecciona una jugadora<br/>para ver su carnet</p>

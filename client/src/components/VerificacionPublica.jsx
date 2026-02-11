@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 const VerificacionPublica = () => {
-  const { id: rawId } = useParams(); // Lo recibimos como rawId para limpiarlo
+  const { id: rawId } = useParams(); 
   const [jugadora, setJugadora] = useState(null);
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState(null);
@@ -11,26 +11,26 @@ const VerificacionPublica = () => {
   useEffect(() => {
     const fetchDatos = async () => {
       try {
-        // --- LIMPIEZA DE ID (Evita el error de prefijos como GRU1:...) ---
-        // Extrae solo el número final de la URL si el escáner manda basura
+        // --- LIMPIEZA DE ID (Anti-errores de escáner) ---
         const partes = rawId.split('/');
         const idLimpio = partes[partes.length - 1].replace(/\D/g, "");
         const idFinal = parseInt(idLimpio);
 
-        // 1. Cargar Configuración de la Liga para los colores y logo
+        // 1. Cargar Configuración (Usamos setConfig y ahora LEEMOS config abajo)
         const { data: configData } = await supabase
           .from('configuracion_liga')
           .select('*')
           .single();
         setConfig(configData);
 
-        // 2. Cargar datos de la jugadora (Usando el ID limpio)
-        const { data: jugadoraData } = await supabase
+        // 2. Cargar Jugadora
+        const { data: jugadoraData, error } = await supabase
           .from('jugadoras')
           .select('*, equipos(nombre)')
           .eq('id', idFinal)
           .single();
         
+        if (error) throw error;
         setJugadora(jugadoraData);
       } catch (err) {
         console.error("Error en validación:", err.message);
@@ -50,41 +50,41 @@ const VerificacionPublica = () => {
   if (!jugadora) return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
       <div className="text-6xl mb-4">⚠️</div>
-      <h1 className="text-white font-black uppercase">Credencial Inexistente</h1>
-      <p className="text-slate-500 text-sm mt-2">
-        Esta identificación ({rawId}) no figura en los registros oficiales.
+      <h1 className="text-white font-black uppercase tracking-tighter">Credencial Inexistente</h1>
+      <p className="text-slate-500 text-[10px] font-bold uppercase mt-2 max-w-xs">
+        El registro <span className="text-rose-500">[{rawId}]</span> no coincide con ninguna jugadora activa en nc-s1125.
       </p>
     </div>
   );
 
-  // Mantenemos tu lógica original de validación
-  const esValida = !jugadora.sancionada && !jugadora.verificacion_manual;
+  // Lógica de validación: Debe estar habilitada manualmente para ser VERDE
+  const esValida = !jugadora.sancionada && jugadora.verificacion_manual === false;
 
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans p-4 flex flex-col items-center justify-center">
       
-      {/* HEADER DE LA LIGA (Dinámico con config) */}
+      {/* HEADER DINÁMICO (Usando el valor de config) */}
       <div className="mb-6 text-center">
         {config?.logo_url ? (
           <img src={config.logo_url} className="h-16 mx-auto mb-2 object-contain" alt="Logo" />
         ) : (
-          <div className="w-12 h-12 bg-white/10 rounded-full mx-auto mb-2 flex items-center justify-center text-xl">🏆</div>
+          <div className="w-12 h-12 bg-white/10 rounded-full mx-auto mb-2 flex items-center justify-center text-xl italic font-black">
+            {config?.nombre_liga?.charAt(0) || 'L'}
+          </div>
         )}
         <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">
-          {config?.nombre_liga || 'Sistema de Verificación Oficial'}
+          {config?.nombre_liga || 'SISTEMA DE VERIFICACIÓN OFICIAL'}
         </h2>
       </div>
 
       {/* TARJETA DE ESTADO */}
-      <div className={`w-full max-w-sm rounded-[3rem] overflow-hidden shadow-2xl border-4 ${esValida ? 'border-emerald-500' : 'border-rose-500'}`}>
+      <div className={`w-full max-w-sm rounded-[3rem] overflow-hidden shadow-2xl border-4 transition-colors duration-500 ${esValida ? 'border-emerald-500' : 'border-rose-500'}`}>
         
-        {/* CABECERA DE ESTADO */}
         <div className={`p-4 text-center font-black uppercase tracking-widest text-sm ${esValida ? 'bg-emerald-500' : 'bg-rose-500'}`}>
           {esValida ? '✅ Jugadora Habilitada' : '❌ Verificación Requerida'}
         </div>
 
         <div className="bg-slate-900 p-8 flex flex-col items-center">
-          {/* FOTO GIGANTE PARA COMPARAR */}
           <div className="relative mb-6">
             <img 
               src={jugadora.foto_url} 
@@ -104,27 +104,25 @@ const VerificacionPublica = () => {
           <div className="mt-6 w-full space-y-3">
             <div className="flex justify-between items-center bg-slate-950 p-4 rounded-2xl border border-slate-800">
               <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Documento</span>
-              <span className="font-mono font-bold text-lg">{jugadora.dni}</span>
+              <span className="font-mono font-bold text-lg italic">{jugadora.dni}</span>
             </div>
             <div className="flex justify-between items-center bg-slate-950 p-4 rounded-2xl border border-slate-800">
               <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Equipo</span>
-              <span className="font-bold text-blue-400 uppercase tracking-tight">
-                {jugadora.equipos?.nombre || 'Sin equipo'}
-              </span>
+              <span className="font-bold text-blue-400 uppercase">{jugadora.equipos?.nombre || 'Independiente'}</span>
             </div>
           </div>
 
-          <div className="mt-8 flex items-center gap-2 bg-emerald-500/10 px-4 py-2 rounded-full border border-emerald-500/20">
-              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-              <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">
-                Validación Biométrica Exitosa
+          <div className={`mt-8 flex items-center gap-2 px-4 py-2 rounded-full border ${esValida ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-rose-500/10 border-rose-500/20 text-rose-500'}`}>
+              <div className={`w-2 h-2 rounded-full animate-pulse ${esValida ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
+              <span className="text-[10px] font-black uppercase tracking-widest">
+                {esValida ? 'Biometría Exitosa' : 'Revisión Manual Pendiente'}
               </span>
           </div>
         </div>
       </div>
 
-      <p className="mt-8 text-[9px] text-slate-600 uppercase font-black text-center max-w-xs leading-relaxed opacity-60">
-        Este documento es intransferible. La falsificación de identidad conlleva la expulsión inmediata de la liga {config?.nombre_liga || 'oficial'}.
+      <p className="mt-8 text-[9px] text-slate-600 uppercase font-bold text-center max-w-xs leading-relaxed opacity-60">
+        Este documento es intransferible. La falsificación de identidad conlleva la expulsión de la liga {config?.nombre_liga || 'nc-s1125'}.
       </p>
     </div>
   );

@@ -15,22 +15,32 @@ const [loading, setLoading] = useState(true);
 const [torneoModo, setTorneoModo] = useState('todos_contra_todos');
 const [userOrgId, setUserOrgId] = useState(null);
 
-// Función para obtener la organización del perfil logueado
 useEffect(() => {
   const obtenerContextoOrg = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { data: perfil } = await supabase
+        const { data: perfil, error } = await supabase
           .from('perfiles')
-          .select('organizacion_id')
+          .select('organizacion_id, rol') // Traemos el rol también
           .eq('id', session.user.id)
           .single();
         
-        if (perfil) setUserOrgId(perfil.organizacion_id);
+        if (error) throw error;
+
+        // Si es superadmin o tiene organización, seteamos el ID
+        // Si no tiene organización (null), igual seteamos null pero avisamos que terminó
+        if (perfil) {
+          setUserOrgId(perfil.organizacion_id);
+          console.log("🛡️ Identidad confirmada:", perfil.rol);
+        }
       }
     } catch (err) {
       console.error("Error obteniendo organización:", err.message);
+    } finally {
+      // ESTA LÍNEA ES LA QUE TE FALTA:
+      // Sea cual sea el resultado, apagamos el cartel de carga
+      setLoading(false); 
     }
   };
   obtenerContextoOrg();

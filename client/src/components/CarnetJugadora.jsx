@@ -18,8 +18,18 @@ const CarnetJugadora = ({ jugadora, config }) => {
 
   // ESTA ES LA VARIABLE QUE DABA ERROR: Ahora se usa en el QR del Dorso
   // La URL ahora coincide exactamente con tu <Route path="/verificar/:id" ... />
-const urlValidacion = `https://gestor-torneo.vercel.app/verificar/${jugadora?.id || 'demo'}`;
- 
+// Definimos la URL base de tu app en Vercel
+const urlBase = "https://gestor-torneo.vercel.app";
+
+// Generamos el link de verificación con el ID de la jugadora
+const urlValidacion = `${urlBase}/verificar/${jugadora.id}`;
+
+// En tu componente de QR:
+<QRCode 
+  value={urlValidacion}
+  size={120}
+  level="H" // Nivel alto de corrección por si el carnet se raya
+/>
   const handleDescargarPDF = async () => {
     const pdf = new jsPDF('l', 'mm', [85.6, 54]);
     const opcionesCanvas = { 

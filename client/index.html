@@ -2,9 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="https://img.icons8.com/neon/96/globe.png" width="96" height="96" />
+    <link rel="icon" type="image/svg+xml" href="https://img.icons8.com/neon/96/globe.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GT SC1225</title>
+
+    <script>
+      (function() {
+        var url = window.location.href;
+        if (url.includes('GRU1:')) {
+          // Extraemos la URL real que empieza con http
+          var match = url.match(/https?:\/\/[^\s]+/);
+          if (match) {
+            window.location.replace(match[0]);
+          }
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

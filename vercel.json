@@ -22,8 +22,8 @@
     { "source": "/mastercontrol", "destination": "/index.html" },
     { "source": "/AdminDelegado", "destination": "/index.html" },
     { 
-      "src": "/(.*)", 
-      "dest": "/index.html",
+      "source": "/(.*)", 
+      "destination": "/index.html",
       "headers": {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",

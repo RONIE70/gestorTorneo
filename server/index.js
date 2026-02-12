@@ -139,25 +139,27 @@ app.patch('/jugadoras/verificar/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const jugadora = await Jugadora.findById(id);
+    const { data, error } = await supabase
+      .from('jugadoras')
+      .update({ verificacion_manual: false })
+      .eq('id', id)
+      .select()
+      .single();
 
-    if (!jugadora) {
+    if (error) throw error;
+
+    if (!data) {
       return res.status(404).json({ error: 'Jugadora no encontrada' });
     }
 
-    if (jugadora.verificada) {
-      return res.status(400).json({ message: 'Ya está verificada' });
-    }
-
-    jugadora.verificada = true;
-    await jugadora.save();
-
-    res.json({ message: 'Jugadora verificada correctamente' });
+    res.json({ message: 'Jugadora verificada correctamente', jugadora: data });
 
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
+
 
 
 // --- RUTA APROBAR MANUAL ---

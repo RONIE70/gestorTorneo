@@ -1,9 +1,4 @@
 {
-  "name": "gestor-torneo-root",
-  "version": "1.0.0",
-  "scripts": {
-    "build": "cd client && npm install && npm run build"
-  },
   "dependencies": {
     "canvas-confetti": "^1.9.4",
     "jspdf": "^4.0.0",

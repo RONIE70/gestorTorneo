@@ -4,25 +4,11 @@
     { "src": "server/index.js", "use": "@vercel/node" },
     { "src": "client/package.json", "use": "@vercel/static-build" }
   ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT" },
-        { "key": "Access-Control-Allow-Headers", "value": "Authorization, Content-Type" }
-      ]
-    }
-  ],
   "rewrites": [
-    
-    { "source": "/fichar", "destination": "server/index.js" },
-    { "source": "/dashboard-resumen", "destination": "server/index.js" },
-    { "source": "/jugadoras/:path*", "destination": "server/index.js" },
-    
-    
-    { "source": "/verificar/:id*", "destination": "client/index.html" },
-    { "source": "/mastercontrol", "destination": "client/index.html" },
-    { "source": "/(.*)", "destination": "client/index.html" }
+    { "source": "/fichar", "destination": "/server/index.js" },
+    { "source": "/dashboard-resumen", "destination": "/server/index.js" },
+    { "source": "/jugadoras/:path*", "destination": "/server/index.js" },
+    { "source": "/verificar/:id*", "destination": "/index.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

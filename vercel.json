@@ -6,11 +6,11 @@
   ],
   "rewrites": [
     
-    { "source": "/fichar", "destination": "server/index.js" },
-    { "source": "/dashboard-resumen", "destination": "server/index.js" },
-    { "source": "/jugadoras/:path*", "destination": "server/index.js" },
+    { "source": "/fichar", "destination": "/server/index.js" },
+    { "source": "/dashboard-resumen", "destination": "/server/index.js" },
+    { "source": "/jugadoras/:path*", "destination": "/server/index.js" },
     
-     { "source": "/verificar/:id*", "destination": "/client/index.html" },
-    { "source": "/(.*)", "destination": "/client/index.html" }
+      { "source": "/verificar/:id*", "destination": "/index.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

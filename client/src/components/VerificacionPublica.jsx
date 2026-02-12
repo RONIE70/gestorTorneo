@@ -9,37 +9,43 @@ const VerificacionPublica = () => {
   const [config, setConfig] = useState(null);
 
   useEffect(() => {
-    const fetchDatos = async () => {
-      try {
-        // --- LIMPIEZA DE ID (Anti-errores de escáner) ---
-        const partes = rawId.split('/');
-        const idLimpio = partes[partes.length - 1].replace(/\D/g, "");
-        const idFinal = parseInt(idLimpio);
-
-        // 1. Cargar Configuración (Usamos setConfig y ahora LEEMOS config abajo)
-        const { data: configData } = await supabase
-          .from('configuracion_liga')
-          .select('*')
-          .single();
-        setConfig(configData);
-
-        // 2. Cargar Jugadora
-        const { data: jugadoraData, error } = await supabase
-          .from('jugadoras')
-          .select('*, equipos(nombre)')
-          .eq('id', idFinal)
-          .single();
-        
-        if (error) throw error;
-        setJugadora(jugadoraData);
-      } catch (err) {
-        console.error("Error en validación:", err.message);
-      } finally {
+  const fetchDatos = async () => {
+    try {
+      // 1. EXTRAEMOS EL NÚMERO DE LA URL (Sea ID o DNI)
+      // Usamos una expresión regular para sacar solo los números
+      const match = rawId.match(/\d+/);
+      if (!match) {
         setLoading(false);
+        return;
       }
-    };
-    fetchDatos();
-  }, [rawId]);
+      const valorBusqueda = match[0];
+
+      // 2. CONSULTA UNIVERSAL
+      // Buscamos si ese número coincide con el ID O con el DNI
+      const { data: jugadoraData, error } = await supabase
+        .from('jugadoras')
+        .select('*, equipos(nombre)')
+        .or(`id.eq.${valorBusqueda},dni.eq.${valorBusqueda}`)
+        .single();
+      
+      if (error) throw error;
+      setJugadora(jugadoraData);
+
+      // 3. CARGAR CONFIG
+      const { data: configData } = await supabase
+        .from('configuracion_liga')
+        .select('*')
+        .single();
+      setConfig(configData);
+
+    } catch (err) {
+      console.error("Error en validación:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchDatos();
+}, [rawId]);
 
   if (loading) return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center">

@@ -1,6 +1,0 @@
-{
-  "rewrites": [
-    { "source": "/verificar/(.*)", "destination": "/index.html" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}

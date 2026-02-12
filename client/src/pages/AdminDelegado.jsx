@@ -1155,6 +1155,17 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
         </div>
       )}
 
+      {activeTab === 'delegados' && (
+        <div className="animate-in fade-in duration-500">
+          <GestionDelegados 
+            clubData={{ 
+              id: equipoIdActual, 
+              nombre: clubes.find(c => c.id === equipoIdActual)?.nombre || "Club" 
+            }} 
+          />
+        </div>
+      )}
+
       {activeTab === 'disciplina' && (
         <div className="space-y-6 animate-in fade-in duration-500">
           <div className="flex justify-between items-center px-2">

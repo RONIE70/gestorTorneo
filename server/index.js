@@ -135,6 +135,30 @@ app.get('/dashboard-resumen', async (req, res) => {
     }
 });
 
+app.patch('/jugadoras/verificar/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const jugadora = await Jugadora.findById(id);
+
+    if (!jugadora) {
+      return res.status(404).json({ error: 'Jugadora no encontrada' });
+    }
+
+    if (jugadora.verificada) {
+      return res.status(400).json({ message: 'Ya está verificada' });
+    }
+
+    jugadora.verificada = true;
+    await jugadora.save();
+
+    res.json({ message: 'Jugadora verificada correctamente' });
+
+  } catch (error) {
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 
 // --- RUTA APROBAR MANUAL ---
 app.patch('/jugadoras/:id/aprobar', async (req, res) => {

@@ -43,7 +43,7 @@ const CarnetJugadora = ({ jugadora, config }) => {
           if (img) {
             img.style.objectFit = 'cover';
             img.style.width = '100%';
-            img.style.height = '100%';
+            img.style.height = '85%';
           }
         });
       }

@@ -104,14 +104,19 @@ const CarnetJugadora = ({ jugadora, config }) => {
           </div>
 
           <div className="flex gap-3 z-10 flex-1 mt-2">
-            <div className="w-[90px] h-[115px] bg-black/20 border-2 border-white/20 overflow-hidden rounded-lg shadow-lg">
-              <img 
-                src={jugadora.foto_url || 'https://placehold.co/150x200/000/FFF?text=FOTO'} 
-                className="w-full h-full object-cover" 
-                crossOrigin="anonymous" 
-                alt="Perfil" 
-              />
+            {/* --- SOLUCIÓN FOTO ALARGADA: USAMOS BACKGROUND IMAGE --- */}
+            <div 
+              className="w-[95px] h-[115px] bg-black/40 border-2 border-white/30 rounded-lg shadow-lg"
+              style={{
+                backgroundImage: `url(${jugadora.foto_url || 'https://placehold.co/150x200/000/FFF?text=FOTO'})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat'
+              }}
+            >
+              {/* No hace falta etiqueta img aquí */}
             </div>
+            
 
             <div className="flex-1 flex flex-col justify-between py-0.5">
               <div className="space-y-1">

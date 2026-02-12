@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "server/index.js", "use": "@vercel/node" },
+    { "src": "client/package.json", "use": "@vercel/static-build" }
+  ],
+  "rewrites": [
+   
+    { "source": "/fichar", "destination": "/server/index.js" },
+    { "source": "/dashboard-resumen", "destination": "/server/index.js" },
+    { "source": "/jugadoras/:path*", "destination": "/server/index.js" },
+
+   
+    { "source": "/verificar/:id*", "destination": "/index.html" },
+
+    
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

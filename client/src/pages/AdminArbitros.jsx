@@ -228,9 +228,8 @@ const AdminArbitros = () => {
   // --- 4. QR Y FIRMAS ---
   const finalY = doc.lastAutoTable.finalY + 15;
 
-  // QR de validación (redirige a la tabla de posiciones o verificación)
-  const urlQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/posiciones")}`;
- 
+  /// Agregamos el /#/ para que React Router lo encuentre sin error 404
+const urlQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/#/posiciones")}`;
   try {
     // Si hay mucho espacio, lo ponemos al final; si no, en una posición segura
     const qrY = Math.max(finalY, 240); 

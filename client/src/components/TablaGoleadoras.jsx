@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, supabase } from 'react';
 
 const TablaGoleadoras = () => {
   const [goleadoras, setGoleadoras] = useState([]);

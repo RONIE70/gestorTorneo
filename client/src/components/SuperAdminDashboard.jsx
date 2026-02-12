@@ -301,8 +301,12 @@ const SuperAdminDashboard = () => {
               <div className="space-y-2 mb-6">
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">QR Formulario de Registro</p>
                 <img 
-                    src={`https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=${encodeURIComponent(kitBienvenida.urlFichaje)}&choe=UTF-8`} 
-                    className="mx-auto bg-slate-100 p-2 rounded-xl" 
+                    // Opción de "seguridad máxima" si no sabes qué trae urlFichaje:
+src={`https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=${encodeURIComponent(
+  kitBienvenida.urlFichaje.includes('/#/') 
+    ? kitBienvenida.urlFichaje 
+    : kitBienvenida.urlFichaje.replace('vercel.app/', 'vercel.app/#/')
+)}&choe=UTF-8`} className="mx-auto bg-slate-100 p-2 rounded-xl" 
                     alt="QR" 
                 />
               </div>

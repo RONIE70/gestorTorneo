@@ -268,8 +268,8 @@ const AdminTribunal = () => {
     doc.text(datos.motivo, 20, 170, { maxWidth: 170, align: 'justify' });
 
     // Pie de página con QR
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/posiciones")}`;
-    try {
+    // Agregamos el /#/ antes de "posiciones"
+const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/#/posiciones")}`; try {
       doc.addImage(qrUrl, 'PNG', 20, 250, 25, 25);
     // eslint-disable-next-line no-unused-vars
     } catch (errQR) {

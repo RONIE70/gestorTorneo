@@ -5,6 +5,7 @@ import CarnetJugadora from '../components/CarnetJugadora';
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import GestionDelegados from './components/GestionDelegados';
 //import Tesseract from 'tesseract.js'
 
 
@@ -314,8 +315,8 @@ const fetchData = useCallback(async () => {
     // --- 4. PIE DE PÁGINA, QR Y FIRMA ---
     // QR de validación (apunta a la verificación pública)
    // --- 4. PIE DE PÁGINA, QR Y FIRMA ---
-const urlQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/verificar/" + jugadora.id)}`;
-
+// Agregamos el /#/ justo antes de "verificar"
+const urlQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/#/verificar/" + jugadora.id)}`;
 // Usamos una técnica de precarga para evitar que el 404 rompa el PDF
 const imgQR = new Image();
 imgQR.crossOrigin = "Anonymous";
@@ -798,6 +799,7 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
         <div className="flex bg-slate-900 p-1 rounded-2xl border border-slate-800 overflow-x-auto shadow-2xl">
           <button onClick={() => setActiveTab('planilla')} className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all ${activeTab === 'planilla' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>📋 CITACIONES</button>
           <button onClick={() => setActiveTab('fichaje')} className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all ${activeTab === 'fichaje' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>⚽ FICHAJE</button>
+          <button onClick={() => setActiveTab('delegados')} className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all ${activeTab === 'delegados' ? 'bg-violet-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>👔 DELEGADOS</button>
           <button onClick={() => setActiveTab('disciplina')} className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all ${activeTab === 'disciplina' ? 'bg-rose-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>⚖️ TRIBUNAL</button>
         </div>
       </header>

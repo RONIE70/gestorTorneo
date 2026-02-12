@@ -176,7 +176,7 @@ const TablaPosiciones = () => {
     });
 
     // 3. PIE Y QR
-    const urlQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/posiciones")}`;
+    const urlQR = `...data=${encodeURIComponent(`${window.location.origin}/#/posiciones`)}`;
     try {
       doc.addImage(urlQR, 'PNG', 20, 250, 25, 25);
     } catch (err) { console.warn(err); }

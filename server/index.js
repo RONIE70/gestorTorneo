@@ -164,6 +164,33 @@ app.patch('/jugadoras/verificar/:id', async (req, res) => {
   }
 });
 
+// Ruta para guardar delegados
+app.post('/api/delegados', async (req, res) => {
+  try {
+    const db = getDb(); // O como sea que llames a tu conexión de base de datos
+    const nuevoDelegado = req.body;
+    
+    // Guardamos en una colección llamada 'delegados'
+    const resultado = await db.collection('delegados').insertOne(nuevoDelegado);
+    
+    res.status(201).json({ _id: resultado.insertedId, ...nuevoDelegado });
+  } catch (error) {
+    res.status(500).json({ error: "No se pudo guardar el delegado" });
+  }
+});
+
+// Ruta para traer los delegados de un club
+app.get('/api/delegados/:clubId', async (req, res) => {
+  try {
+    const db = getDb();
+    const clubId = req.params.clubId;
+    const delegados = await db.collection('delegados').find({ club_id: clubId }).toArray();
+    res.json(delegados);
+  } catch (error) {
+    res.status(500).json({ error: "Error al traer delegados" });
+  }
+});
+
 
 
 // --- RUTA APROBAR MANUAL ---

@@ -1,6 +1,6 @@
 {
   "version": 2,
- "builds": [
+  "builds": [
     {
       "src": "server/index.js",
       "use": "@vercel/node"
@@ -8,27 +8,26 @@
     {
       "src": "package.json",
       "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
+      "config": { "distDir": "client/dist" }
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT" },
+        { "key": "Access-Control-Allow-Headers", "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization" }
+      ]
     }
   ],
   "rewrites": [
-   
     { "source": "/fichar", "destination": "server/index.js" },
     { "source": "/dashboard-resumen", "destination": "server/index.js" },
     { "source": "/jugadoras/:path*", "destination": "server/index.js" },
-
-   
     { "source": "/verificar/:id*", "destination": "/index.html" },
     { "source": "/mastercontrol", "destination": "/index.html" },
     { "source": "/AdminDelegado", "destination": "/index.html" },
-    { 
-      "source": "/(.*)", 
-      "destination": "/index.html",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization"
-      }
-    }
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

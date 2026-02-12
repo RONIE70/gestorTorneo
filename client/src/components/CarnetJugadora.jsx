@@ -38,6 +38,13 @@ const CarnetJugadora = ({ jugadora, config }) => {
           el.style.transform = 'scale(1)'; // Quitamos cualquier zoom del móvil
           el.style.margin = '0';
           el.style.padding = '12px'; 
+          // Forzamos que la foto mantenga su aspecto en el clon del PDF
+          const img = el.querySelector('.foto-perfil-pdf');
+          if (img) {
+            img.style.objectFit = 'cover';
+            img.style.width = '100%';
+            img.style.height = '100%';
+          }
         });
       }
     };
@@ -57,6 +64,8 @@ const CarnetJugadora = ({ jugadora, config }) => {
     height: '204px', 
     background: `linear-gradient(145deg, ${EstilosPactados.magenta} 0%, ${EstilosPactados.negro} 75%)`,
     color: EstilosPactados.texto,
+    position: 'relative',
+    overflow: 'hidden',
     WebkitPrintColorAdjust: 'exact',
     printColorAdjust: 'exact'
   };

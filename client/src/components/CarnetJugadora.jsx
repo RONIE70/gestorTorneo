@@ -18,7 +18,7 @@ const CarnetJugadora = ({ jugadora, config }) => {
 
   // --- LÓGICA DE URL PARA EL QR (Fusionada) ---
   const urlBase = "https://gestor-torneo.vercel.app";
-  const urlValidacion = `${urlBase}/verificar/${jugadora.dni}`;
+  const urlValidacion = `${urlBase}/#/verificar/${jugadora.dni}`;
 
   const handleDescargarPDF = async () => {
     const pdf = new jsPDF('l', 'mm', [85.6, 54]);

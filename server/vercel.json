@@ -3,37 +3,23 @@
   "builds": [
     { "src": "index.js", "use": "@vercel/node" }
   ],
-  "routes": [
-    { 
-      
-      "src": "/fichar", 
-      "dest": "index.js" 
-    },
-    {
-      "src": "/verificar/:id*",
-      "dest": "/index.js"
-    },
-     { "src": "/jugadoras/.*", "dest": "index.js" },
-    {
-      "source": "/mastercontrol",
-      "destination": "/index.html"
-    },
-    {
-      "src": "/AdminDelegado",
-      "dest": "/index.html"
-    },
-    {
-      "src": "/((?!api|fichar).* )",
-      "dest": "/index.html"
-    },
-      
-    { "src": "/(.*)", 
-      "dest": "/index.js",
-      "headers": {
+  "rewrites": [
+    { "src": "/fichar", "dest": "index.js" },
+    { "src": "/dashboard-resumen", "dest": "index.js" },
+    { "src": "/jugadoras/verificar/:id", "dest": "index.js" },
+    { "src": "/jugadoras/:id/aprobar", "dest": "index.js" },
+    
+    { "src": "/verificar/(.*)", "dest": "/index.html" },
+    { "src": "/mastercontrol", "dest": "/index.html" },
+    { "src": "/AdminDelegado", "dest": "/index.html" },
+    
+    { "src": "/(.*)", "dest": "/index.html", 
+         "headers": {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization"
       }
     }
   ]
+  
 }

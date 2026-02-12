@@ -10,8 +10,12 @@
       "dest": "index.js" 
     },
     {
-      "src": "/verificar/(.*)",
+      "src": "/verificar/:id*",
       "dest": "/index.html"
+    },
+    {
+      "source": "/mastercontrol",
+      "destination": "/index.html"
     },
     {
       "src": "/AdminDelegado",

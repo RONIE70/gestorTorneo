@@ -1,9 +1,10 @@
 {
   "name": "gestor-torneo-root",
   "version": "1.0.0",
-  "scripts": {
-    "build": "cd client && npm install && npm run build",
-    "install": "npm install && cd client && npm install && cd ../server && npm install"
+  "private": true,
+    "scripts": {
+    "install-all": "npm install && cd client && npm install && cd ../server && npm install",
+    "build": "cd client && npm run build"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

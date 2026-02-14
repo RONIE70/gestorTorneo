@@ -853,7 +853,7 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
             <div className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 shadow-xl h-full">
               <h2 className="text-xs font-black uppercase mb-6 text-blue-500 flex items-center gap-2">
                 <span className="w-6 h-6 bg-blue-600/20 rounded-full flex items-center justify-center text-[10px]">1</span>
-                Seleccionar Encuentro
+                Seleccionar Jornada
               </h2>
               
               <div className="space-y-4">

@@ -1,15 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { UserPlusIcon, IdentificationIcon } from '@heroicons/react/24/solid';
+import { UserPlusIcon } from '@heroicons/react/24/solid';
+import { supabase } from '../supabaseClient';
 
-// 1. COMPONENTE DEL CARNET
+// 1. COMPONENTE DEL CARNET (Incluye el QR de verificación)
 const CarnetDelDelegado = ({ data, clubNombre }) => {
+  // Generamos la URL de verificación usando el origen actual (ej: liga-nenas.vercel.app)
+  const urlVerificacion = `${window.location.origin}/#/verificar/${data.dni}`;
+
   return (
     <div className="w-[65mm] h-[95mm] bg-black border-[4px] border-[#e10098] rounded-[24px] overflow-hidden shadow-2xl relative flex flex-col items-center">
+      {/* Encabezado */}
       <div className="w-full bg-[#e10098] py-3 text-center">
         <span className="text-black font-black tracking-[0.25em] text-[10px] uppercase">Delegado Oficial</span>
       </div>
 
+      {/* Foto Circular */}
       <div className="mt-6 w-36 h-36 rounded-full border-4 border-[#e10098] overflow-hidden bg-slate-900">
         <img 
           src={data.foto_url || 'https://via.placeholder.com/150'} 
@@ -18,26 +24,30 @@ const CarnetDelDelegado = ({ data, clubNombre }) => {
         />
       </div>
 
+      {/* Datos Personales */}
       <div className="mt-4 text-center px-4 w-full">
         <h4 className="text-white text-2xl font-black uppercase tracking-tighter leading-none">{data.nombre}</h4>
         <p className="text-[#e10098] font-black text-sm mt-2">{data.dni}</p>
       </div>
 
+      {/* Etiqueta Fija de Rol */}
       <div className="mt-auto mb-20 bg-[#e10098]/10 border border-[#e10098]/30 px-4 py-1 rounded-full">
         <span className="text-[#e10098] text-[10px] font-black uppercase tracking-widest">
           DELEGADO
         </span>
       </div>
 
-      <div className="absolute bottom-4 bg-white p-1.5 rounded-xl shadow-lg">
+      {/* QR DE VERIFICACIÓN (Punto clave) */}
+      <div className="absolute bottom-4 bg-white p-1.5 rounded-xl shadow-lg border-2 border-[#e10098]/20">
         <img 
-          src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/#/verificar/" + data.dni)}`} 
+          src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlVerificacion)}`} 
           className="w-14 h-14" 
-          alt="QR" 
+          alt="QR de Verificación" 
         />
       </div>
 
-      <div className="absolute bottom-12 -rotate-90 -right-10 opacity-10 pointer-events-none text-white text-4xl font-black uppercase">
+      {/* Nombre del Club en el lateral (Estético) */}
+      <div className="absolute bottom-12 -rotate-90 -right-10 opacity-10 pointer-events-none text-white text-4xl font-black uppercase whitespace-nowrap">
         {clubNombre}
       </div>
     </div>
@@ -52,15 +62,14 @@ const GestionDelegados = ({ clubData }) => {
   const [uploading, setUploading] = useState(false);
   const [fotoUrl, setFotoUrl] = useState('');
 
-  // Carga inicial de delegados
+  const API_URL = "https://gestor-torneo-api.vercel.app"; 
+
+  // Carga inicial
   useEffect(() => {
     const obtenerDelegados = async () => {
       try {
-        // Usamos el ID del club que viene por props
         const idClub = clubData?.id || clubData?._id;
-        const API_URL = "https://gestor-torneo-api.vercel.app"; 
         const response = await axios.get(`${API_URL}/api/delegados/${idClub}`);
-       
         setDelegados(response.data);
       } catch (error) {
         console.error("Error cargando delegados:", error);
@@ -71,80 +80,82 @@ const GestionDelegados = ({ clubData }) => {
     if (clubData?.id || clubData?._id) obtenerDelegados();
   }, [clubData]);
 
-  // Subida de foto a Cloudinary
+  // Subida a Cloudinary
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     setUploading(true);
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('upload_preset', 'nc_s1125_presets'); // REEMPLAZA CON TU PRESET
+    formData.append('upload_preset', 'nc_s1125_presets'); 
 
     try {
-      const res = await axios.post(
-        'https://api.cloudinary.com/v1_1/dgtc9qfmv/image/upload',
-        formData
-      );
+      const res = await axios.post('https://api.cloudinary.com/v1_1/dgtc9qfmv/image/upload', formData);
       setFotoUrl(res.data.secure_url);
+    // eslint-disable-next-line no-unused-vars
     } catch (err) {
-      console.error(err);
-      alert("Error al subir la imagen");
+      alert("Error al subir imagen");
     } finally {
       setUploading(false);
     }
   };
 
-  // Función fusionada para guardar
-  const guardarDelegado = async (e) => {
-    e.preventDefault();
-    if (!fotoUrl) return alert("¡Falta la foto! Subila antes de registrar.");
+  // Guardar Delegado
+  // Asegurate de tener importado el cliente de supabase al principio del archivo
+// import { supabase } from '../supabaseClient'; 
 
-    // CONVERSIÓN A NÚMERO PARA SUPABASE
-    const equipoId = parseInt(clubData.id || clubData._id);
+const guardarDelegado = async (e) => {
+  e.preventDefault();
+  if (!fotoUrl) return alert("¡Falta la foto! Subila antes de registrar.");
 
-    const formData = new FormData(e.target);
-    const nuevoDelegado = {
-      nombre: formData.get('nombre'),
-      dni: formData.get('dni'),
-      categoria: formData.get('categoria'),
-      foto_url: fotoUrl,
-      club_id: equipoId
-    };
-
-    try {
-      const API_URL = "https://gestor-torneo-api.vercel.app"; 
-      const res = await axios.post(`${API_URL}/api/delegados`, nuevoDelegado);
-      setDelegados([...delegados, res.data]);
-      setShowModal(false);
-      setFotoUrl('');
-      alert("✅ Delegado registrado con éxito");
-    } catch (err) {
-      console.error(err);
-      alert("❌ Error al guardar. Revisá si el DNI ya existe.");
-    }
+  const equipoId = parseInt(clubData.id || clubData._id);
+  const formData = new FormData(e.target);
+  
+  const nuevoDelegado = {
+    nombre: formData.get('nombre'),
+    dni: formData.get('dni'),
+    categoria: "Delegado", // Forzado
+    foto_url: fotoUrl,
+    club_id: equipoId,
+    rol: "delegado"
   };
+
+  try {
+    // INSERT DIRECTO EN SUPABASE (Sin pasar por el servidor de Node)
+    const { data, error } = await supabase
+      .from('delegados')
+      .insert([nuevoDelegado])
+      .select();
+
+    if (error) throw error;
+
+    setDelegados([...delegados, data[0]]);
+    setShowModal(false);
+    setFotoUrl('');
+    alert("✅ Delegado registrado con éxito en Supabase");
+  } catch (err) {
+    console.error(err);
+    alert(`❌ Error: ${err.message || "No se pudo guardar en Supabase"}`);
+  }
+};
 
   if (loading) return <div className="text-white p-10 animate-pulse font-black text-center">CARGANDO...</div>;
 
   return (
     <div className="mt-6 space-y-6">
-      {/* HEADER */}
       <div className="flex justify-between items-center bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-xl">
         <h3 className="text-white font-black text-xl tracking-tight uppercase">Cuerpo de Delegados</h3>
         <button 
           onClick={() => setShowModal(true)}
-          className="bg-[#e10098] text-white px-6 py-3 rounded-2xl text-[10px] font-black flex items-center gap-2 shadow-lg shadow-magenta-600/20 active:scale-95 transition-all"
+          className="bg-[#e10098] text-white px-6 py-3 rounded-2xl text-[10px] font-black flex items-center gap-2"
         >
-          <UserPlusIcon className="w-4 h-4" />
-          NUEVO DELEGADO
+          <UserPlusIcon className="w-4 h-4" /> NUEVO DELEGADO
         </button>
       </div>
 
-      {/* GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center">
         {delegados.length === 0 ? (
-          <div className="col-span-full py-20 text-center w-full bg-slate-900/40 rounded-3xl border-2 border-dashed border-slate-800 text-slate-600 font-bold uppercase tracking-tighter">
+          <div className="col-span-full py-20 text-center w-full bg-slate-900/40 rounded-3xl border-2 border-dashed border-slate-800 text-slate-600 font-bold uppercase">
             No hay delegados registrados
           </div>
         ) : (
@@ -154,64 +165,34 @@ const GestionDelegados = ({ clubData }) => {
         )}
       </div>
 
-      {/* MODAL */}
       {showModal && (
         <div className="fixed inset-0 z-[999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-[32px] overflow-hidden">
             <div className="bg-[#e10098] p-6 flex justify-between items-center">
-              <h3 className="text-black font-black uppercase tracking-tighter">CREDENCIAL DIRIGENTES</h3>
-              <button onClick={() => setShowModal(false)} className="text-black/50 hover:text-black font-black text-2xl">&times;</button>
+              <h3 className="text-black font-black uppercase">CREDENCIAL DIRIGENTES</h3>
+              <button onClick={() => setShowModal(false)} className="text-black text-2xl font-black">&times;</button>
             </div>
 
             <form className="p-8 space-y-4" onSubmit={guardarDelegado}>
-              {/* Preview y Upload */}
               <div className="flex flex-col items-center mb-6">
                 <div className="w-24 h-24 rounded-full border-2 border-dashed border-[#e10098] flex items-center justify-center overflow-hidden bg-slate-800 relative">
-                  {fotoUrl ? <img src={fotoUrl} className="w-full h-full object-cover" alt="Preview" /> : <span className="text-[#e10098] text-[10px] font-black uppercase">Sin Foto</span>}
-                  {uploading && <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-[10px] animate-pulse">SUBIENDO...</div>}
+                  {fotoUrl ? <img src={fotoUrl} className="w-full h-full object-cover" /> : <span className="text-[#e10098] text-[10px] font-black uppercase">Foto</span>}
                 </div>
-                <label className="mt-3 cursor-pointer bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl border border-slate-700 transition-all text-white text-[10px] font-black uppercase">
+                <label className="mt-3 cursor-pointer bg-slate-800 px-4 py-2 rounded-xl text-white text-[10px] font-black uppercase">
                   {uploading ? 'Cargando...' : 'Seleccionar Foto'}
                   <input type="file" className="hidden" onChange={handleFileUpload} accept="image/*" />
                 </label>
               </div>
 
-             {/* Reemplazá el bloque de Inputs (líneas 147 a 163 aprox) por este: */}
               <div className="space-y-4">
-                <input 
-                  name="nombre" 
-                  required 
-                  className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white focus:border-[#e10098] outline-none" 
-                  placeholder="Nombre y Apellido" 
-                />
-                
-                <input 
-                  name="dni" 
-                  required 
-                  className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white focus:border-[#e10098] outline-none" 
-                  placeholder="DNI" 
-                />
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
-                    Acreditación Oficial:
-                  </label>
-                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 flex items-center justify-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-[#e10098] animate-pulse"></div>
-                    <span className="text-xs font-black uppercase text-white tracking-[0.2em]">
-                      DELEGADO
-                    </span>
-                    {/* Mantenemos el input oculto para que el backend reciba el valor */}
-                    <input type="hidden" name="categoria" value="Delegado" />
-                  </div>
+                <input name="nombre" required className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white outline-none" placeholder="Nombre y Apellido" />
+                <input name="dni" required className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white outline-none" placeholder="DNI" />
+                <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center">
+                   <span className="text-xs font-black uppercase text-white">DELEGADO OFICIAL</span>
                 </div>
               </div>
 
-              <button 
-                disabled={uploading}
-                type="submit" 
-                className={`w-full ${uploading ? 'bg-slate-700' : 'bg-[#e10098] hover:bg-[#ff00ad]'} text-black font-black py-4 rounded-2xl mt-6 transition-all shadow-lg`}
-              >
+              <button disabled={uploading} type="submit" className="w-full bg-[#e10098] text-black font-black py-4 rounded-2xl mt-4 shadow-lg active:scale-95 transition-all">
                 {uploading ? 'ESPERANDO FOTO...' : 'REGISTRAR DELEGADO'}
               </button>
             </form>

@@ -28,69 +28,73 @@ const CarnetDelDelegado = ({ data, clubNombre }) => {
 
   return (
     <div className="flex flex-col items-center gap-4">
-      {/* CONTENEDOR DEL CARNET */}
+      {/* CONTENEDOR CON TUS MEDIDAS EXACTAS */}
       <div 
         ref={carnetRef}
-        className="w-[54.5mm] h-[85.6mm] bg-black border-[4px] border-[#e10098] rounded-[24px] overflow-hidden shadow-2xl relative flex flex-col items-center"
-        style={{ minWidth: '54.5 mm', minHeight: '85.6 mm' }}
+        className="w-[66.8mm] h-[86.9mm] bg-black border-[4px] border-[#e10098] rounded-[20px] overflow-hidden shadow-2xl relative flex flex-col items-center"
+        style={{ minWidth: '66.8mm', minHeight: '86.9mm', maxWidth: '66.8mm', maxHeight: '86.9mm' }}
       >
-        {/* Superior: Acreditación */}
-        <div className="w-full bg-[#e10098] py-2 text-center shadow-md">
-          <span className="text-black font-black tracking-[0.2em] text-[10px] uppercase">
+        {/* 1. CABECERA: LIGA DE LAS NENAS */}
+        <div className="w-full bg-[#e10098] py-1.5 text-center shadow-md z-20">
+          <span className="text-black font-black tracking-[0.1em] text-[10px] uppercase">
             Liga de las Nenas
           </span>
         </div>
 
-        {/* ETIQUETA DELEGADO ARRIBA DE LA FOTO */}
-        <div className="mt-4 bg-[#e10098] px-5 py-0.5 rounded-full shadow-[0_0_10px_rgba(225,0,152,0.5)]">
-          <span className="text-black text-[11px] font-black uppercase tracking-[0.2em]">
+        {/* 2. ROL: DELEGADO HABILITADO (Texto limpio, sin fondo) */}
+        <div className="mt-3 z-20">
+          <span className="text-white text-[8px] font-black uppercase tracking-[0.25em]">
             DELEGADO HABILITADO
           </span>
         </div>
 
-        {/* Foto */}
-        <div className="mt-3 w-32 h-36 rounded-full border-4 border-[#e10098] overflow-hidden bg-slate-900 shadow-[0_0_20px_rgba(225,0,152,0.3)]">
+        {/* 3. FOTO: CIRCULAR (object-cover para no deformar) */}
+        <div className="mt-2 w-32 h-32 rounded-full border-[3px] border-[#e10098] overflow-hidden bg-slate-900 shadow-lg z-20">
           <img 
             src={data.foto_url} 
-            className="w-full h-full object-cover saturate-[0.85]" 
+            className="w-full h-full object-cover aspect-square saturate-[0.85] contrast-[1.1]" 
             alt="Foto" 
           />
         </div>
 
-        {/* MARGEN IZQUIERDO: LIGA DE LAS NENAS */}
-        <div className="absolute top-1/2 -left-12 -translate-y-1/2 -rotate-90 origin-center pointer-events-none">
-          <span className="text-white/10 text-4xl font-black uppercase whitespace-nowrap tracking-tighter">
-            LIGA DE LAS NENAS
-          </span>
-        </div>
-
-        {/* Nombre y DNI */}
-        <div className="mt-3 text-center px-4 w-full z-10">
-          <h4 className="text-white text-2xl font-black uppercase tracking-tighter leading-none">
+        {/* 4. NOMBRE Y DNI */}
+        <div className="mt-2 text-center px-2 w-full z-20">
+          <h4 className="text-white text-[18px] font-black uppercase tracking-tighter leading-none">
             {data.nombre}
           </h4>
-          <p className="text-[#e10098] font-black text-sm mt-1 tracking-widest">{data.dni}</p>
+          <p className="text-[#e10098] font-black text-[13px] mt-0.5 tracking-widest">
+            {data.dni}
+          </p>
         </div>
 
-        {/* Footer: Delegado Oficial */}
-        <div className="mt-auto mb-16">
-          <span className="text-[#e10098] text-[9px] font-black uppercase tracking-[0.4em] opacity-80">
-            ACREDITACION OFICIAL
-          </span>
-        </div>
-
-        {/* QR DE VERIFICACIÓN */}
-        <div className="absolute bottom-3 bg-white p-1 rounded-xl shadow-xl">
+        {/* 5. QR DE VERIFICACIÓN */}
+        <div className="mt-auto mb-5 bg-white p-1 rounded-lg shadow-xl z-20">
           <img 
             src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlVerificacion)}`} 
-            className="w-14 h-14" 
+            className="w-12 h-12" 
             alt="QR" 
           />
         </div>
 
-        {/* NOMBRE DEL CLUB (Margen derecho, no deforma) */}
-        <div className="absolute top-1/2 -right-12 -translate-y-1/2 rotate-90 origin-center">
-          <span className="text-white/10 text-4xl font-black uppercase whitespace-nowrap tracking-tighter">
+        {/* 6. ACREDITACIÓN OFICIAL (Debajo del QR, letra mini) */}
+        <div className="absolute bottom-1.5 z-20">
+          <span className="text-[#e10098] text-[6.5px] font-black uppercase tracking-[0.4em] opacity-90">
+            ACREDITACION OFICIAL
+          </span>
+        </div>
+
+        {/* --- MÁRGENES LATERALES --- */}
+
+        {/* IZQUIERDA: LIGA DE LAS NENAS */}
+        <div className="absolute top-1/2 -left-12 -translate-y-1/2 -rotate-90 origin-center pointer-events-none opacity-10">
+          <span className="text-white text-3xl font-black uppercase whitespace-nowrap tracking-tighter">
+            LIGA DE LAS NENAS
+          </span>
+        </div>
+
+        {/* DERECHA: NOMBRE DEL CLUB */}
+        <div className="absolute top-1/2 -right-12 -translate-y-1/2 rotate-90 origin-center pointer-events-none opacity-10">
+          <span className="text-white text-3xl font-black uppercase whitespace-nowrap tracking-tighter">
             {clubNombre}
           </span>
         </div>

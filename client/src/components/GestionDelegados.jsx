@@ -42,14 +42,14 @@ const CarnetDelDelegado = ({ data, clubNombre }) => {
         </div>
 
         {/* 2. ROL: DELEGADO HABILITADO (Texto limpio, sin fondo) */}
-        <div className="mt-3 z-20">
-          <span className="text-white text-[8px] font-black uppercase tracking-[0.25em]">
+        <div className="mt-1 z-20">
+          <span className="text-white text-[10px] font-black uppercase tracking-[0.25em]">
             DELEGADO HABILITADO
           </span>
         </div>
 
         {/* 3. FOTO: CIRCULAR (object-cover para no deformar) */}
-        <div className="mt-2 w-32 h-32 rounded-full border-[3px] border-[#e10098] overflow-hidden bg-slate-900 shadow-lg z-20">
+        <div className="mt-2 w-28 h-32 rounded-full border-[3px] border-[#e10098] overflow-hidden bg-slate-900 shadow-lg z-20">
           <img 
             src={data.foto_url} 
             className="w-full h-full object-cover aspect-square saturate-[0.85] contrast-[1.1]" 
@@ -58,8 +58,8 @@ const CarnetDelDelegado = ({ data, clubNombre }) => {
         </div>
 
         {/* 4. NOMBRE Y DNI */}
-        <div className="mt-2 text-center px-2 w-full z-20">
-          <h4 className="text-white text-[18px] font-black uppercase tracking-tighter leading-none">
+        <div className="mt-1 text-center px-2 w-full z-20">
+          <h4 className="text-white text-[16px] font-black uppercase tracking-tighter leading-none">
             {data.nombre}
           </h4>
           <p className="text-[#e10098] font-black text-[13px] mt-0.5 tracking-widest">
@@ -78,7 +78,7 @@ const CarnetDelDelegado = ({ data, clubNombre }) => {
 
         {/* 6. ACREDITACIÓN OFICIAL (Debajo del QR, letra mini) */}
         <div className="absolute bottom-1.5 z-20">
-          <span className="text-[#e10098] text-[6.5px] font-black uppercase tracking-[0.4em] opacity-90">
+          <span className="text-[#e10098] text-[6px] font-black uppercase tracking-[0.4em] opacity-90">
             ACREDITACION OFICIAL
           </span>
         </div>
@@ -86,15 +86,15 @@ const CarnetDelDelegado = ({ data, clubNombre }) => {
         {/* --- MÁRGENES LATERALES --- */}
 
         {/* IZQUIERDA: LIGA DE LAS NENAS */}
-        <div className="absolute top-1/2 -left-12 -translate-y-1/2 -rotate-90 origin-center pointer-events-none opacity-10">
-          <span className="text-white text-3xl font-black uppercase whitespace-nowrap tracking-tighter">
+        <div className="absolute top-1/2 -left-5 -translate-y-1/2 -rotate-90 origin-center pointer-events-none opacity-10">
+          <span className="text-white text-2xl font-black uppercase whitespace-nowrap tracking-tighter">
             LIGA DE LAS NENAS
           </span>
         </div>
 
         {/* DERECHA: NOMBRE DEL CLUB */}
-        <div className="absolute top-1/2 -right-12 -translate-y-1/2 rotate-90 origin-center pointer-events-none opacity-10">
-          <span className="text-white text-3xl font-black uppercase whitespace-nowrap tracking-tighter">
+        <div className="absolute top-1/2 -right-5 -translate-y-1/2 rotate-90 origin-center pointer-events-none opacity-10">
+          <span className="text-white text-2xl font-black uppercase whitespace-nowrap tracking-tighter">
             {clubNombre}
           </span>
         </div>
@@ -122,19 +122,33 @@ const GestionDelegados = ({ clubData }) => {
 
   // Carga inicial
   useEffect(() => {
-    const obtenerDelegados = async () => {
-      try {
-        const idClub = clubData?.id || clubData?._id;
-        const response = await axios.get(`${API_URL}/api/delegados/${idClub}`);
-        setDelegados(response.data);
-      } catch (error) {
-        console.error("Error cargando delegados:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (clubData?.id || clubData?._id) obtenerDelegados();
-  }, [clubData]);
+  const obtenerDelegados = async () => {
+    try {
+      const API_URL = "https://gestor-torneo-api.vercel.app"; 
+      // Capturamos el ID y nos aseguramos de que no sea undefined
+      const idClub = clubData?.id || clubData?._id;
+      
+      if (!idClub) return;
+
+      const response = await axios.get(`${API_URL}/api/delegados/${idClub}`);
+      
+      // FILTRO DE SEGURIDAD: 
+      // A veces la API trae todos los delegados, los filtramos acá también
+      // comparando tanto como número como string.
+      const filtrados = response.data.filter(del => 
+        String(del.club_id) === String(idClub)
+      );
+      
+      setDelegados(filtrados);
+    } catch (error) {
+      console.error("Error cargando delegados:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  obtenerDelegados();
+}, [clubData]);
 
   // Subida a Cloudinary
   const handleFileUpload = async (e) => {
@@ -166,13 +180,15 @@ const guardarDelegado = async (e) => {
 
   const equipoId = parseInt(clubData.id || clubData._id);
   const formData = new FormData(e.target);
+  const nombre = formData.get('nombre').trim();
+  const dni = formData.get('dni').trim();
   
   const nuevoDelegado = {
-    nombre: formData.get('nombre'),
-    dni: formData.get('dni'),
+    nombre,
+    dni,
     categoria: "Delegado", // Forzado
     foto_url: fotoUrl,
-    club_id: equipoId,
+    club_id: parseInt (equipoId),
     rol: "delegado"
   };
 
@@ -190,9 +206,13 @@ const guardarDelegado = async (e) => {
     setFotoUrl('');
     alert("✅ Delegado registrado con éxito en Supabase");
   } catch (err) {
-    console.error(err);
-    alert(`❌ Error: ${err.message || "No se pudo guardar en Supabase"}`);
-  }
+    // Si el backend devuelve 409 es porque el DNI ya existe (Unique constraint)
+    if (err.response && err.response.status === 409) {
+      alert("⚠️ El DNI ya está registrado en la base de datos.");
+    } else {
+      console.error(err);
+      alert("❌ Error al guardar el delegado.");
+    }}
 };
 
   if (loading) return <div className="text-white p-10 animate-pulse font-black text-center">CARGANDO...</div>;
@@ -242,7 +262,7 @@ const guardarDelegado = async (e) => {
 
               <div className="space-y-4">
                 <input name="nombre" required className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white outline-none" placeholder="Nombre y Apellido" />
-                <input name="dni" required className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white outline-none" placeholder="DNI" />
+                <input name="dni" maxLength="8" required className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white outline-none" placeholder="DNI" />
                 <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center">
                    <span className="text-xs font-black uppercase text-white">DELEGADO OFICIAL</span>
                 </div>

@@ -24,7 +24,9 @@ const CarnetDelDelegado = ({ data, clubNombre }) => {
       </div>
 
       <div className="mt-auto mb-20 bg-[#e10098]/10 border border-[#e10098]/30 px-4 py-1 rounded-full">
-        <span className="text-[#e10098] text-[10px] font-black uppercase tracking-widest">{data.categoria}</span>
+        <span className="text-[#e10098] text-[10px] font-black uppercase tracking-widest">
+          DELEGADO
+        </span>
       </div>
 
       <div className="absolute bottom-4 bg-white p-1.5 rounded-xl shadow-lg">
@@ -56,7 +58,9 @@ const GestionDelegados = ({ clubData }) => {
       try {
         // Usamos el ID del club que viene por props
         const idClub = clubData?.id || clubData?._id;
-        const response = await axios.get(`/api/delegados/${idClub}`);
+        const API_URL = "https://gestor-torneo-api.vercel.app"; 
+        const response = await axios.get(`${API_URL}/api/delegados/${idClub}`);
+       
         setDelegados(response.data);
       } catch (error) {
         console.error("Error cargando delegados:", error);
@@ -109,7 +113,8 @@ const GestionDelegados = ({ clubData }) => {
     };
 
     try {
-      const res = await axios.post('/api/delegados', nuevoDelegado);
+      const API_URL = "https://gestor-torneo-api.vercel.app"; 
+      const res = await axios.post(`${API_URL}/api/delegados`, nuevoDelegado);
       setDelegados([...delegados, res.data]);
       setShowModal(false);
       setFotoUrl('');
@@ -154,7 +159,7 @@ const GestionDelegados = ({ clubData }) => {
         <div className="fixed inset-0 z-[999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl">
             <div className="bg-[#e10098] p-6 flex justify-between items-center">
-              <h3 className="text-black font-black uppercase tracking-tighter">Ficha de Delegado</h3>
+              <h3 className="text-black font-black uppercase tracking-tighter">CREDENCIAL DIRIGENTES</h3>
               <button onClick={() => setShowModal(false)} className="text-black/50 hover:text-black font-black text-2xl">&times;</button>
             </div>
 
@@ -171,16 +176,34 @@ const GestionDelegados = ({ clubData }) => {
                 </label>
               </div>
 
-              {/* Inputs */}
+             {/* Reemplazá el bloque de Inputs (líneas 147 a 163 aprox) por este: */}
               <div className="space-y-4">
-                <input name="nombre" required className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white focus:border-[#e10098] outline-none" placeholder="Nombre y Apellido" />
-                <div className="grid grid-cols-2 gap-4">
-                  <input name="dni" required className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white focus:border-[#e10098] outline-none" placeholder="DNI" />
-                  <select name="categoria" className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white focus:border-[#e10098] outline-none appearance-none">
-                    <option value="+30">+30</option>
-                    <option value="+45">+45</option>
-                    <option value="Libre">Libre</option>
-                  </select>
+                <input 
+                  name="nombre" 
+                  required 
+                  className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white focus:border-[#e10098] outline-none" 
+                  placeholder="Nombre y Apellido" 
+                />
+                
+                <input 
+                  name="dni" 
+                  required 
+                  className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white focus:border-[#e10098] outline-none" 
+                  placeholder="DNI" 
+                />
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
+                    Acreditación Oficial:
+                  </label>
+                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 flex items-center justify-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-[#e10098] animate-pulse"></div>
+                    <span className="text-xs font-black uppercase text-white tracking-[0.2em]">
+                      DELEGADO
+                    </span>
+                    {/* Mantenemos el input oculto para que el backend reciba el valor */}
+                    <input type="hidden" name="categoria" value="Delegado" />
+                  </div>
                 </div>
               </div>
 

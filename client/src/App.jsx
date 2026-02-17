@@ -24,7 +24,8 @@ import Login from './components/Login';
 import GestionPerfiles from './components/GestionPerfiles'; 
 import VerificacionJugadoras from './components/VerificacionJugadoras';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
-import ValidadorBiometrico from './components/ValidadorBiometrico'; 
+import ValidadorBiometrico from './components/ValidadorBiometrico';
+import PaginaVerificacionDelegado from './components/PaginaVerificacionDelegado';
 
 
 function App() {
@@ -82,6 +83,7 @@ function App() {
             <Route path="/posiciones" element={<TablaPosiciones />} />
             <Route path="/contacto" element={<Contacto />} />
             <Route path="/verificar/:id" element={<VerificacionPublica />} />
+            <Route path="/verificar/delegado/:dni" element={<PaginaVerificacionDelegado />} />
             
             {/* --- NIVEL 1: CONTROL MAESTRO (Solo Tú) --- */}
             <Route 

@@ -1,55 +1,97 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import axios from 'axios';
 import { UserPlusIcon } from '@heroicons/react/24/solid';
 import { supabase } from '../supabaseClient';
+import html2canvas from 'html2canvas';
+import { ArrowDownTrayIcon } from '@heroicons/react/24/solid';
 
-// 1. COMPONENTE DEL CARNET (Incluye el QR de verificación)
 const CarnetDelDelegado = ({ data, clubNombre }) => {
-  // Generamos la URL de verificación usando el origen actual (ej: liga-nenas.vercel.app)
-  const urlVerificacion = `${window.location.origin}/#/verificar/${data.dni}`;
+  const carnetRef = useRef(null);
+  
+  // RUTA DE VERIFICACIÓN (Apunta a la página de tu App, no a la API directamente)
+  const urlVerificacion = `${window.location.origin}/#/verificar/delegado/${data.dni}`;
+
+  // FUNCIÓN DE DESCARGA
+  const descargarCarnet = async () => {
+    if (!carnetRef.current) return;
+    
+    try {
+      const canvas = await html2canvas(carnetRef.current, {
+        useCORS: true, // Crucial para que cargue la foto de Cloudinary
+        scale: 2,      // Doble resolución para que no salga borroso
+        backgroundColor: null
+      });
+      
+      const image = canvas.toDataURL("image/png");
+      const link = document.createElement('a');
+      link.href = image;
+      link.download = `Delegado_${data.nombre}.png`;
+      link.click();
+    } catch (err) {
+      console.error("Error al descargar:", err);
+      alert("No se pudo generar la imagen. Reintentá.");
+    }
+  };
 
   return (
-    <div className="w-[65mm] h-[95mm] bg-black border-[4px] border-[#e10098] rounded-[24px] overflow-hidden shadow-2xl relative flex flex-col items-center">
-      {/* Encabezado */}
-      <div className="w-full bg-[#e10098] py-3 text-center">
-        <span className="text-black font-black tracking-[0.25em] text-[10px] uppercase">Delegado Oficial</span>
+    <div className="flex flex-col items-center gap-4 group">
+      {/* EL CARNET VISUAL */}
+      <div 
+        ref={carnetRef}
+        className="w-[65mm] h-[95mm] bg-gradient-to-br from-gray-900 via-black to-slate-900 border-[4px] border-[#e10098] rounded-[24px] overflow-hidden shadow-2xl relative flex flex-col items-center"
+      >
+        {/* Encabezado Degradado */}
+        <div className="w-full bg-gradient-to-r from-[#e10098] to-[#ff00ad] py-3 text-center shadow-md">
+          <span className="text-black font-black tracking-[0.25em] text-[10px] uppercase">Acreditación Oficial</span>
+        </div>
+
+        {/* Foto con Saturación Suave (No B/N total) y Brillo Magenta */}
+        <div className="mt-6 w-36 h-36 rounded-full border-4 border-[#e10098] overflow-hidden bg-slate-800 shadow-[0_0_25px_rgba(225,0,152,0.4)]">
+          <img 
+            src={data.foto_url || 'https://via.placeholder.com/150'} 
+            className="w-full h-full object-cover saturate-[0.7] hover:saturate-100 transition-all duration-500" 
+            alt="Foto" 
+          />
+        </div>
+
+        {/* Nombre y DNI */}
+        <div className="mt-4 text-center px-4 w-full text-white z-10">
+          <h4 className="text-2xl font-black uppercase tracking-tighter leading-none drop-shadow-lg">
+            {data.nombre}
+          </h4>
+          <p className="text-[#e10098] font-black text-sm mt-2 tracking-widest">{data.dni}</p>
+        </div>
+
+        {/* Badge Rol con Degradado */}
+        <div className="mt-auto mb-20 bg-gradient-to-r from-[#e10098]/30 to-transparent border-l-4 border-[#e10098] px-6 py-1">
+          <span className="text-[#e10098] text-[11px] font-black uppercase tracking-[0.3em]">
+            DELEGADO
+          </span>
+        </div>
+
+        {/* QR de Verificación */}
+        <div className="absolute bottom-4 bg-white p-1.5 rounded-xl shadow-xl border-2 border-[#e10098]/20">
+          <img 
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlVerificacion)}`} 
+            className="w-14 h-14" 
+            alt="QR" 
+          />
+        </div>
+
+        {/* Marca de Agua Lateral */}
+        <div className="absolute bottom-12 -rotate-90 -right-12 opacity-5 pointer-events-none text-white text-5xl font-black uppercase whitespace-nowrap">
+          {clubNombre}
+        </div>
       </div>
 
-      {/* Foto Circular */}
-      <div className="mt-6 w-36 h-36 rounded-full border-4 border-[#e10098] overflow-hidden bg-slate-900">
-        <img 
-          src={data.foto_url || 'https://via.placeholder.com/150'} 
-          className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500" 
-          alt="Foto" 
-        />
-      </div>
-
-      {/* Datos Personales */}
-      <div className="mt-4 text-center px-4 w-full">
-        <h4 className="text-white text-2xl font-black uppercase tracking-tighter leading-none">{data.nombre}</h4>
-        <p className="text-[#e10098] font-black text-sm mt-2">{data.dni}</p>
-      </div>
-
-      {/* Etiqueta Fija de Rol */}
-      <div className="mt-auto mb-20 bg-[#e10098]/10 border border-[#e10098]/30 px-4 py-1 rounded-full">
-        <span className="text-[#e10098] text-[10px] font-black uppercase tracking-widest">
-          DELEGADO
-        </span>
-      </div>
-
-      {/* QR DE VERIFICACIÓN (Punto clave) */}
-      <div className="absolute bottom-4 bg-white p-1.5 rounded-xl shadow-lg border-2 border-[#e10098]/20">
-        <img 
-          src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlVerificacion)}`} 
-          className="w-14 h-14" 
-          alt="QR de Verificación" 
-        />
-      </div>
-
-      {/* Nombre del Club en el lateral (Estético) */}
-      <div className="absolute bottom-12 -rotate-90 -right-10 opacity-10 pointer-events-none text-white text-4xl font-black uppercase whitespace-nowrap">
-        {clubNombre}
-      </div>
+      {/* BOTÓN DE DESCARGA (Fuera del Ref para que no salga en la foto) */}
+      <button 
+        onClick={descargarCarnet}
+        className="flex items-center gap-2 bg-[#e10098] hover:bg-white text-black px-5 py-2.5 rounded-2xl text-[10px] font-black transition-all shadow-lg active:scale-95 uppercase border-2 border-[#e10098]"
+      >
+        <ArrowDownTrayIcon className="w-4 h-4" />
+        Descargar Credencial
+      </button>
     </div>
   );
 };

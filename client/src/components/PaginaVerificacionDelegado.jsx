@@ -15,21 +15,21 @@ const PaginaVerificacionDelegado = () => {
         // Consultamos a la ruta de verificación que agregamos al Backend
         const API_URL = "https://gestor-torneo-api.vercel.app";
         const res = await axios.get(`${API_URL}/api/verificar/delegado/${dni}`);
-        
-        if (res.data.habilitado) {
-          setDatos(res.data.datos);
-        } else {
-          setError(true);
-        }
-      // eslint-disable-next-line no-unused-vars
-      } catch (err) {
+      // Si el servidor nos devuelve datos, significa que existe y es válido
+      if (res.data && res.data.habilitado === true) {
+        setDatos(res.data.datos);
+      } else {
         setError(true);
-      } finally {
-        setLoading(false);
       }
-    };
-    verificar();
-  }, [dni]);
+    // eslint-disable-next-line no-unused-vars
+    } catch (err) {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+  if (dni) verificar();
+}, [dni]);
 
   if (loading) return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white">

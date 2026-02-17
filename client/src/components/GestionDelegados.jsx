@@ -7,70 +7,80 @@ import { ArrowDownTrayIcon } from '@heroicons/react/24/solid';
 
 const CarnetDelDelegado = ({ data, clubNombre }) => {
   const carnetRef = useRef(null);
-  
-  // RUTA DE VERIFICACIÓN (Apunta a la página de tu App, no a la API directamente)
   const urlVerificacion = `${window.location.origin}/#/verificar/delegado/${data.dni}`;
 
-  // FUNCIÓN DE DESCARGA
   const descargarCarnet = async () => {
     if (!carnetRef.current) return;
-    
     try {
       const canvas = await html2canvas(carnetRef.current, {
-        useCORS: true, // Crucial para que cargue la foto de Cloudinary
-        scale: 2,      // Doble resolución para que no salga borroso
+        useCORS: true,
+        scale: 3,
         backgroundColor: null
       });
-      
-      const image = canvas.toDataURL("image/png");
       const link = document.createElement('a');
-      link.href = image;
       link.download = `Delegado_${data.nombre}.png`;
+      link.href = canvas.toDataURL("image/png");
       link.click();
     } catch (err) {
-      console.error("Error al descargar:", err);
-      alert("No se pudo generar la imagen. Reintentá.");
+      console.error(err);
     }
   };
 
   return (
-    <div className="flex flex-col items-center gap-4 group">
-      {/* EL CARNET VISUAL */}
+    <div className="flex flex-col items-center gap-4">
+      {/* CONTENEDOR DEL CARNET */}
       <div 
         ref={carnetRef}
-        className="w-[65mm] h-[95mm] bg-gradient-to-br from-gray-900 via-black to-slate-900 border-[4px] border-[#e10098] rounded-[24px] overflow-hidden shadow-2xl relative flex flex-col items-center"
+        className="w-[54.5mm] h-[85.6mm] bg-black border-[4px] border-[#e10098] rounded-[24px] overflow-hidden shadow-2xl relative flex flex-col items-center"
+        style={{ minWidth: '54.5 mm', minHeight: '85.6 mm' }}
       >
-        {/* Encabezado Degradado */}
-        <div className="w-full bg-gradient-to-r from-[#e10098] to-[#ff00ad] py-3 text-center shadow-md">
-          <span className="text-black font-black tracking-[0.25em] text-[10px] uppercase">Acreditación Oficial</span>
+        {/* Superior: Acreditación */}
+        <div className="w-full bg-[#e10098] py-2 text-center shadow-md">
+          <span className="text-black font-black tracking-[0.2em] text-[10px] uppercase">
+            Liga de las Nenas
+          </span>
         </div>
 
-        {/* Foto con Saturación Suave (No B/N total) y Brillo Magenta */}
-        <div className="mt-6 w-36 h-36 rounded-full border-4 border-[#e10098] overflow-hidden bg-slate-800 shadow-[0_0_25px_rgba(225,0,152,0.4)]">
+        {/* ETIQUETA DELEGADO ARRIBA DE LA FOTO */}
+        <div className="mt-4 bg-[#e10098] px-5 py-0.5 rounded-full shadow-[0_0_10px_rgba(225,0,152,0.5)]">
+          <span className="text-black text-[11px] font-black uppercase tracking-[0.2em]">
+            DELEGADO HABILITADO
+          </span>
+        </div>
+
+        {/* Foto */}
+        <div className="mt-3 w-32 h-36 rounded-full border-4 border-[#e10098] overflow-hidden bg-slate-900 shadow-[0_0_20px_rgba(225,0,152,0.3)]">
           <img 
-            src={data.foto_url || 'https://via.placeholder.com/150'} 
-            className="w-full h-full object-cover saturate-[0.7] hover:saturate-100 transition-all duration-500" 
+            src={data.foto_url} 
+            className="w-full h-full object-cover saturate-[0.85]" 
             alt="Foto" 
           />
         </div>
 
-        {/* Nombre y DNI */}
-        <div className="mt-4 text-center px-4 w-full text-white z-10">
-          <h4 className="text-2xl font-black uppercase tracking-tighter leading-none drop-shadow-lg">
-            {data.nombre}
-          </h4>
-          <p className="text-[#e10098] font-black text-sm mt-2 tracking-widest">{data.dni}</p>
-        </div>
-
-        {/* Badge Rol con Degradado */}
-        <div className="mt-auto mb-20 bg-gradient-to-r from-[#e10098]/30 to-transparent border-l-4 border-[#e10098] px-6 py-1">
-          <span className="text-[#e10098] text-[11px] font-black uppercase tracking-[0.3em]">
-            DELEGADO
+        {/* MARGEN IZQUIERDO: LIGA DE LAS NENAS */}
+        <div className="absolute top-1/2 -left-12 -translate-y-1/2 -rotate-90 origin-center pointer-events-none">
+          <span className="text-white/10 text-4xl font-black uppercase whitespace-nowrap tracking-tighter">
+            LIGA DE LAS NENAS
           </span>
         </div>
 
-        {/* QR de Verificación */}
-        <div className="absolute bottom-4 bg-white p-1.5 rounded-xl shadow-xl border-2 border-[#e10098]/20">
+        {/* Nombre y DNI */}
+        <div className="mt-3 text-center px-4 w-full z-10">
+          <h4 className="text-white text-2xl font-black uppercase tracking-tighter leading-none">
+            {data.nombre}
+          </h4>
+          <p className="text-[#e10098] font-black text-sm mt-1 tracking-widest">{data.dni}</p>
+        </div>
+
+        {/* Footer: Delegado Oficial */}
+        <div className="mt-auto mb-16">
+          <span className="text-[#e10098] text-[9px] font-black uppercase tracking-[0.4em] opacity-80">
+            ACREDITACION OFICIAL
+          </span>
+        </div>
+
+        {/* QR DE VERIFICACIÓN */}
+        <div className="absolute bottom-3 bg-white p-1 rounded-xl shadow-xl">
           <img 
             src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlVerificacion)}`} 
             className="w-14 h-14" 
@@ -78,18 +88,18 @@ const CarnetDelDelegado = ({ data, clubNombre }) => {
           />
         </div>
 
-        {/* Marca de Agua Lateral */}
-        <div className="absolute bottom-12 -rotate-90 -right-12 opacity-5 pointer-events-none text-white text-5xl font-black uppercase whitespace-nowrap">
-          {clubNombre}
+        {/* NOMBRE DEL CLUB (Margen derecho, no deforma) */}
+        <div className="absolute top-1/2 -right-12 -translate-y-1/2 rotate-90 origin-center">
+          <span className="text-white/10 text-4xl font-black uppercase whitespace-nowrap tracking-tighter">
+            {clubNombre}
+          </span>
         </div>
       </div>
 
-      {/* BOTÓN DE DESCARGA (Fuera del Ref para que no salga en la foto) */}
       <button 
         onClick={descargarCarnet}
-        className="flex items-center gap-2 bg-[#e10098] hover:bg-white text-black px-5 py-2.5 rounded-2xl text-[10px] font-black transition-all shadow-lg active:scale-95 uppercase border-2 border-[#e10098]"
+        className="bg-slate-800 hover:bg-[#e10098] text-white hover:text-black px-4 py-2 rounded-xl text-[10px] font-black transition-all border border-slate-700 uppercase"
       >
-        <ArrowDownTrayIcon className="w-4 h-4" />
         Descargar Credencial
       </button>
     </div>

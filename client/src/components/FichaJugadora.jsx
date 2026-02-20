@@ -12,6 +12,7 @@ const FichaJugadora = ({ jugadoraId, onClose, esTribunal = false }) => {
         .from('jugadoras')
         .select(`
           nombre, apellido, foto_url, goles_totales, partidos_jugados, dni,
+          verificacion_biometrica_estado, distancia_biometrica_oficial,
           equipos(nombre, escudo_url),
           sanciones(*) 
         `)
@@ -44,6 +45,16 @@ const FichaJugadora = ({ jugadoraId, onClose, esTribunal = false }) => {
           <p className="text-blue-500 font-black uppercase text-[10px] tracking-widest mt-2">{stats.equipos?.nombre}</p>
         </div>
       </div>
+      {/* AGREGAMOS EL BADGE DE ESTADO BIOMÉTRICO */}
+      <div className="flex justify-center mb-6">
+        <span className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg ${
+          stats.verificacion_biometrica_estado === 'aprobado' 
+          ? 'bg-emerald-500 text-white shadow-emerald-900/20' 
+          : 'bg-orange-600 text-white animate-pulse'
+        }`}>
+          {stats.verificacion_biometrica_estado === 'aprobado' ? '✅ Habilitada para Juego' : '⚠️ Pendiente de Validación'}
+        </span>
+      </div>
 
       {/* Stats Deportivas (PUNTO 3: VISIBLE PARA TODAS) */}
       <div className="grid grid-cols-2 gap-4 mb-4">
@@ -55,6 +66,13 @@ const FichaJugadora = ({ jugadoraId, onClose, esTribunal = false }) => {
           <p className="text-[8px] font-black text-slate-500 uppercase italic mb-1 tracking-tighter">Partidos Jugados</p>
           <p className="text-4xl font-black text-white tabular-nums">{stats.partidos_jugados || 0}</p>
         </div>
+      </div>
+      {/* INDICE BIOMÉTRICO (Visible solo si está aprobada o hay dato) */}
+      <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 text-center mb-4">
+          <p className="text-[7px] font-black text-slate-600 uppercase tracking-[0.2em] mb-1">Registro de Identidad (IA)</p>
+          <p className="text-xs font-mono text-blue-500 font-bold">
+            {stats.distancia_biometrica_oficial ? `SCORE: ${stats.distancia_biometrica_oficial}` : 'SIN REGISTRO'}
+          </p>
       </div>
 
       {/* Historial Disciplinario (PUNTO 4: SOLO VISIBLE PARA TRIBUNAL) */}

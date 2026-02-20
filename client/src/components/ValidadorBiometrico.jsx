@@ -185,7 +185,7 @@ const analizarForense = (url) => {
 };
 
    const actualizarEstado = async (id, nuevoEstado, distancia) => {
-    const valorDistancia = distancia ? parseFloat(distancia) : null;
+    const valorDistancia = distancia ? parseFloat(distancia) : 0.0001;
     
     // Si aprobamos, habilitamos el switch administrativo
     const esAprobado = nuevoEstado === 'aprobado';

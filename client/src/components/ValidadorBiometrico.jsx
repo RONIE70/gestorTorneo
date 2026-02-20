@@ -149,14 +149,18 @@ const analizarForense = (url) => {
 
         // --- 3. BIOMETRÍA (Tu lógica original con umbral 0.4) ---
         // Agregamos opciones para asegurar la detección
-        const opciones = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 });
+        const opciones = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.2 });
         
-        const det1 = await faceapi.detectSingleFace(imgPerfil, opciones).withFaceLandmarks().withFaceDescriptor();
-        const det2 = await faceapi.detectSingleFace(imgDni, opciones).withFaceLandmarks().withFaceDescriptor();
+        let det1 = await faceapi.detectSingleFace(imgPerfil, opciones).withFaceLandmarks().withFaceDescriptor();
+        let det2 = await faceapi.detectSingleFace(imgDni, opciones).withFaceLandmarks().withFaceDescriptor();
+        // Intentamos una detección más profunda con TinyFaceDetector si el primero falla
+        if (!det2) {
+            det2 = await faceapi.detectSingleFace(imgDni, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+        }
 
         if (det1 && det2) {
             const distancia = faceapi.euclideanDistance(det1.descriptor, det2.descriptor);
-            const esMismaPersona = distancia < 0.4;
+            const esMismaPersona = distancia < 0.2;
 
             setResultadoIA({
                 distancia: distancia.toFixed(4),
@@ -191,7 +195,6 @@ const analizarForense = (url) => {
             verificacion_biometrica_estado: nuevoEstado,
             
             // Actualizamos ambas columnas de distancia por si las moscas
-            distancia_biometrica: valorDistancia,
             distancia_biometrica_oficial: valorDistancia,
             
             fecha_validacion: new Date().toISOString(),
@@ -263,7 +266,7 @@ const analizarForense = (url) => {
                         {resultadoIA && (
                             <div className={`mb-8 p-6 rounded-[2rem] text-center border-4 ${resultadoIA.match ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500' : 'bg-rose-500/10 border-rose-500 text-rose-500'}`}>
                                 <p className="text-2xl font-black uppercase italic">{resultadoIA.mensaje}</p>
-                                <p className="text-sm font-bold opacity-70 mt-1">DISTANCIA EUCLIDIANA: {resultadoIA.distancia}</p>
+                                <p className="text-sm font-bold opacity-70 mt-1">DISTANCIA EUCLIDIANA: {resultadoIA.distancia || "0.0000"}</p>
                             </div>
                         )}
 

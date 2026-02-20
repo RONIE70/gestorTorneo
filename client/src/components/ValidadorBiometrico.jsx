@@ -179,25 +179,41 @@ const analizarForense = (url) => {
     }
 };
 
-    const actualizarEstado = async (id, nuevoEstado, distancia) => {
-        const { error } = await supabase
-            .from('jugadoras')
-            .update({ 
-                verificacion_biometrica_estado: nuevoEstado,
-                distancia_biometrica_oficial: distancia || null,
-                fecha_validacion: new Date().toISOString(),
-                observaciones_ia: resultadoForense?.mensaje || ""
-            })
-            .eq('id', id)
-            .eq('organizacion_id', userOrgId);
+   const actualizarEstado = async (id, nuevoEstado, distancia) => {
+    const valorDistancia = distancia ? parseFloat(distancia) : null;
+    
+    // Si aprobamos, habilitamos el switch administrativo
+    const esAprobado = nuevoEstado === 'aprobado';
 
-        if (!error) {
-            setSeleccionada(null);
-            setResultadoIA(null);
-            setResultadoForense(null);
-            fetchPendientes();
-        }
-    };
+    const { error } = await supabase
+        .from('jugadoras')
+        .update({ 
+            verificacion_biometrica_estado: nuevoEstado,
+            
+            // Actualizamos ambas columnas de distancia por si las moscas
+            distancia_biometrica: valorDistancia,
+            distancia_biometrica_oficial: valorDistancia,
+            
+            fecha_validacion: new Date().toISOString(),
+            observaciones_ia: resultadoForense?.mensaje || "",
+            
+            // ACTIVAMOS LOS PERMISOS PARA EL PANEL MAESTRO
+            estado_habil_admin: esAprobado, // Esto ahora pasará a TRUE
+            verificacion_manual: true       // Reforzamos el true que ya traía
+        })
+        .eq('id', id)
+        .eq('organizacion_id', userOrgId);
+
+    if (error) {
+        console.error("Error al actualizar:", error.message);
+        alert("No se pudo actualizar: " + error.message);
+    } else {
+        setSeleccionada(null);
+        setResultadoIA(null);
+        setResultadoForense(null);
+        fetchPendientes();
+    }
+};
 
     if (cargandoModelos) return <div className="p-20 text-center text-white font-black animate-pulse">CARGANDO CEREBRO IA...</div>;
 

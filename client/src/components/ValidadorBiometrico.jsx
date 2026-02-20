@@ -185,33 +185,43 @@ const analizarForense = (url) => {
 };
 
    const actualizarEstado = async (id, nuevoEstado, distancia) => {
-    const valorDistancia = distancia ? parseFloat(distancia) : 0.0001;
+    // 1. Procesamos la distancia: 
+    // Si no hay distancia (error de IA), usamos 0.0001
+    // Si hay distancia, la convertimos a número decimal
+    let valorDistancia = 0.0001;
+    if (distancia && distancia !== "0.0001") {
+        valorDistancia = parseFloat(distancia);
+    }
     
-    // Si aprobamos, habilitamos el switch administrativo
     const esAprobado = nuevoEstado === 'aprobado';
 
     const { error } = await supabase
         .from('jugadoras')
         .update({ 
+            // Estado de la biometría
             verificacion_biometrica_estado: nuevoEstado,
             
-            // Actualizamos ambas columnas de distancia por si las moscas
+            // Usamos solo la columna oficial (la otra ya no existe)
             distancia_biometrica_oficial: valorDistancia,
             
+            // Metadatos y Auditoría
             fecha_validacion: new Date().toISOString(),
             observaciones_ia: resultadoForense?.mensaje || "",
             
-            // ACTIVAMOS LOS PERMISOS PARA EL PANEL MAESTRO
-            estado_habil_admin: esAprobado, // Esto ahora pasará a TRUE
-            verificacion_manual: true       // Reforzamos el true que ya traía
+            // SINCRONIZACIÓN CON CARNETS:
+            // Forzamos false en manual para que el carnet lea el estado biométrico
+            verificacion_manual: false, 
+            // Forzamos true en habil_admin para que aparezca en el Panel Maestro
+            estado_habil_admin: esAprobado 
         })
         .eq('id', id)
         .eq('organizacion_id', userOrgId);
 
     if (error) {
         console.error("Error al actualizar:", error.message);
-        alert("No se pudo actualizar: " + error.message);
+        alert("No se pudo guardar: " + error.message);
     } else {
+        // Limpiamos y refrescamos la lista
         setSeleccionada(null);
         setResultadoIA(null);
         setResultadoForense(null);

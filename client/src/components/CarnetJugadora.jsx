@@ -1,22 +1,59 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { QRCodeSVG } from 'qrcode.react';
+import { supabase } from '../supabaseClient'; // Asegúrate de que la ruta sea correcta
 
 const CarnetJugadora = ({ jugadora, config }) => {
   const carnetRef = useRef();
   const dorsoRef = useRef();
+  const [nombreCategoria, setNombreCategoria] = useState("");
 
-  // Colores definitivos (Magenta Reinas a Negro)
+  // Colores definitivos
   const EstilosPactados = {
     magenta: '#de1777', 
     negro: '#000000',
     texto: '#ffffff'
   };
 
+  // --- LÓGICA DE CATEGORÍA DINÁMICA ---
+  useEffect(() => {
+    const calcularCategoriaSaaS = async () => {
+      if (!jugadora?.fecha_nacimiento || !jugadora?.organizacion_id) {
+        setNombreCategoria(jugadora?.categoria_actual || "S/D");
+        return;
+      }
+
+      try {
+        // Consultamos la tabla de categorías para esta liga
+        const { data: categorias, error } = await supabase
+          .from('categorias')
+          .select('nombre, año_desde, año_hasta')
+          .eq('organizacion_id', jugadora.organizacion_id);
+
+        if (!error && categorias) {
+          const añoNac = new Date(jugadora.fecha_nacimiento).getFullYear();
+          
+          // Buscamos el match en la tabla
+          const catMatch = categorias.find(c => 
+            añoNac >= c.año_desde && añoNac <= (c.año_hasta || añoNac)
+          );
+
+          // Si hay match usamos el nombre de la tabla (ej: "3ra." o "2011-2012")
+          // Si no, dejamos lo que ya traía la jugadora
+          setNombreCategoria(catMatch ? catMatch.nombre : (jugadora.categoria_actual || "S/D"));
+        }
+      // eslint-disable-next-line no-unused-vars
+      } catch (e) {
+        setNombreCategoria(jugadora.categoria_actual || "S/D");
+      }
+    };
+
+    calcularCategoriaSaaS();
+  }, [jugadora]);
+
   if (!jugadora) return <div className="text-slate-500 text-[10px]">Cargando datos...</div>;
 
-  // --- LÓGICA DE URL PARA EL QR (Fusionada) ---
   const urlBase = "https://gestor-torneo.vercel.app";
   const urlValidacion = `${urlBase}/#/verificar/${jugadora.dni}`;
 
@@ -29,16 +66,13 @@ const CarnetJugadora = ({ jugadora, config }) => {
       logging: false, 
       imageTimeout: 0,
       onclone: (clonedDoc) => {
-        // Esto asegura que los gradientes se mantengan en el renderizado
         clonedDoc.querySelectorAll('.carnet-container-pdf').forEach(el => {
           el.style.webkitPrintColorAdjust = 'exact';
-          // --- ESTO ES LO QUE SOLUCIONA EL MÓVIL ---
-          el.style.width = '323px';  // Forzamos ancho de PC
-          el.style.height = '204px'; // Forzamos alto de PC
-          el.style.transform = 'scale(1)'; // Quitamos cualquier zoom del móvil
+          el.style.width = '323px';  
+          el.style.height = '204px'; 
+          el.style.transform = 'scale(1)'; 
           el.style.margin = '0';
           el.style.padding = '12px'; 
-          // Forzamos que la foto mantenga su aspecto en el clon del PDF
           const img = el.querySelector('.foto-perfil-pdf');
           if (img) {
             img.style.objectFit = 'cover';
@@ -104,7 +138,6 @@ const CarnetJugadora = ({ jugadora, config }) => {
           </div>
 
           <div className="flex gap-3 z-10 flex-1 mt-2">
-            {/* --- SOLUCIÓN FOTO ALARGADA: USAMOS BACKGROUND IMAGE --- */}
             <div 
               className="w-[95px] h-[115px] bg-black/40 border-2 border-white/30 rounded-lg shadow-lg"
               style={{
@@ -113,9 +146,7 @@ const CarnetJugadora = ({ jugadora, config }) => {
                 backgroundPosition: 'center',
                 backgroundRepeat: 'no-repeat'
               }}
-            >
-              {/* No hace falta etiqueta img aquí */}
-            </div>
+            ></div>
             
 
             <div className="flex-1 flex flex-col justify-between py-0.5">
@@ -127,11 +158,12 @@ const CarnetJugadora = ({ jugadora, config }) => {
                 <div className="flex gap-3">
                   <div>
                     <p className="text-[6px] font-black opacity-60 uppercase">D.N.I.</p>
-                    <p className="text-[12px] font-bold">{jugadora.dni}</p>
+                    <p className="text-[11px] font-bold">{jugadora.dni}</p>
                   </div>
                   <div>
                     <p className="text-[6px] font-black opacity-60 uppercase">CATEGORÍA</p>
-                    <p className="text-[12px] font-bold">{jugadora.categoria_actual || 'SUR 15'}</p>
+                    {/* CAMBIO AQUÍ: Usamos la categoría dinámica calculada de la tabla */}
+                    <p className="text-[11px] font-bold uppercase">{nombreCategoria}</p>
                   </div>
                 </div>
 
@@ -142,12 +174,12 @@ const CarnetJugadora = ({ jugadora, config }) => {
               </div>
 
               <div className={`mt-1 inline-flex items-center px-2 py-1 rounded-md border ${
-                jugadora.verificacion_manual || (jugadora.distancia_biometrica > 0.6)
+                jugadora.verificacion_manual || (jugadora.distancia_biometrica_oficial > 0.6)
                   ? 'bg-amber-500/10 border-amber-500/30 text-amber-500' 
                   : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
               }`}>
                 <p className="text-[7px] font-black uppercase tracking-widest">
-                  {jugadora.verificacion_manual || (jugadora.distancia_biometrica > 0.6) 
+                  {jugadora.verificacion_manual || (jugadora.distancia_biometrica_oficial > 0.6) 
                     ? 'VERIFICACIÓN PENDIENTE' 
                     : 'BIOMETRÍA OK'}
                 </p>
@@ -181,7 +213,6 @@ const CarnetJugadora = ({ jugadora, config }) => {
 
            <div className="z-10 w-1/2 flex flex-col items-center">
               <div className="bg-white p-2 rounded-lg shadow-2xl">
-                  {/* QR INTEGRADO CORRECTAMENTE */}
                   <QRCodeSVG value={urlValidacion} size={85} level={"H"} />
               </div>
               <p className="text-[6px] font-black mt-2 opacity-60 uppercase tracking-widest">

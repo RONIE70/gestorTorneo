@@ -9,11 +9,13 @@ import GestionDelegados from '../components/GestionDelegados';
 
 
 
+
 const AdminDelegado = () => {
   // --- ESTADOS DE SESIÓN Y PERFIL ---
   const [errorDni, setErrorDni] = useState(""); // Estado para el mensaje de error
   const [perfilUsuario, setPerfilUsuario] = useState(null);
   const [equipoIdActual, setEquipoIdActual] = useState(null);
+  //const [nombreCategoria, setNombreCategoria] = useState("Cargando...");
   
 
   // --- ESTADOS DE INTERFAZ ---
@@ -572,47 +574,76 @@ const verificarDniDuplicado = async (dni) => {
 
   // 2. Función para generar y descargar
 // --- LÓGICA DE PDF (FRONTEND MVP - DINÁMICO) ---
+// --- LÓGICA DE PDF (FRONTEND MVP - DINÁMICO) ---
 const handleDescargarPlanilla = async () => {
   if (!partidoSeleccionado) return alert("Selecciona un partido");
 
+  // Función interna para determinar la categoría por año según la tabla de la DB
+  const calcularCategoriaSaaS = (fechaNac, reglas) => {
+    if (!fechaNac || !reglas || reglas.length === 0) return "S/D";
+    const anioNac = new Date(fechaNac).getFullYear();
+    const match = reglas.find(c => 
+      anioNac >= c.año_desde && anioNac <= (c.año_hasta || anioNac)
+    );
+    return match ? match.nombre : "S/D";
+  };
+
   setLoadingSession(true);
   try {
-    // 1. Traemos el partido (Asegurándonos de traer los IDs de los equipos)
+    // 1. Obtener datos del partido y su organización
     const { data: partido, error: pErr } = await supabase
       .from('partidos')
-      .select('id, local_id, visitante_id, categoria, nro_fecha') // Usamos los nombres reales de tu tabla
+      .select('id, local_id, visitante_id, categoria, nro_fecha, organizacion_id')
       .eq('id', partidoSeleccionado)
       .single();
 
     if (pErr || !partido) throw new Error("Partido no encontrado");
 
-    // 2. Traemos jugadoras usando los IDs planos de la tabla
-    const { data: localP } = await supabase
+    // 2. Obtener las reglas de categorías de esta organización (desde tu tabla 'categorias')
+    const { data: reglasCategorias, error: catErr } = await supabase
+      .from('categorias')
+      .select('*')
+      .eq('organizacion_id', partido.organizacion_id);
+
+    if (catErr) throw catErr;
+
+    // 3. Traer jugadoras de ambos equipos (incluyendo fecha_nacimiento para validar)
+    const { data: localTodos, error: localErr } = await supabase
       .from('jugadoras')
-      .select('nombre, apellido, dni')
-      .eq('equipo_id', partido.local_id) // <--- Cambiado a local_id según tu tabla
-      .ilike('categoria_actual', partido.categoria)
+      .select('nombre, apellido, dni, fecha_nacimiento')
+      .eq('equipo_id', partido.local_id)
       .order('apellido');
 
-    const { data: visitaP } = await supabase
+    const { data: visitaTodos, error: visitaErr } = await supabase
       .from('jugadoras')
-      .select('nombre, apellido, dni')
-      .eq('equipo_id', partido.visitante_id) // <--- Cambiado a visitante_id
-      .ilike('categoria_actual', partido.categoria)
+      .select('nombre, apellido, dni, fecha_nacimiento')
+      .eq('equipo_id', partido.visitante_id)
       .order('apellido');
 
-    // 3. Para el PDF, necesitamos los nombres de los equipos (puedes buscarlos o pasarlos)
-    // Si tu función generarPDF espera objetos local/visitante, envíalos así:
+    if (localErr || visitaErr) throw new Error("Error cargando planteles");
+
+    // 4. Filtrar jugadoras: Solo incluimos si su categoría por año coincide con la del partido
+    const localP = (localTodos || []).filter(j => 
+      calcularCategoriaSaaS(j.fecha_nacimiento, reglasCategorias) === partido.categoria
+    );
+
+    const visitaP = (visitaTodos || []).filter(j => 
+      calcularCategoriaSaaS(j.fecha_nacimiento, reglasCategorias) === partido.categoria
+    );
+
+    // 5. Preparar objeto para el PDF con los nombres de los clubes
     const partidoParaPDF = {
       ...partido,
       local: { nombre: clubes.find(c => c.id === partido.local_id)?.nombre || "Local" },
       visitante: { nombre: clubes.find(c => c.id === partido.visitante_id)?.nombre || "Visitante" }
     };
 
-    generarPDF(partidoParaPDF, localP || [], visitaP || []);
+    // 6. Generar el documento final
+    generarPDF(partidoParaPDF, localP, visitaP);
 
   } catch (err) {
-    console.error("Error:", err.message);
+    console.error("Error detallado:", err.message);
+    alert("No se pudo generar la planilla: " + err.message);
   } finally {
     setLoadingSession(false);
   }

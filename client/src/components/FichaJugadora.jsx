@@ -4,25 +4,54 @@ import { supabase } from '../supabaseClient';
 const FichaJugadora = ({ jugadoraId, onClose, esTribunal = false }) => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [nombreCategoria, setNombreCategoria] = useState("Cargando...");
 
   useEffect(() => {
-    const cargarDatosCompletos = async () => {
+    const cargarDatosYCat = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('jugadoras')
-        .select(`
-          nombre, apellido, foto_url, goles_totales, partidos_jugados, dni,
-          verificacion_biometrica_estado, distancia_biometrica_oficial,
-          equipos(nombre, escudo_url),
-          sanciones(*) 
-        `)
-        .eq('id', jugadoraId)
-        .single();
+      try {
+        // 1. Traemos la jugadora manteniendo todas las columnas y relaciones originales
+        const { data: jugadora, error: jError } = await supabase
+          .from('jugadoras')
+          .select(`
+            nombre, apellido, foto_url, goles_totales, partidos_jugados, dni,
+            verificacion_biometrica_estado, distancia_biometrica_oficial,
+            equipos(nombre, escudo_url),
+            sanciones(*)
+          `)
+          .eq('id', jugadoraId)
+          .single();
 
-      if (!error) setStats(data);
-      setLoading(false);
+        if (jError) throw jError;
+        setStats(jugadora);
+
+        // 2. Traemos las reglas de categorías de SU organización específica
+        const { data: categorias, error: cError } = await supabase
+          .from('categorias')
+          .select('nombre, año_desde, año_hasta')
+          .eq('organizacion_id', jugadora.organizacion_id);
+
+        if (!cError && jugadora.fecha_nacimiento) {
+          const añoNac = new Date(jugadora.fecha_nacimiento).getFullYear();
+          
+          // Buscamos el encuadre según la tabla de categorías
+          const catMatch = categorias?.find(c => 
+            añoNac >= c.año_desde && añoNac <= (c.año_hasta || añoNac)
+          );
+
+          // Si hay match usamos el nombre de la tabla, sino el valor previo o S/D
+          setNombreCategoria(catMatch ? catMatch.nombre : (jugadora.categoria_actual || "S/D"));
+        } else {
+          setNombreCategoria(jugadora.categoria_actual || "S/D");
+        }
+      } catch (err) {
+        console.error("Error cargando ficha:", err.message);
+      } finally {
+        setLoading(false);
+      }
     };
-    if (jugadoraId) cargarDatosCompletos();
+
+    if (jugadoraId) cargarDatosYCat();
   }, [jugadoraId]);
 
   if (loading) return <div className="text-center p-10 animate-pulse text-blue-500 font-black">CARGANDO FICHA...</div>;
@@ -36,16 +65,34 @@ const FichaJugadora = ({ jugadoraId, onClose, esTribunal = false }) => {
       {/* Encabezado */}
       <div className="flex items-center gap-6 mb-8">
         <div className="relative">
-            <img src={stats.foto_url || 'https://via.placeholder.com/150'} className="w-24 h-24 rounded-3xl object-cover border-2 border-blue-500 shadow-lg shadow-blue-900/20" alt="perfil" />
-            <img src={stats.equipos?.escudo_url} className="w-8 h-8 rounded-full absolute -bottom-2 -right-2 border-2 border-slate-900 bg-slate-900" alt="club" />
+          <img 
+            src={stats.foto_url || 'https://via.placeholder.com/150'} 
+            className="w-24 h-24 rounded-3xl object-cover border-2 border-blue-500 shadow-lg shadow-blue-900/20" 
+            alt="perfil" 
+          />
+          <img 
+            src={stats.equipos?.escudo_url} 
+            className="w-8 h-8 rounded-full absolute -bottom-2 -right-2 border-2 border-slate-900 bg-slate-900" 
+            alt="club" 
+          />
         </div>
         <div>
           <h2 className="text-2xl font-black uppercase italic leading-none text-white">{stats.apellido}</h2>
           <h2 className="text-xl font-bold uppercase text-slate-400">{stats.nombre}</h2>
-          <p className="text-blue-500 font-black uppercase text-[10px] tracking-widest mt-2">{stats.equipos?.nombre}</p>
+          
+          {/* CATEGORÍA DINÁMICA */}
+          <div className="mt-2">
+            <p className="text-blue-500 font-black uppercase text-[9px] tracking-widest leading-none mb-1">
+              {stats.equipos?.nombre}
+            </p>
+            <div className="bg-blue-600/20 text-blue-400 text-[10px] font-black px-3 py-1 rounded-lg border border-blue-500/30 inline-block uppercase italic">
+              Cat: {nombreCategoria}
+            </div>
+          </div>
         </div>
       </div>
-      {/* AGREGAMOS EL BADGE DE ESTADO BIOMÉTRICO */}
+
+      {/* BADGE DE ESTADO BIOMÉTRICO */}
       <div className="flex justify-center mb-6">
         <span className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg ${
           stats.verificacion_biometrica_estado === 'aprobado' 
@@ -56,7 +103,7 @@ const FichaJugadora = ({ jugadoraId, onClose, esTribunal = false }) => {
         </span>
       </div>
 
-      {/* Stats Deportivas (PUNTO 3: VISIBLE PARA TODAS) */}
+      {/* Stats Deportivas */}
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div className="bg-slate-950 p-4 rounded-3xl border border-slate-800 text-center">
           <p className="text-[8px] font-black text-slate-500 uppercase italic mb-1 tracking-tighter">Goles Marcados</p>
@@ -67,7 +114,8 @@ const FichaJugadora = ({ jugadoraId, onClose, esTribunal = false }) => {
           <p className="text-4xl font-black text-white tabular-nums">{stats.partidos_jugados || 0}</p>
         </div>
       </div>
-      {/* INDICE BIOMÉTRICO (Visible solo si está aprobada o hay dato) */}
+
+      {/* INDICE BIOMÉTRICO */}
       <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 text-center mb-4">
           <p className="text-[7px] font-black text-slate-600 uppercase tracking-[0.2em] mb-1">Registro de Identidad (IA)</p>
           <p className="text-xs font-mono text-blue-500 font-bold">
@@ -75,7 +123,7 @@ const FichaJugadora = ({ jugadoraId, onClose, esTribunal = false }) => {
           </p>
       </div>
 
-      {/* Historial Disciplinario (PUNTO 4: SOLO VISIBLE PARA TRIBUNAL) */}
+      {/* Historial Disciplinario */}
       {esTribunal ? (
         <div className="space-y-3 mt-4 border-t border-slate-800 pt-6">
           <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-2 italic">⚠️ Registro de Reincidencia</h4>

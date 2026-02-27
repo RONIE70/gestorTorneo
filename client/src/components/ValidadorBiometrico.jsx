@@ -165,7 +165,7 @@ const analizarForense = (url) => {
 
             setResultadoIA({
                 distancia: distancia.toFixed(4),
-                mensaje: esMismaPersona ? "✅ IDENTIDAD CONFIRMADA" : "⚠️ NO COINCIDE LA IDENTIDAD",
+                mensaje: esMismaPersona ? "✅ IDENTIDAD CONFIRMADA" : "⚠️ DIFERENCIA ADMISIBLE",
                 match: esMismaPersona
             });
         } else {
@@ -277,7 +277,7 @@ const analizarForense = (url) => {
                         {resultadoIA && (
                             <div className={`mb-8 p-6 rounded-[2rem] text-center border-4 ${resultadoIA.match ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500' : 'bg-rose-500/10 border-rose-500 text-rose-500'}`}>
                                 <p className="text-2xl font-black uppercase italic">{resultadoIA.mensaje}</p>
-                                <p className="text-sm font-bold opacity-70 mt-1">DISTANCIA EUCLIDIANA: {resultadoIA.distancia || "0.0000"}</p>
+                                <p className="text-sm font-bold opacity-70 mt-1">DISTANCIA BIOMETRICA: {resultadoIA.distancia || "0.0000"}</p>
                             </div>
                         )}
 

@@ -57,8 +57,8 @@ const [diasSeleccionados, setDiasSeleccionados] = useState(['6']);
 const [perfil, setPerfil] = useState({
 email_contacto: '',
 whatsapp_contacto: '',
-nombre_liga: 'Sc-1225',
-nombre_torneo: 'Torneo Oficial 2026',
+nombre_liga: 'Liga Oficial',
+nombre_torneo: 'Torneo 2026',
 logo_torneo: '',
 inscripciones_abiertas: true
 
@@ -580,7 +580,8 @@ zona: fecha.zona || null,
 local_id: enc.loc.id,
 visitante_id: enc.vis.id,
 horario: cat.horario || '16:00', // Usa el horario configurado en la regla de categoría
-categoria: cat.nombre, // AQUÍ SE GUARDA LA CATEGORÍA REAL AUTOMÁTICAMENTE
+categoria: cat.nombre,
+organizacion_id: userOrgId, // AQUÍ SE GUARDA LA CATEGORÍA REAL AUTOMÁTICAMENTE
 jugado: false,
 finalizado: false
 }));
@@ -594,6 +595,7 @@ local_id: null,
 visitante_id: null,
 horario: '16:00',
 categoria: enc.etapa || 'Final',
+organizacion_id: userOrgId,
 nombre_manual_loc: enc.loc?.nombre || "A DEFINIR",
 nombre_manual_vis: enc.vis?.nombre || "A DEFINIR",
 jugado: false,

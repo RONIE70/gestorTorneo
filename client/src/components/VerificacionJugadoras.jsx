@@ -92,7 +92,7 @@ const VerificacionJugadoras = () => {
             <div className="flex-1 p-8 flex flex-col justify-between">
               <div>
                 <h3 className="text-2xl font-black uppercase italic">{j.apellido}, {j.nombre}</h3>
-                <p className="text-blue-400 font-bold text-[10px] uppercase">{j.equipo?.nombre || 'Club Independiente'}</p>
+                <p className="text-blue-400 font-bold text-[10px] uppercase">{j.equipo?.nombre || 'Pertenece a la Liga'}</p>
                 
                 {/* --- SECCIÓN MODIFICADA: GRID DE VALIDACIONES --- */}
                 <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

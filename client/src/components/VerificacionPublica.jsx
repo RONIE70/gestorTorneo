@@ -58,7 +58,7 @@ const VerificacionPublica = () => {
       <div className="text-6xl mb-4">⚠️</div>
       <h1 className="text-white font-black uppercase tracking-tighter">Credencial Inexistente</h1>
       <p className="text-slate-500 text-[10px] font-bold uppercase mt-2 max-w-xs">
-        El registro <span className="text-rose-500">[{rawId}]</span> no coincide con ninguna jugadora activa en nc-s1125.
+        El registro <span className="text-rose-500">[{rawId}]</span> No coincide con ninguna jugadora activa
       </p>
     </div>
   );
@@ -114,7 +114,7 @@ const VerificacionPublica = () => {
             </div>
             <div className="flex justify-between items-center bg-slate-950 p-4 rounded-2xl border border-slate-800">
               <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Equipo</span>
-              <span className="font-bold text-blue-400 uppercase">{jugadora.equipos?.nombre || 'Independiente'}</span>
+              <span className="font-bold text-blue-400 uppercase">{jugadora.equipos?.nombre || 'Pertenece a la Liga'}</span>
             </div>
           </div>
 
@@ -128,7 +128,7 @@ const VerificacionPublica = () => {
       </div>
 
       <p className="mt-8 text-[9px] text-slate-600 uppercase font-bold text-center max-w-xs leading-relaxed opacity-60">
-        Este documento es intransferible. La falsificación de identidad conlleva la expulsión de la liga {config?.nombre_liga || 'nc-s1125'}.
+        Este documento es intransferible. La falsificación de identidad conlleva la expulsión de la liga {config?.nombre_liga || 'oficial'}.
       </p>
     </div>
   );

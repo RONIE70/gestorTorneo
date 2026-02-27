@@ -8,8 +8,6 @@ import autoTable from 'jspdf-autotable';
 import GestionDelegados from '../components/GestionDelegados';
 
 
-
-
 const AdminDelegado = () => {
   // --- ESTADOS DE SESIÓN Y PERFIL ---
   const [errorDni, setErrorDni] = useState(""); // Estado para el mensaje de error

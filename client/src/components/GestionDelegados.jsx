@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import axios from 'axios';
 import { UserPlusIcon, ArrowDownTrayIcon } from '@heroicons/react/24/solid';
 import html2canvas from 'html2canvas';
+import { supabase } from '../supabaseClient';
 
 // 1. COMPONENTE DEL CARNET
 const CarnetDelDelegado = ({ data, clubNombre }) => {
@@ -87,27 +88,27 @@ const GestionDelegados = ({ clubData }) => {
 
   const idClub = clubData?.id || clubData?._id;
 
-  // Carga inicial
+  // 1. CARGA (Leer de Supabase)
   useEffect(() => {
-  const obtenerDelegados = async () => {
-    if (!idClub) return;
-    try {
-      const response = await axios.get(`${API_URL}/api/delegados/${idClub}`);
-      
-      // Ajustamos el filtro para usar 'equipo_id' en lugar de 'club_id'
-      const filtrados = response.data.filter(del => 
-        String(del.equipo_id || del.club_id) === String(idClub)
-      );
-      
-      setDelegados(filtrados);
-    } catch (error) {
-      console.error("Error cargando delegados:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  obtenerDelegados();
-}, [idClub, API_URL]);
+    const obtenerDelegados = async () => {
+      if (!idClub) return;
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('delegados')
+          .select('*')
+          .eq('club_id', idClub); // Vincula con el ID del club
+
+        if (error) throw error;
+        setDelegados(data || []);
+      } catch (error) {
+        console.error("Error Supabase:", error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    obtenerDelegados();
+  }, [idClub]);
 
   // Subida a Cloudinary
   const handleFileUpload = async (e) => {
@@ -128,46 +129,42 @@ const GestionDelegados = ({ clubData }) => {
     }
   };
 
-  // Guardar con VALIDACIONES
+  // 2. GUARDAR DIRECTO EN SUPABASE
   const guardarDelegado = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const nombre = formData.get('nombre').trim();
+    const nombre = formData.get('nombre').trim().toUpperCase();
     const dni = formData.get('dni').trim();
 
-    // VALIDACIÓN: Solo letras en nombre
-    if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(nombre)) {
-      return alert("❌ El nombre solo puede contener letras.");
-    }
-
-    // VALIDACIÓN: DNI 8 números
-    if (!/^\d{8}$/.test(dni)) {
-      return alert("❌ El DNI debe tener exactamente 8 números.");
-    }
-
+    if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(nombre)) return alert("Letras solamente en nombre");
+    if (!/^\d{8}$/.test(dni)) return alert("DNI debe tener 8 números");
     if (!fotoUrl) return alert("¡Falta la foto!");
 
-    const nuevoDelegado = {
-      nombre,
-      dni,
-      foto_url: fotoUrl,
-      equipo_id: parseInt(idClub),
-      categoria: "Delegado",
-      rol: "delegado"
-    };
-
     try {
-      const res = await axios.post(`${API_URL}/api/delegados`, nuevoDelegado);
-      setDelegados([...delegados, res.data]);
+      const { data, error } = await supabase
+        .from('delegados')
+        .insert([{
+          nombre,
+          dni,
+          foto_url: fotoUrl,
+          club_id: parseInt(idClub),
+          categoria: "DELEGADO",
+          rol: "delegado"
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === '23505') return alert("⚠️ Este DNI ya está registrado.");
+        throw error;
+      }
+
+      setDelegados([...delegados, data]);
       setShowModal(false);
       setFotoUrl('');
-      alert("✅ Delegado registrado");
+      alert("✅ Delegado registrado correctamente");
     } catch (err) {
-      if (err.response?.status === 409) {
-        alert("⚠️ Este DNI ya está registrado.");
-      } else {
-        alert("❌ Error al guardar.");
-      }
+      alert("❌ Error al guardar: " + err.message);
     }
   };
 

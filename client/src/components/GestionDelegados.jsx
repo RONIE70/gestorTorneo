@@ -1,11 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react';
 import axios from 'axios';
-import { UserPlusIcon, ArrowDownTrayIcon } from '@heroicons/react/24/solid';
+import { UserPlusIcon, ArrowDownTrayIcon, PrinterIcon } from '@heroicons/react/24/solid';
 import html2canvas from 'html2canvas';
 import { supabase } from '../supabaseClient';
+import jsPDF from 'jspdf';
 
 // 1. COMPONENTE DEL CARNET
-const CarnetDelDelegado = ({ data, clubNombre }) => {
+export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false }) => {
   const carnetRef = useRef(null);
   const urlVerificacion = `${window.location.origin}/#/verificar/delegado/${data.dni}`;
 
@@ -66,11 +67,12 @@ const CarnetDelDelegado = ({ data, clubNombre }) => {
           <span className="text-white text-2xl font-black uppercase whitespace-nowrap tracking-tighter">{clubNombre}</span>
         </div>
       </div>
-
+      {!soloDiseño && (
       <button onClick={descargarCarnet} className="bg-slate-800 hover:bg-[#e10098] text-white hover:text-black px-4 py-2 rounded-xl text-[10px] font-black transition-all border border-slate-700 uppercase">
         <ArrowDownTrayIcon className="w-4 h-4 inline mr-2" />
         Descargar Credencial
       </button>
+      )}
     </div>
   );
 };
@@ -81,11 +83,11 @@ const GestionDelegados = ({ clubData }) => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [generandoLona, setGenerandoLona] = useState(false); // ESTADO PARA LONA
   const [fotoUrl, setFotoUrl] = useState('');
 
-  // DECLARACIÓN ÚNICA DE API_URL (Al principio del componente)
   const API_URL = "https://gestor-torneo-api.vercel.app"; 
-
+  const lienzoRef = useRef(null); // REFERENCIA AL LIENZO
   const idClub = clubData?.id || clubData?._id;
 
   // 1. CARGA (Leer de Supabase)
@@ -97,7 +99,7 @@ const GestionDelegados = ({ clubData }) => {
         const { data, error } = await supabase
           .from('delegados')
           .select('*')
-          .eq('club_id', idClub); // Vincula con el ID del club
+          .eq('club_id', idClub);
 
         if (error) throw error;
         setDelegados(data || []);
@@ -110,7 +112,34 @@ const GestionDelegados = ({ clubData }) => {
     obtenerDelegados();
   }, [idClub]);
 
-  // Subida a Cloudinary
+  // FUNCIÓN PARA GENERAR EL PDF DE 1 METRO (LONA)
+  const imprimirLona = async () => {
+    if (delegados.length === 0) return alert("No hay delegados para imprimir");
+    setGenerandoLona(true);
+    try {
+      const doc = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: [1000, 1000] // 1 metro x 1 metro
+      });
+
+      const canvas = await html2canvas(lienzoRef.current, {
+        scale: 2, 
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      doc.addImage(imgData, 'PNG', 0, 0, 1000, 1000);
+      doc.save(`LONA_DELEGADOS_${clubData.nombre.replace(/\s/g, '_')}.pdf`);
+    } catch (error) {
+      console.error("Error generando lona:", error);
+      alert("Hubo un error al generar el PDF gigante");
+    } finally {
+      setGenerandoLona(false);
+    }
+  };
+
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -129,7 +158,6 @@ const GestionDelegados = ({ clubData }) => {
     }
   };
 
-  // 2. GUARDAR DIRECTO EN SUPABASE
   const guardarDelegado = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -172,12 +200,24 @@ const GestionDelegados = ({ clubData }) => {
 
   return (
     <div className="mt-6 space-y-6">
-      {/* Botón Nuevo Delegado */}
-      <div className="flex justify-between items-center bg-slate-900 p-6 rounded-3xl border border-slate-800">
+      {/* Botones de Cabecera */}
+      <div className="flex flex-col md:flex-row justify-between items-center bg-slate-900 p-6 rounded-3xl border border-slate-800 gap-4">
         <h3 className="text-white font-black text-xl uppercase tracking-tighter">Cuerpo de Delegados</h3>
-        <button onClick={() => setShowModal(true)} className="bg-[#e10098] text-white px-6 py-3 rounded-2xl text-[10px] font-black flex items-center gap-2">
-          <UserPlusIcon className="w-4 h-4" /> NUEVO DELEGADO
-        </button>
+        <div className="flex gap-2">
+          {/* BOTÓN DE LONA AÑADIDO AQUÍ */}
+          <button 
+            onClick={imprimirLona} 
+            disabled={generandoLona}
+            className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl text-[10px] font-black flex items-center gap-2 shadow-lg shadow-blue-900/20 transition-all active:scale-95"
+          >
+            <PrinterIcon className="w-4 h-4" />
+            {generandoLona ? 'PROCESANDO LONA...' : 'IMPRIMIR LONA 1MT'}
+          </button>
+
+          <button onClick={() => setShowModal(true)} className="bg-[#e10098] text-white px-6 py-3 rounded-2xl text-[10px] font-black flex items-center gap-2">
+            <UserPlusIcon className="w-4 h-4" /> NUEVO DELEGADO
+          </button>
+        </div>
       </div>
 
       {/* Grid de Carnets */}
@@ -191,6 +231,31 @@ const GestionDelegados = ({ clubData }) => {
             <CarnetDelDelegado key={del.id || del._id} data={del} clubNombre={clubData.nombre} />
           ))
         )}
+      </div>
+
+      {/* LIENZO OCULTO PARA EL PDF DE 1 METRO (AL FINAL DEL COMPONENTE) */}
+      <div style={{ position: 'absolute', left: '-9999px', top: '0' }}>
+        <div 
+          ref={lienzoRef} 
+          style={{ 
+            width: '1000mm', 
+            height: '1000mm', 
+            padding: '10mm',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(12, 66.8mm)', 
+            gap: '5mm', 
+            background: 'white'
+          }}
+        >
+          {delegados.map((del) => (
+            <CarnetDelDelegado 
+              key={del.id} 
+              data={del} 
+              clubNombre={clubData.nombre} 
+              soloDiseño={true} 
+            />
+          ))}
+        </div>
       </div>
 
       {/* Modal de Registro */}
@@ -212,7 +277,7 @@ const GestionDelegados = ({ clubData }) => {
                 </label>
               </div>
               <input name="nombre" required className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white outline-none focus:border-[#e10098]" placeholder="Nombre y Apellido (Solo letras)" />
-              <input name="dni" required maxLength="8" className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white outline-none focus:border-[#e10098]" placeholder="DNI (8 números)" />
+              <input name="dni" required maxLength="8" className="w-full bg-slate-800 border border-slate-800 rounded-2xl px-4 py-3 text-white outline-none focus:border-[#e10098]" placeholder="DNI (8 números)" />
               <button disabled={uploading} type="submit" className="w-full bg-[#e10098] text-black font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all">
                 {uploading ? 'ESPERANDO FOTO...' : 'REGISTRAR DELEGADO'}
               </button>

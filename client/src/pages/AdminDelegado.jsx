@@ -35,7 +35,7 @@ const AdminDelegado = () => {
   // --- ESTADOS DE EDICIÓN Y FICHAJE ---
   
   const [editandoId, setEditandoId] = useState(null);
-  const [datosEdicion, setDatosEdicion] = useState({ nombre: '', apellido: '', dni: '', fecha_nacimiento: '' });
+  const [datosEdicion, setDatosEdicion] = useState({ nombre: '', apellido: '', dni: '', fecha_nacimiento: '', distancia_biometrica_oficial: '' });
   const [filePerfil, setFilePerfil] = useState(null);
   const [fileDNI, setFileDNI] = useState(null);
   const [jugadoraRegistrada, setJugadoraRegistrada] = useState(null);

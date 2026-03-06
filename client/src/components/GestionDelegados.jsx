@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 import React, { useRef, useState, useEffect } from 'react';
 import axios from 'axios';
 import { UserPlusIcon, ArrowDownTrayIcon, PrinterIcon } from '@heroicons/react/24/solid';
@@ -42,8 +43,9 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false }) => 
           <span className="text-white text-[10px] font-black uppercase tracking-[0.25em]">DELEGADO HABILITADO</span>
         </div>
 
-        <div className="mt-2 w-32 h-32 rounded-full border-[3px] border-[#e10098] overflow-hidden bg-slate-900 shadow-lg z-20">
-          <img src={data.foto_url} className="w-full h-full object-cover aspect-square saturate-[0.85] contrast-[1.1]" alt="Foto" />
+        <div className="mt-2 w-28 h-32 rounded-full border-[3px] border-[#e10098] overflow-hidden bg-slate-900 shadow-lg z-20">
+          <img src={data.foto_url} className="min-w-full min-h-full object-cover aspect-square saturate-[0.85] contrast-[1.1]" 
+          style={{ objectPosition: 'center' }} alt="Foto" />
         </div>
 
         <div className="mt-1 text-center px-2 w-full z-20">
@@ -61,7 +63,7 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false }) => 
 
         {/* MÁRGENES LATERALES */}
         <div className="absolute top-1/2 -left-5 -translate-y-1/2 -rotate-90 origin-center pointer-events-none opacity-10">
-          <span className="text-white text-2xl font-black uppercase whitespace-nowrap tracking-tighter">LIGA DE LAS NENAS</span>
+          <span className="text-white text-2xl font-black uppercase whitespace-nowrap tracking-tighter">{configLiga?.nombre_liga || "NOMBRE DE LA LIGA"}</span>
         </div>
         <div className="absolute top-1/2 -right-5 -translate-y-1/2 rotate-90 origin-center pointer-events-none opacity-10">
           <span className="text-white text-2xl font-black uppercase whitespace-nowrap tracking-tighter">{clubNombre}</span>

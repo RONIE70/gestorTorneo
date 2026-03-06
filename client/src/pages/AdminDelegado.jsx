@@ -497,7 +497,7 @@ const manejarEnvioFichaje = async (e) => {
         formData.append('equipo_id', equipoIdActual); 
         
         formData.append('verificacion_manual', true); 
-        formData.append('distancia_biometrica', 0);
+        formData.append('distancia_biometrica_oficial', 0);
         formData.append('observaciones_ia', "Pendiente de validación biométrica en PC");
 
         const res = await axios.post(`${import.meta.env.VITE_API_URL}/fichar`, formData, { 
@@ -809,7 +809,7 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
   const iniciarEdicion = (e, j) => {
     e.stopPropagation();
     setEditandoId(j.id);
-    setDatosEdicion({ nombre: j.nombre, apellido: j.apellido, dni: j.dni, distancia_biometrica: j.distancia_biometrica, fecha_nacimiento: j.fecha_nacimiento });
+    setDatosEdicion({ nombre: j.nombre, apellido: j.apellido, dni: j.dni, distancia_biometrica_oficial: j.distancia_biometrica_oficial, fecha_nacimiento: j.fecha_nacimiento });
   };
 
   const guardarActualizacion = async (e, id) => {

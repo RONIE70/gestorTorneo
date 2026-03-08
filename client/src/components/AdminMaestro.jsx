@@ -6,7 +6,7 @@ import jsPDF from 'jspdf';
 // IMPORTANTE: Asegúrate de que CarnetDelDelegado esté exportado en GestionDelegados.js
 import { CarnetDelDelegado } from './GestionDelegados'; 
 // IMPORTANTE: Asegúrate de que CarnetJugadora esté en la ruta correcta
-import CarnetJugadora from '../components/CarnetJugadora'; 
+import CarnetJugadora from './CarnetJugadora'; 
 
 const AdminMaestro = () => {
   // --- 1. ESTADOS DE IDENTIDAD Y CONTROL ---

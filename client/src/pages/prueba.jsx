@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback } from 'react'; 
 import { supabase } from '../supabaseClient';
 import axios from 'axios';
@@ -456,7 +457,7 @@ const handleDescargarPlanilla = async () => {
           formData.append('organizacion_id', perfilUsuario?.organizacion_id);
           formData.append('equipo_id', equipoIdActual); 
           formData.append('verificacion_manual', true); 
-          formData.append('distancia_biometrica', 0);
+          formData.append('distancia_biometrica_oficial', 0);
 
           const res = await axios.post(`${import.meta.env.VITE_API_URL}/fichar`, formData, { 
               headers: { 'Authorization': `Bearer ${session?.access_token}` } 

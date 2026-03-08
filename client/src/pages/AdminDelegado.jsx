@@ -567,13 +567,13 @@ const verificarDniDuplicado = async (dni) => {
     } catch (err) {
         console.error("Error inesperado:", err);
     }
-};
+ };
 
 
   // 2. Función para generar y descargar
-// --- LÓGICA DE PDF (FRONTEND MVP - DINÁMICO) ---
-// --- LÓGICA DE PDF (FRONTEND MVP - DINÁMICO) ---
-const handleDescargarPlanilla = async () => {
+ // --- LÓGICA DE PDF (FRONTEND MVP - DINÁMICO) ---
+ // --- LÓGICA DE PDF (FRONTEND MVP - DINÁMICO) ---
+ const handleDescargarPlanilla = async () => {
   if (!partidoSeleccionado) return alert("Selecciona un partido");
 
   // Función interna para determinar la categoría por año según la tabla de la DB
@@ -645,9 +645,9 @@ const handleDescargarPlanilla = async () => {
   } finally {
     setLoadingSession(false);
   }
-};
+ };
 
-const generarPDF = (partido, localPlayers, visitaPlayers) => {
+ const generarPDF = (partido, localPlayers, visitaPlayers) => {
   const doc = new jsPDF();
   const colorMagenta = [217, 0, 130]; 
   const nombreLiga = configLiga?.nombre_liga || "LIGA OFICIAL";
@@ -791,7 +791,7 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
   doc.text("FIRMA DEL. VISITA", 185, lineY + 4, { align: 'center' });
 
   doc.save(`Planilla_${partido.local.nombre}_vs_${partido.visitante.nombre}.pdf`);
-};
+ };
 
     // --- RENDER DE CARGA ---
     if (loadingSession) {
@@ -922,7 +922,7 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
           </div>
 
           {/* COLUMNA 2: CITACIONES (CON SOPORTE PARA EDICIÓN) */}
-<div className="lg:col-span-1 space-y-6">
+ <div className="lg:col-span-1 space-y-6">
   <div className="bg-slate-900 p-6 rounded-[2.5rem] border border-slate-800 shadow-2xl h-full relative overflow-hidden">
     <h2 className="text-xs font-black uppercase mb-6 text-emerald-500 flex items-center justify-between">
       <div className="flex items-center gap-2">
@@ -1005,7 +1005,7 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
       ))}
     </div>
   </div>
-</div>
+ </div>
           {/* COLUMNA 3: ENVÍO Y DESCARGA */}
           <div className="space-y-6">
             <div className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 shadow-xl flex flex-col justify-between h-full">
@@ -1053,7 +1053,7 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
               <h2 className="text-xl font-black uppercase text-emerald-500 mb-6 italic">Fichaje Oficial</h2>
               <form id="formFicha"   onSubmit={manejarEnvioFichaje} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* INPUT NOMBRE */}
-<input id="nombre"
+ <input id="nombre"
   type="text" 
   placeholder="NOMBRE" 
   className="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-xs font-bold uppercase outline-none focus:border-emerald-500" 
@@ -1064,10 +1064,10 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
     setDatosFichaje({...datosFichaje, nombre: val});
   }} 
   required 
-/>
+ />
 
-{/* INPUT APELLIDO */}
-<input id="apellido"
+ {/* INPUT APELLIDO */}
+ <input id="apellido"
   type="text" 
   placeholder="APELLIDO" 
   className="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-xs font-bold uppercase outline-none focus:border-emerald-500" 
@@ -1079,7 +1079,7 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
   }} 
   required 
 />
-<div className="flex flex-col gap-1">
+ <div className="flex flex-col gap-1">
   <input 
     id="dni" 
     type="text" 
@@ -1101,10 +1101,10 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
       {errorDni}
     </span>
   )}
-</div>
+ </div>
 
  {/* INPUT FECHA NACIMIENTO - Restaurado */}
-<div className="flex flex-col gap-1">
+ <div className="flex flex-col gap-1">
   <label for="nacimiento"  id="FechNac"  className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
     Fecha de Nacimiento
   </label>
@@ -1116,9 +1116,9 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
     onChange={(e) => setDatosFichaje({...datosFichaje, fecha_nacimiento: e.target.value})} 
     required 
   />
-</div>
+ </div>
 
-<div className="relative group">
+ <div className="relative group">
   <label htmlFor="clubAsig" className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
     Club Destino del Fichaje
   </label>
@@ -1154,7 +1154,7 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
     value={equipoIdActual || ''} 
     required 
   />
-</div>
+ </div>
                 <div className="col-span-full grid grid-cols-2 gap-4">
                    <div className="space-y-2"><p className="text-[9px] font-black uppercase text-blue-500 ml-2 italic">Foto Carnet Actual</p><input type="file" className="w-full text-[10px] text-slate-500" onChange={e => setFilePerfil(e.target.files[0])} required /></div>
                    <div className="space-y-2">
@@ -1173,7 +1173,7 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
     }} 
     required 
   />
-</div>
+ </div>
                 </div>
                 <button disabled={cargandoFichaje} className={`col-span-full py-5 rounded-2xl font-black text-xs uppercase shadow-xl ${cargandoFichaje ? 'bg-slate-700 text-slate-500' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}>
                   {cargandoFichaje ? "PROCESANDO BIOMETRÍA..." : "VALIDAR Y GENERAR CREDENCIAL"}
@@ -1190,7 +1190,8 @@ const generarPDF = (partido, localPlayers, visitaPlayers) => {
             clubData={{ 
               id: equipoIdActual, 
               nombre: clubes.find(c => c.id === equipoIdActual)?.nombre || "Club" 
-            }} 
+            }}
+            configLiga={configLiga} 
           />
         </div>
       )}

@@ -26,11 +26,12 @@ const AdminMaestro = () => {
 
   // --- 3. ESTADOS PARA IMPRESIÓN GLOBAL (LONA 1MT) ---
   const [delegadosLiga, setDelegadosLiga] = useState([]);
-  const [jugadorasLiga, setJugadorasLiga] = useState([]);
+  const [jugadorasLiga, setJugadorasLiga] = useState([]); // Agregado: Soporte para jugadoras
   const [clubesMap, setClubesMap] = useState({});
   const [configLiga, setConfigLiga] = useState(null);
   const [generandoLona, setGenerandoLona] = useState(false);
-  const [tipoLienzo, setTipoLienzo] = useState(null); // 'delegados' | 'jugadoras' | null
+  const [verLienzo, setVerLienzo] = useState(false); 
+  const [tipoLienzo, setTipoLienzo] = useState('delegados'); // 'delegados' | 'jugadoras'
   
   const lienzoDelegadosRef = useRef(null);
   const lienzoJugadorasRef = useRef(null);
@@ -107,7 +108,7 @@ const AdminMaestro = () => {
           .from('jugadoras')
           .select('*, equipos:equipo_id(nombre)')
           .eq('organizacion_id', userOrgId)
-          .eq('estado_habil_admin', true);
+          .eq('estado_habil_admin', true); // Solo las habilitadas
         setJugadorasLiga(jugs || []);
 
       // eslint-disable-next-line no-unused-vars
@@ -152,9 +153,9 @@ const AdminMaestro = () => {
     }
   };
 
-  // --- 7. LÓGICA DE IMPRESIÓN LONA GLOBAL (1MT X 1MT) ---
-  const imprimirLona = async (referencia, nombreArchivo) => {
-    if (!referencia.current) return;
+  // --- 7. LÓGICA DE IMPRESIÓN DINÁMICA (1MT X 1MT) ---
+  const descargarPliegoMasivo = async (referencia, nombreArchivo) => {
+    if (!referencia.current) return alert("El lienzo no está listo.");
     setGenerandoLona(true);
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [1000, 1000] });
@@ -175,10 +176,10 @@ const AdminMaestro = () => {
   };
 
   return (
-    <div className="p-6 bg-[#0a0f18] min-h-screen text-white space-y-8 font-sans">
+    <div className="p-6 bg-[#0a0f18] min-h-screen text-white space-y-10 font-sans">
       
       {/* HEADER PREMIUM FUSIONADO */}
-      <header className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6 border-b border-slate-800 pb-6">
+      <header className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-center gap-6 border-b border-slate-800 pb-6">
         <div>
           <h1 className="text-4xl font-black uppercase italic tracking-tighter text-white">
             CONTROL <span className="text-blue-500">MAESTRO</span>
@@ -188,15 +189,15 @@ const AdminMaestro = () => {
         
         <div className="flex flex-wrap items-center justify-center gap-4">
           <button 
-            onClick={() => setTipoLienzo(tipoLienzo ? null : 'delegados')}
-            className="bg-slate-800 hover:bg-slate-700 text-white px-5 py-3 rounded-xl text-[10px] font-black flex items-center gap-2 transition-all border border-slate-700"
+            onClick={() => setVerLienzo(!verLienzo)}
+            className="bg-slate-800 hover:bg-slate-700 text-white px-5 py-3 rounded-xl text-[10px] font-black flex items-center gap-2 transition-all border border-slate-700 shadow-xl"
           >
             <EyeIcon className="w-5 h-5 text-blue-400" />
-            {tipoLienzo ? 'OCULTAR PREVIEW' : 'VISUALIZAR PLIEGOS'}
+            {verLienzo ? 'OCULTAR PREVIEW' : 'VISUALIZAR PLIEGOS'}
           </button>
 
           <button 
-            onClick={() => imprimirLona(lienzoDelegadosRef, 'PLIEGO_DELEGADOS')}
+            onClick={() => descargarPliegoMasivo(lienzoDelegadosRef, 'PLIEGO_DELEGADOS')}
             disabled={generandoLona || delegadosLiga.length === 0}
             className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 rounded-xl text-[10px] font-black flex items-center gap-3 shadow-lg shadow-emerald-900/20 transition-all active:scale-95 disabled:opacity-50"
           >
@@ -205,7 +206,7 @@ const AdminMaestro = () => {
           </button>
 
           <button 
-            onClick={() => imprimirLona(lienzoJugadorasRef, 'PLIEGO_JUGADORAS')}
+            onClick={() => descargarPliegoMasivo(lienzoJugadorasRef, 'PLIEGO_JUGADORAS')}
             disabled={generandoLona || jugadorasLiga.length === 0}
             className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-3 rounded-xl text-[10px] font-black flex items-center gap-3 shadow-lg shadow-blue-900/20 transition-all active:scale-95 disabled:opacity-50"
           >
@@ -220,7 +221,7 @@ const AdminMaestro = () => {
         </div>
       </header>
 
-      {/* ESTADÍSTICAS RÁPIDAS */}
+      {/* ESTADÍSTICAS RÁPIDAS (Delegados + Jugadoras) */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2.5rem] shadow-xl flex justify-between items-center">
               <div>
@@ -242,29 +243,29 @@ const AdminMaestro = () => {
           </div>
       </div>
 
-      {/* SECCIÓN DE VISUALIZACIÓN DE LIENZOS */}
-      {tipoLienzo && (
+      {/* SECCIÓN DE VISUALIZACIÓN CON SELECTOR */}
+      {verLienzo && (
         <div className="max-w-7xl mx-auto space-y-4 animate-in fade-in zoom-in duration-500">
-          <div className="flex gap-2">
-            <button onClick={() => setTipoLienzo('delegados')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${tipoLienzo === 'delegados' ? 'bg-emerald-600 shadow-lg' : 'bg-slate-800 text-slate-500'}`}>Vista Delegados</button>
-            <button onClick={() => setTipoLienzo('jugadoras')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${tipoLienzo === 'jugadoras' ? 'bg-blue-600 shadow-lg' : 'bg-slate-800 text-slate-500'}`}>Vista Jugadoras</button>
+          <div className="flex bg-slate-900 p-1 rounded-2xl w-fit border border-slate-800">
+            <button onClick={() => setTipoLienzo('delegados')} className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${tipoLienzo === 'delegados' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500'}`}>Vista Delegados</button>
+            <button onClick={() => setTipoLienzo('jugadoras')} className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${tipoLienzo === 'jugadoras' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}>Vista Jugadoras</button>
           </div>
 
-          <div className="bg-slate-900 border-2 border-dashed border-blue-500/30 p-4 rounded-[2.5rem] overflow-hidden">
+          <div className="bg-slate-900 border-2 border-dashed border-blue-500/30 p-4 rounded-[3rem] overflow-hidden shadow-2xl">
             <h3 className="text-blue-400 font-black text-[10px] uppercase mb-4 text-center tracking-[0.5em]">
               PREVISUALIZACIÓN TÉCNICA - PLIEGO 1000mm x 1000mm
             </h3>
-            <div className="max-h-[600px] overflow-auto bg-white p-10 rounded-2xl custom-scrollbar border-8 border-slate-950">
+            <div className="max-h-[650px] overflow-auto bg-white p-10 rounded-2xl custom-scrollbar border-8 border-slate-950 shadow-inner">
                {tipoLienzo === 'delegados' ? (
                  <div ref={lienzoDelegadosRef} className="grid gap-2 bg-white" style={{ width: '1000mm', height: '1000mm', gridTemplateColumns: 'repeat(12, 66.8mm)', gridAutoRows: '86.9mm', padding: '10mm' }}>
-                    {delegadosLiga.map(del => (
+                    {delegadosLiga.map((del) => (
                       <CarnetDelDelegado key={del.id} data={del} clubNombre={clubesMap[del.club_id] || "S/D"} soloDiseño={true} configLiga={configLiga} />
                     ))}
                  </div>
                ) : (
                  <div ref={lienzoJugadorasRef} className="grid gap-4 bg-white" style={{ width: '1000mm', height: '1000mm', gridTemplateColumns: 'repeat(8, 85.6mm)', gridAutoRows: '54mm', padding: '10mm' }}>
-                    {jugadorasLiga.map(jug => (
-                      <CarnetJugadora key={jug.id} jugadora={jug} config={configLiga} />
+                    {jugadorasLiga.map((jug) => (
+                      <CarnetJugadora key={jug.id} jugadora={{...jug, equipos: { nombre: jug.equipos?.nombre || clubesMap[jug.equipo_id] }}} config={configLiga} />
                     ))}
                  </div>
                )}
@@ -347,18 +348,20 @@ const AdminMaestro = () => {
       </main>
 
       {/* LIENZOS TÉCNICOS INVISIBLES (Backup para el motor de descarga) */}
-      <div style={{ position: 'absolute', left: '-9999px', top: '0' }}>
-        <div ref={tipoLienzo === 'delegados' ? null : lienzoDelegadosRef} style={{ width: '1000mm', height: '1000mm', padding: '10mm', display: 'grid', gridTemplateColumns: 'repeat(12, 66.8mm)', gridAutoRows: '86.9mm', gap: '5mm', background: 'white' }}>
-          {delegadosLiga.map(del => (
-            <CarnetDelDelegado key={del.id} data={del} clubNombre={clubesMap[del.club_id]} soloDiseño={true} configLiga={configLiga} />
-          ))}
+      {!verLienzo && (
+        <div style={{ position: 'absolute', left: '-9999px', top: '0' }}>
+            <div ref={lienzoDelegadosRef} style={{ width: '1000mm', height: '1000mm', display: 'grid', gridTemplateColumns: 'repeat(12, 66.8mm)', gridAutoRows: '86.9mm', gap: '5mm', background: 'white', padding: '10mm' }}>
+                {delegadosLiga.map((del) => (
+                    <CarnetDelDelegado key={del.id} data={del} clubNombre={clubesMap[del.club_id]} soloDiseño={true} configLiga={configLiga} />
+                ))}
+            </div>
+            <div ref={lienzoJugadorasRef} style={{ width: '1000mm', height: '1000mm', display: 'grid', gridTemplateColumns: 'repeat(8, 85.6mm)', gridAutoRows: '54mm', gap: '5mm', background: 'white', padding: '10mm' }}>
+                {jugadorasLiga.map((jug) => (
+                    <CarnetJugadora key={jug.id} jugadora={{...jug, equipos: { nombre: jug.equipos?.nombre || clubesMap[jug.equipo_id] }}} config={configLiga} />
+                ))}
+            </div>
         </div>
-        <div ref={tipoLienzo === 'jugadoras' ? null : lienzoJugadorasRef} style={{ width: '1000mm', height: '1000mm', padding: '10mm', display: 'grid', gridTemplateColumns: 'repeat(8, 85.6mm)', gridAutoRows: '54mm', gap: '5mm', background: 'white' }}>
-          {jugadorasLiga.map(jug => (
-            <CarnetJugadora key={jug.id} jugadora={jug} config={configLiga} />
-          ))}
-        </div>
-      </div>
+      )}
     </div>
   );
 };
@@ -403,30 +406,34 @@ const HistorialTorneos = ({ userOrgId, onEdit, refreshTrigger }) => {
     }
   };
 
-  if (loading) return <div className="text-center py-10 animate-pulse text-slate-600 text-[10px] font-black uppercase tracking-widest">Sincronizando Historial...</div>;
+  if (loading) return <div className="text-center py-20 animate-pulse text-slate-600 text-[10px] font-black uppercase tracking-widest italic">Sincronizando Historial...</div>;
 
   return (
     <div className="bg-slate-900/50 border border-slate-800 p-8 rounded-[3rem] shadow-2xl h-full">
-      <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-8 italic">Archivo de Torneos Registrados</h3>
-      <div className="grid gap-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-        {historial.map((torneo) => (
-          <div key={torneo.id} className="bg-slate-950 p-6 rounded-2xl border border-slate-800 flex justify-between items-center group hover:border-blue-500/50 transition-all">
-            <div className="space-y-1 cursor-pointer" onClick={() => onEdit(torneo)}>
-              <div className="flex items-center gap-3">
-                <span className={`w-2 h-2 rounded-full ${torneo.activo ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-slate-800'}`}></span>
-                <span className="text-blue-500 font-black italic text-xs">#{torneo.id}</span>
-                <h4 className="font-bold uppercase text-slate-200 text-sm tracking-tighter">{torneo.nombre_edicion}</h4>
+      <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-8 italic">Torneos Registrados en la Liga</h3>
+      <div className="grid gap-4 max-h-[650px] overflow-y-auto pr-2 custom-scrollbar">
+        {historial.length === 0 ? (
+          <p className="text-slate-600 text-[10px] font-black uppercase text-center py-10 tracking-widest">No hay torneos registrados</p>
+        ) : (
+          historial.map((torneo) => (
+            <div key={torneo.id} className="bg-slate-950 p-6 rounded-2xl border border-slate-800 flex justify-between items-center group hover:border-blue-500/50 transition-all">
+              <div className="space-y-1 cursor-pointer" onClick={() => onEdit(torneo)}>
+                <div className="flex items-center gap-3">
+                  <span className={`w-2 h-2 rounded-full ${torneo.activo ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-slate-800'}`}></span>
+                  <span className="text-blue-500 font-black italic text-xs">#{torneo.id}</span>
+                  <h4 className="font-bold uppercase text-slate-200 text-sm tracking-tighter">{torneo.nombre_edicion}</h4>
+                </div>
+                <p className="text-[10px] text-slate-500 font-medium">Año: {torneo.año_lectivo} | Módulo: ${torneo.valor_modulo}</p>
               </div>
-              <p className="text-[10px] text-slate-500 font-medium">Año: {torneo.año_lectivo} | Módulo: ${torneo.valor_modulo}</p>
+              <div className="flex items-center gap-4">
+                {!torneo.activo && (
+                  <button onClick={() => activarTorneo(torneo.id)} className="bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white px-3 py-1.5 rounded-xl text-[8px] font-black uppercase border border-blue-500/20">Activar</button>
+                )}
+                <span className="text-[18px] cursor-pointer" onClick={() => onEdit(torneo)}>📂</span>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
-              {!torneo.activo && (
-                <button onClick={() => activarTorneo(torneo.id)} className="bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white px-3 py-1.5 rounded-xl text-[8px] font-black uppercase border border-blue-500/20">Activar</button>
-              )}
-              <span className="text-[18px] cursor-pointer" onClick={() => onEdit(torneo)}>📂</span>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

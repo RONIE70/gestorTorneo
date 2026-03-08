@@ -16,8 +16,9 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
     try {
       const canvas = await html2canvas(carnetRef.current, {
         useCORS: true,
-        scale: 3,
-        backgroundColor: null
+        scale: 4,
+        backgroundColor: "#000000",
+        logging: false,
       });
       const link = document.createElement('a');
       link.download = `Delegado_${data.nombre}.png`;
@@ -33,7 +34,9 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
       <div 
         ref={carnetRef}
         className="w-[66.8mm] h-[86.9mm] bg-black border-[4px] border-[#e10098] rounded-[20px] overflow-hidden shadow-2xl relative flex flex-col items-center"
-        style={{ minWidth: '66.8mm', minHeight: '86.9mm', maxWidth: '66.8mm', maxHeight: '86.9mm' }}
+        style={{ minWidth: '66.8mm', minHeight: '86.9mm', maxWidth: '66.8mm', maxHeight: '86.9mm', 
+          backgroundColor: '#000000' // Forzado para el canvas
+        }}
       >
         <div className="w-full bg-[#e10098] py-1.5 text-center shadow-md z-20">
           <span className="text-black font-black tracking-[0.1em] text-[10px] uppercase">
@@ -45,7 +48,7 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
           <span className="text-white text-[10px] font-black uppercase tracking-[0.25em]">DELEGADO HABILITADO</span>
         </div>
 
-        <div className="mt-2 w-28 h-32 rounded-full border-[3px] border-[#e10098] overflow-hidden bg-slate-900 shadow-lg z-20">
+        <div className="mt-2 w-28 h-32 rounded-full border-[3px] border-[#e10098] overflow-hidden bg-slate-900 shadow-lg z-20 flex items-center justify-center">
           <img 
             src={data.foto_url} 
             className="min-w-full min-h-full object-cover aspect-square saturate-[0.85] contrast-[1.1]" 
@@ -74,13 +77,35 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
         </div>
 
         {/* MARCAS DE AGUA LATERALES */}
-        <div className="absolute top-1/2 -left-5 -translate-y-1/2 -rotate-90 origin-center pointer-events-none opacity-10">
-          <span className="text-white text-2xl font-black uppercase whitespace-nowrap tracking-tighter">
+        {/* LADO IZQUIERDO */}
+        <div 
+          className="absolute left-1 top-0 bottom-0 flex items-center justify-center pointer-events-none opacity-20"
+          style={{ width: '20px' }}
+        >
+          <span 
+            className="text-white text-[18px] font-black uppercase whitespace-nowrap tracking-tighter"
+            style={{ 
+              writingMode: 'vertical-rl', 
+              transform: 'rotate(180deg)',
+              display: 'inline-block'
+            }}
+          >
             {configLiga?.nombre_liga || "LIGA OFICIAL"}
           </span>
         </div>
-        <div className="absolute top-1/2 -right-5 -translate-y-1/2 rotate-90 origin-center pointer-events-none opacity-10">
-          <span className="text-white text-2xl font-black uppercase whitespace-nowrap tracking-tighter">
+
+        {/* LADO DERECHO */}
+        <div 
+          className="absolute right-1 top-0 bottom-0 flex items-center justify-center pointer-events-none opacity-20"
+          style={{ width: '20px' }}
+        >
+          <span 
+            className="text-white text-[18px] font-black uppercase whitespace-nowrap tracking-tighter"
+            style={{ 
+              writingMode: 'vertical-rl',
+              display: 'inline-block'
+            }}
+          >
             {clubNombre || "CLUB"}
           </span>
         </div>

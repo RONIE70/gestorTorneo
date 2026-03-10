@@ -47,7 +47,7 @@ app.post('/fichar', upload.fields([
     try {
         const { 
             nombre, apellido, dni, fecha_nacimiento, equipo_id, 
-            organizacion_id, verificacion_manual, distancia_biometrica, observaciones_ia 
+            organizacion_id, verificacion_manual, distancia_biometrica_oficial, observaciones_ia 
         } = req.body;
 
         const foto_url = req.files['foto'] ? req.files['foto'][0].path : null;
@@ -55,56 +55,69 @@ app.post('/fichar', upload.fields([
 
         if (!foto_url || !dni_foto_url) return res.status(400).json({ error: "Faltan fotos." });
 
-        // --- LÓGICA DE EDAD (Precisa) ---
         const nacimiento = new Date(fecha_nacimiento);
+        const anioNac = nacimiento.getFullYear();
         const hoy = new Date();
-        let edad = hoy.getFullYear() - nacimiento.getFullYear();
+        let edad = hoy.getFullYear() - anioNac;
         const m = hoy.getMonth() - nacimiento.getMonth();
         if (m < 0 || (m === 0 && hoy.getDate() < nacimiento.getDate())) { 
             edad--; 
         }
 
-        // --- TU LÓGICA DE CATEGORÍAS (RESTAURADA) ---
+        // --- LÓGICA DE CATEGORÍAS PERSONALIZADA ---
         let categoria = "";
-        if (edad <= 7) categoria = "Sub 7";
-        else if (edad <= 9) categoria = "Sub 9";
-        else if (edad <= 11) categoria = "Sub 11";
-        else if (edad <= 13) categoria = "Sub 13";
-        else if (edad <= 15) categoria = "Sub 15";
-        else if (edad <= 17) categoria = "Sub 17";
-        else if (edad < 30) categoria = "Reserva/Primera";
-        else if (edad < 45) categoria = "Unicas (+30/35)";
-        else categoria = "Reinas (+45)";
+        const ID_LIGA_NENAS = "af190e5a-f84a-4fbf-8a82-1b04dbb72178";
+                                
+        if (organizacion_id === ID_LIGA_NENAS) {
+            // Reglas específicas Liga de las Nenas (Por años)
+            if (anioNac >= 2017) categoria = "2017-2018";
+            else if (anioNac >= 2015) categoria = "2015-2016";
+            else if (anioNac >= 2013) categoria = "2013-2014";
+            else if (anioNac >= 2011) categoria = "2011-2012";
+            else if (anioNac >= 2009) categoria = "2009-2010";
+            else if (anioNac >= 1994) categoria = "Primera (Libre)";
+            else categoria = "Veteranas";
+        } else {
+            // Reglas estándar para otras organizaciones
+            if (edad <= 7) categoria = "Sub 7";
+            else if (edad <= 9) categoria = "Sub 9";
+            else if (edad <= 11) categoria = "Sub 11";
+            else if (edad <= 13) categoria = "Sub 13";
+            else if (edad <= 15) categoria = "Sub 15";
+            else if (edad <= 17) categoria = "Sub 17";
+            else if (edad < 30) categoria = "Reserva/Primera";
+            else if (edad < 45) categoria = "Unicas (+30/35)";
+            else categoria = "Reinas (+45)";
+        }
 
-        // --- GUARDADO RÁPIDO ---
-// En tu server/index.js (Ruta /fichar)
-const { data, error: dbError } = await supabase
-    .from('jugadoras')
-    .insert([{
-        nombre: nombre.trim(),
-        apellido: apellido.trim(),
-        dni: dni.trim(),
-        fecha_nacimiento: fecha_nacimiento,
-        equipo_id: parseInt(equipo_id), // <--- Obligamos a que sea número
-        organizacion_id: organizacion_id, // <--- Debe ser el UUID
-        foto_url: foto_url,
-        dni_foto_url: dni_foto_url,
-        categoria_actual: categoria,
-        verificacion_manual: true,
-        distancia_biometrica: 0
-    }])
-    .select();
+        // --- GUARDADO EN SUPABASE ---
+        const { data, error: dbError } = await supabase
+            .from('jugadoras')
+            .insert([{
+                nombre: nombre.trim().toUpperCase(),
+                apellido: apellido.trim().toUpperCase(),
+                dni: dni.trim(),
+                fecha_nacimiento: fecha_nacimiento,
+                equipo_id: parseInt(equipo_id),
+                organizacion_id: organizacion_id,
+                foto_url: foto_url,
+                dni_foto_url: dni_foto_url,
+                categoria_actual: categoria, // <--- Aquí ya va con el formato correcto
+                verificacion_manual: verificacion_manual === 'true' || verificacion_manual === true,
+                distancia_biometrica_oficial: parseFloat(distancia_biometrica_oficial) || 0,
+                observaciones_ia: observaciones_ia || ""
+            }])
+            .select();
 
         if (dbError) {
             if (dbError.code === '23505') return res.status(409).json({ error: "DNI DUPLICADO" });
             throw dbError;
         }
 
-        // Respuesta inmediata: Evita el 504 de Vercel
         return res.status(200).json({ mensaje: "✅ Fichaje Exitoso", jugadora: data[0] });
 
     } catch (err) {
-        console.error("Error:", err);
+        console.error("Error crítico en fichaje:", err);
         return res.status(500).json({ error: err.message });
     }
 });

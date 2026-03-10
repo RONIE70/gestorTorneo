@@ -21,6 +21,7 @@ const SuperAdminDashboard = () => {
   const [stats, setStats] = useState({ ligas: 0, jugadoras: 0, alertas: 0 });
   const [rankingLigas, setRankingLigas] = useState([]);
   const [kitBienvenida, setKitBienvenida] = useState(null);
+  
 
   // --- CARGA INICIAL ---
   useEffect(() => {

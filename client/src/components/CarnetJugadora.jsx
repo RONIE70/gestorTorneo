@@ -8,52 +8,68 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, esVistaPrevia 
   const frenteRef = useRef(null);
   const dorsoRef = useRef(null);
   const [nombreCategoria, setNombreCategoria] = useState("");
+  
+  // ESTADOS PARA IMÁGENES BLINDADAS (Base64)
+  const [fotoB64, setFotoB64] = useState(null);
+  const [escudoB64, setEscudoB64] = useState(null);
+  const [logoLigaB64, setLogoLigaB64] = useState(null);
 
   const EstilosPactados = { magenta: '#de1777', negro: '#000000', texto: '#ffffff' };
 
-  useEffect(() => {
-    const calcularCategoria = async () => {
-      if (!jugadora?.fecha_nacimiento || !jugadora?.organizacion_id) {
-        setNombreCategoria(jugadora?.categoria_actual || "S/D");
-        return;
-      }
-      try {
-        const { data: categorias } = await supabase.from('categorias').select('nombre, año_desde, año_hasta').eq('organizacion_id', jugadora.organizacion_id);
-        if (categorias) {
-          const añoNac = new Date(jugadora.fecha_nacimiento).getUTCFullYear();
-          const catMatch = categorias.find(c => añoNac >= c.año_desde && añoNac <= (c.año_hasta || añoNac));
-          setNombreCategoria(catMatch ? catMatch.nombre : (jugadora.categoria_actual || "S/D"));
-        }
-      } catch { setNombreCategoria(jugadora.categoria_actual || "S/D"); }
-    };
-    calcularCategoria();
-  }, [jugadora]);
-
-  const esperarImagenes = async (elemento) => {
-    if (!elemento) return;
-    await document.fonts.ready;
-    const imgs = Array.from(elemento.querySelectorAll("img"));
-    await Promise.all(imgs.map(img => {
-      if (img.complete) return Promise.resolve();
-      return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
-    }));
-    await new Promise(r => setTimeout(r, 500));
+  // --- FUNCIÓN DE BLINDAJE: Convierte URL a datos internos para el PDF ---
+  const transformarBase64 = async (url) => {
+    if (!url || url.startsWith('data:')) return url;
+    try {
+      const res = await fetch(url, { mode: 'cors' });
+      const blob = await res.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    // eslint-disable-next-line no-unused-vars
+    } catch (e) {
+      console.warn("Error blindando imagen, se usará URL original:", url);
+      return url; 
+    }
   };
 
+  useEffect(() => {
+    const inicializar = async () => {
+      if (!jugadora) return;
+
+      // 1. Blindaje inmediato de todas las imágenes
+      const f = await transformarBase64(jugadora.foto_url);
+      setFotoB64(f);
+      const e = await transformarBase64(jugadora.club_escudo || jugadora.equipos?.escudo_url || jugadora.equipos?.logo_url);
+      setEscudoB64(e);
+      const l = await transformarBase64(config?.logo_url);
+      setLogoLigaB64(l);
+
+      // 2. Lógica de Categoría (Prioridad dato directo)
+      if (jugadora.categoria_actual && jugadora.categoria_actual !== "S/D") {
+        setNombreCategoria(jugadora.categoria_actual);
+      } else if (jugadora.fecha_nacimiento) {
+        const añoNac = new Date(jugadora.fecha_nacimiento).getUTCFullYear();
+        const { data: cats } = await supabase.from('categorias').select('nombre, año_desde, año_hasta').eq('organizacion_id', jugadora.organizacion_id);
+        const match = cats?.find(c => añoNac >= c.año_desde && añoNac <= (c.año_hasta || añoNac));
+        setNombreCategoria(match ? match.nombre : "S/D");
+      }
+    };
+    inicializar();
+  }, [jugadora, config]);
+
   const handleDescargarPDF = async () => {
-    // Generamos un PDF de 2 páginas (Frente y Dorso)
     const pdf = new jsPDF('l', 'mm', [85.6, 54]);
-    const opciones = { scale: 3, useCORS: true, backgroundColor: '#ffffff' };
-
-    await esperarImagenes(frenteRef.current);
-    const canvasF = await html2canvas(frenteRef.current, opciones);
+    const opts = { scale: 3, useCORS: true, backgroundColor: '#ffffff' };
+    
+    const canvasF = await html2canvas(frenteRef.current, opts);
     pdf.addImage(canvasF.toDataURL('image/png'), 'PNG', 0, 0, 85.6, 54);
-
+    
     pdf.addPage([85.6, 54], 'l');
-    await esperarImagenes(dorsoRef.current);
-    const canvasD = await html2canvas(dorsoRef.current, opciones);
+    const canvasD = await html2canvas(dorsoRef.current, opts);
     pdf.addImage(canvasD.toDataURL('image/png'), 'PNG', 0, 0, 85.6, 54);
-
+    
     pdf.save(`Carnet_${jugadora.apellido}.pdf`);
   };
 
@@ -64,78 +80,67 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, esVistaPrevia 
     width: '323px', height: '204px',
     background: `linear-gradient(145deg, ${EstilosPactados.magenta} 0%, ${EstilosPactados.negro} 75%)`,
     color: EstilosPactados.texto, position: 'relative', overflow: 'hidden',
-    display: 'flex', flexDirection: 'column', justifyContent: 'space-between'
+    display: 'flex', flexDirection: 'column'
   };
 
-  // Definimos el contenido para no repetir código, pero el div con el REF debe estar en el render principal
-  const contenidoFrente = (
-    <>
-      <span className="absolute -right-2 -bottom-2 text-[55px] font-black italic opacity-10 uppercase">{config?.nombre_liga?.split(' ')[0] || 'LIGA'}</span>
+  const UI_FRENTE = (
+    <div className="p-3 flex flex-col h-full justify-between relative">
+      <span className="absolute -right-2 -bottom-2 text-[55px] font-black italic opacity-10 uppercase pointer-events-none">LIGA</span>
       <div className="z-10 flex justify-between items-start">
         <div>
-          <h2 className="text-2xl font-black italic uppercase leading-none">{config?.nombre_liga || 'LIGA'}</h2>
-          <p className="text-[6px] font-bold uppercase opacity-80 tracking-widest">TEMPORADA 2026</p>
+          <h2 className="text-[20px] font-black italic uppercase leading-none truncate w-48">{config?.nombre_liga || 'LIGA'}</h2>
+          <p className="text-[7px] font-bold uppercase tracking-[0.2em] opacity-80 mt-1">TEMPORADA OFICIAL 2026</p>
         </div>
-        {(jugadora.equipos?.escudo_url || jugadora.club_escudo || jugadora.equipos?.logo_url) && (
-          <img src={jugadora.equipos?.escudo_url || jugadora.club_escudo || jugadora.equipos?.logo_url} crossOrigin="anonymous" className="h-10 w-12 object-contain bg-white/10 rounded p-0.5" alt="e" />
-        )}
+        {escudoB64 && <img src={escudoB64} className="h-10 w-10 object-contain bg-white/10 rounded p-0.5" alt="e" />}
       </div>
-      <div className="flex gap-3 z-10 flex-1 mt-2">
-        <img src={jugadora.foto_url} crossOrigin="anonymous" className="w-[95px] h-[115px] object-cover border-2 border-white/30 rounded-lg" alt="p" />
-        <div className="flex-1 flex flex-col justify-between py-0.5">
-          <div className="space-y-1">
-            <h3 className="text-[14px] font-black uppercase leading-tight">{jugadora.apellido} {jugadora.nombre}</h3>
-            <div className="flex gap-3 text-[11px] font-bold">
-              <div><p className="text-[6px] opacity-60 uppercase font-black">DNI</p>{jugadora.dni}</div>
-              <div><p className="text-[6px] opacity-60 uppercase font-black">CAT</p>{nombreCategoria}</div>
-            </div>
-            <div><p className="text-[6px] opacity-60 uppercase font-black">CLUB</p><p className="text-[10px] font-black uppercase leading-tight">{jugadora.club_nombre || jugadora.equipos?.nombre || 'SIN CLUB'}</p></div>
+      <div className="flex gap-3 z-10 flex-1 mt-2 items-center">
+        <div className="w-[90px] h-[110px] min-w-[90px] bg-black/40 border-2 border-white/30 rounded-lg overflow-hidden">
+          <img src={fotoB64 || jugadora.foto_url} className="w-full h-full object-cover" alt="p" />
+        </div>
+        <div className="flex-1 flex flex-col justify-center space-y-1">
+          <h3 className="text-[14px] font-black uppercase leading-tight border-b border-white/20 pb-1 mb-1">{jugadora.apellido} <br/> {jugadora.nombre}</h3>
+          <div className="grid grid-cols-2 gap-1">
+            <div><p className="text-[6px] font-black opacity-60 uppercase">DNI</p><p className="text-[11px] font-bold">{jugadora.dni}</p></div>
+            <div><p className="text-[6px] font-black opacity-60 uppercase">CATEGORÍA</p><p className="text-[11px] font-bold uppercase">{nombreCategoria}</p></div>
           </div>
-          <div className="mt-1 inline-flex w-fit px-2 py-1 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[7px] font-black uppercase">BIOMETRÍA OK</div>
+          <div className="mt-1">
+            <p className="text-[6px] font-black opacity-60 uppercase">CLUB</p>
+            <p className="text-[10px] font-black uppercase truncate leading-none">{jugadora.club_nombre || jugadora.equipos?.nombre || 'SIN CLUB'}</p>
+          </div>
+          <div className="mt-2 inline-flex w-fit px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 text-[7px] font-black uppercase text-emerald-400">BIOMETRÍA OK</div>
         </div>
       </div>
-    </>
+    </div>
   );
 
-  const contenidoDorso = (
-    <>
-      <div className="w-1/2 flex flex-col items-center">
-        <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center p-4">
-          {config?.logo_url && <img src={config.logo_url} crossOrigin="anonymous" className="max-w-full max-h-full object-contain opacity-70" alt="l" />}
+  const UI_DORSO = (
+    <div className="flex h-full w-full items-center justify-between p-4 z-10">
+      <div className="w-1/2 flex flex-col items-center justify-center border-r border-white/10">
+        <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center p-3">
+          {logoLigaB64 && <img src={logoLigaB64} className="max-w-full max-h-full object-contain opacity-80" alt="l" />}
         </div>
-        <p className="text-[6px] font-black uppercase mt-2 opacity-40 text-center leading-tight">DOCUMENTO OFICIAL<br/>INTRANSFERIBLE</p>
+        <p className="text-[7px] font-black uppercase mt-3 opacity-50 text-center">DOCUMENTO OFICIAL</p>
       </div>
-      <div className="w-1/2 flex flex-col items-center">
-        <div className="bg-white p-1.5 rounded-lg shadow-2xl"><QRCodeSVG value={urlValidacion} size={80} level={"H"} /></div>
-        <p className="text-[6px] font-black mt-2 opacity-60 uppercase">VERIFICACIÓN DIGITAL</p>
+      <div className="w-1/2 flex flex-col items-center justify-center">
+        <div className="bg-white p-1.5 rounded-lg shadow-2xl"><QRCodeSVG value={urlValidacion} size={85} level="H" /></div>
+        <p className="text-[7px] font-black mt-3 opacity-70 uppercase text-center">VERIFICACIÓN DIGITAL</p>
       </div>
-    </>
+    </div>
   );
 
   return (
     <div className="flex flex-col items-center gap-8">
       {esVistaPrevia ? (
         <>
-          {/* FRENTE */}
-          <div ref={frenteRef} style={cardStyle} className="rounded-xl p-3 shadow-2xl border border-white/10">
-            {contenidoFrente}
-          </div>
-          {/* DORSO */}
-          <div ref={dorsoRef} style={cardStyle} className="rounded-xl p-4 shadow-2xl border border-white/10 flex items-center justify-between">
-            {contenidoDorso}
-          </div>
-          {/* BOTÓN ABAJO DEL TODO */}
-          <button 
-            onClick={handleDescargarPDF}
-            className="text-white text-[11px] font-black py-4 px-12 rounded-2xl shadow-2xl uppercase transition-all bg-rose-600 hover:bg-rose-500 hover:scale-105 active:scale-95"
-          >
+          <div ref={frenteRef} style={cardStyle} className="rounded-xl shadow-2xl border border-white/10">{UI_FRENTE}</div>
+          <div ref={dorsoRef} style={cardStyle} className="rounded-xl shadow-2xl border border-white/10">{UI_DORSO}</div>
+          <button onClick={handleDescargarPDF} className="bg-rose-600 text-white font-black py-4 px-12 rounded-2xl shadow-2xl uppercase text-[11px] hover:bg-rose-500 transition-all">
             📥 Descargar Carnet PDF
           </button>
         </>
       ) : (
-        /* Modo Lona Masiva (SuperAdminDashboard) */
-        <div ref={mostrarDorso ? dorsoRef : frenteRef} style={cardStyle} className={`rounded-xl ${mostrarDorso ? 'p-4 flex items-center justify-between' : 'p-3'} shadow-2xl border border-white/10`}>
-          {mostrarDorso ? contenidoDorso : contenidoFrente}
+        <div ref={mostrarDorso ? dorsoRef : frenteRef} style={cardStyle} className="rounded-xl shadow-2xl border border-white/10">
+          {mostrarDorso ? UI_DORSO : UI_FRENTE}
         </div>
       )}
     </div>

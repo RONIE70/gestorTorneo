@@ -147,8 +147,6 @@ const SuperAdminDashboard = () => {
     }
   };
 
-  
-
   // --- FUNCIÓN DE DESCARGA CON ESPERA PARA QR ---
   const descargarLona1Metro = async (ref, nombreArchivo) => {
 
@@ -158,37 +156,38 @@ const SuperAdminDashboard = () => {
 
   try {
 
+    // esperar carga de fuentes
     await document.fonts.ready;
 
+    // esperar imágenes
     const images = Array.from(ref.current.querySelectorAll("img"));
 
     await Promise.all(
-      images.map(img =>
-        img.complete
-          ? Promise.resolve()
-          : new Promise(resolve => {
+          images.map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise(resolve => {
               img.onload = resolve;
               img.onerror = resolve;
-            })
-      )
-    );
+            });
+          })
+        );
 
-    await new Promise(resolve => requestAnimationFrame(resolve));
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // 1. ESPERA DE SEGURIDAD: Damos 2 segundos para que los escudos 
+      // y los QR se dibujen en el lienzo oculto antes de "sacar la foto".
+      await new Promise(resolve => setTimeout(resolve, 2000));    
 
     const canvas = await html2canvas(ref.current, {
-      scale: 2.5,
+      scale: 2,
       useCORS: true,
       allowTaint: true,
       backgroundColor: "#ffffff",
       imageTimeout: 0,
       logging: false,
-      foreignObjectRendering: true,
       windowWidth: ref.current.scrollWidth,
       windowHeight: ref.current.scrollHeight
     });
 
-    const imgData = canvas.toDataURL("image/png");
+    const imgData = canvas.toDataURL("image/png", 0.95);
 
     const pdf = new jsPDF({
       orientation: "l",
@@ -338,7 +337,7 @@ const SuperAdminDashboard = () => {
                 </div>
 
                 {/* LADO DORSO (QR) */}
-                <div style={{ width: '85.6mm', height: '54mm', marginLeft: '9.5mm' }}>
+                <div style={{ width: '85.6mm', height: '54mm', marginLeft: '10mm' }}>
                   <CarnetJugadora 
                     jugadora={{
                       ...jug, 

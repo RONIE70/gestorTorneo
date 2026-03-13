@@ -30,7 +30,6 @@ const SuperAdminDashboard = () => {
   const [clubesMap, setClubesMap] = useState({});
   const [configLiga, setConfigLiga] = useState(null);
   const lienzoJugadorasRef = useRef(null);
-  const [loteParaImprimir, setLoteParaImprimir] = useState([]);
 
   // --- CARGA INICIAL ---
   useEffect(() => {
@@ -151,46 +150,68 @@ const SuperAdminDashboard = () => {
   
 
   // --- FUNCIÓN DE DESCARGA CON ESPERA PARA QR ---
- 
   const descargarLona1Metro = async (ref, nombreArchivo) => {
-    if (!ref.current || jugadorasLiga.length === 0) return;
-    setGenerandoLona(true);
 
-    const JUGADORAS_POR_PLIEGO = 45;
-    
-    try {
-      for (let i = 0; i < jugadorasLiga.length; i += JUGADORAS_POR_PLIEGO) {
-        const lote = jugadorasLiga.slice(i, i + JUGADORAS_POR_PLIEGO);
-        const pliegoNum = Math.floor(i / JUGADORAS_POR_PLIEGO) + 1;
-        
-        setLoteParaImprimir(lote);
-        // Espera de 3 segundos para que todas las imágenes de Supabase carguen en el lienzo oculto
-        await new Promise(r => setTimeout(r, 3000)); 
+  if (!ref.current) return;
 
-        const canvas = await html2canvas(ref.current, {
-          scale: 2, // Nitidez HD sin agotar memoria
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          allowTaint: true,
-          foreignObjectRendering: true,
-          width: 3779, // 1000mm a 96dpi
-          height: 1890  // 500mm a 96dpi
-        });
+  setGenerandoLona(true);
 
-        const pdf = new jsPDF({ orientation: "l", unit: "mm", format: [1000, 500], compress: true });
-        // Usamos PNG para que el texto y los QR no se vean borrosos
-        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 1000, 500);
-        pdf.save(`${nombreArchivo}_PARTE_${pliegoNum}.pdf`);
-      }
-      alert("✅ Todos los pliegos (1000x500) han sido generados.");
-    } catch (e) { 
-      console.error(e); 
-      alert("Error en la descarga. Revisa la consola.");
-    } finally { 
-      setGenerandoLona(false); 
-      setLoteParaImprimir([]);
-    }
-  };
+  try {
+
+    await document.fonts.ready;
+
+    const images = Array.from(ref.current.querySelectorAll("img"));
+
+    await Promise.all(
+      images.map(img =>
+        img.complete
+          ? Promise.resolve()
+          : new Promise(resolve => {
+              img.onload = resolve;
+              img.onerror = resolve;
+            })
+      )
+    );
+
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    const canvas = await html2canvas(ref.current, {
+      scale: 2.5,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: "#ffffff",
+      imageTimeout: 0,
+      logging: false,
+      foreignObjectRendering: true,
+      windowWidth: ref.current.scrollWidth,
+      windowHeight: ref.current.scrollHeight
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+
+    const pdf = new jsPDF({
+      orientation: "l",
+      unit: "mm",
+      format: [1000, 500],
+      compress: true
+    });
+
+    pdf.addImage(imgData, "PNG", 0, 0, 1000, 500);
+
+    pdf.save(`${nombreArchivo}.pdf`);
+
+  } catch (error) {
+
+    console.error("Error generando PDF:", error);
+
+  } finally {
+
+    setGenerandoLona(false);
+
+  }
+
+};
 
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4 md:p-8 font-sans">
@@ -282,28 +303,52 @@ const SuperAdminDashboard = () => {
           </div>
         </div>
 
-        {/* --- LIENZO OCULTO DE ALTA PRECISIÓN (1000mm x 500mm) --- */}
+        {/* --- LIENZO OCULTO TÉCNICO --- */}
         <div style={{ position: 'absolute', left: '-9999px', top: '0', pointerEvents: 'none', background: 'white' }}>
           <div 
             ref={lienzoJugadorasRef} 
             style={{ 
-              width: '1000mm', height: '500mm', background: 'white', padding: '10mm',
-              display: 'grid', gridTemplateColumns: 'repeat(5, 185mm)', gridAutoRows: '54mm', gap: '5mm' 
+              width: '1000mm', 
+              height: '500mm', 
+              background: 'white', 
+              padding: '10mm',
+              display: 'grid',
+              // Definimos 5 pares (frente+dorso) por fila
+              gridTemplateColumns: 'repeat(5, 185mm)', 
+              gridAutoRows: '54mm',
+              gap: '5mm'
             }}
           >
-            {loteParaImprimir.map(jug => (
-              <div key={`pair-${jug.id}`} style={{ display: 'flex', gap: '2mm', alignItems: 'center' }}>
+            {jugadorasLiga.map(jug => (
+              <div key={`lona-${jug.id}`} style={{ display: 'flex'}}>
+                
+                {/* LADO FRENTE */}
                 <div style={{ width: '85.6mm', height: '54mm' }}>
                   <CarnetJugadora 
-                    jugadora={{...jug, club_nombre: clubesMap[jug.equipo_id]?.nombre, club_logo: clubesMap[jug.equipo_id]?.logo}} 
-                    config={configLiga} mostrarDorso={false} 
+                    jugadora={{
+                      ...jug, 
+                      equipos: { 
+                        nombre: clubesMap[jug.equipo_id]?.nombre, 
+                        logo_url: clubesMap[jug.equipo_id]?.logo 
+                      } 
+                    }} 
+                    config={configLiga}
+                    mostrarDorso={false} 
                   />
                 </div>
-                {/* DORSO AL LADO CON GAP DE 2MM */}
-                <div style={{ width: '85.6mm', height: '54mm' }}>
+
+                {/* LADO DORSO (QR) */}
+                <div style={{ width: '85.6mm', height: '54mm', marginLeft: '9.5mm' }}>
                   <CarnetJugadora 
-                    jugadora={{...jug, club_nombre: clubesMap[jug.equipo_id]?.nombre, club_logo: clubesMap[jug.equipo_id]?.logo}} 
-                    config={configLiga} mostrarDorso={true} 
+                    jugadora={{
+                      ...jug, 
+                      equipos: { 
+                        nombre: clubesMap[jug.equipo_id]?.nombre, 
+                        logo_url: clubesMap[jug.equipo_id]?.logo 
+                      } 
+                    }} 
+                    config={configLiga}
+                    mostrarDorso={true} 
                   />
                 </div>
               </div>

@@ -303,7 +303,7 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false }) => {
 export default CarnetJugadora;
 //////////////////////////////////////////////
 //import React, { useState, useEffect, useRef } from 'react';
-//import { supabase } from '../supabaseClient';
+import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';

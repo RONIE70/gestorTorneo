@@ -2,238 +2,300 @@ import React, { useRef, useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { QRCodeSVG } from 'qrcode.react';
-import { supabase } from '../supabaseClient'; // Asegúrate de que la ruta sea correcta
+import { supabase } from '../supabaseClient';
 
-// eslint-disable-next-line no-unused-vars
 const CarnetJugadora = ({ jugadora, config, mostrarDorso = false }) => {
-  const carnetRef = useRef();
-  const dorsoRef = useRef();
+
+  const carnetRef = useRef(null);
+  const dorsoRef = useRef(null);
   const [nombreCategoria, setNombreCategoria] = useState("");
 
-  const ID_LIGA_NENAS = "af190e5a-f84a-4fbf-8a82-1b04dbb72178";
-
-  // Colores definitivos
   const EstilosPactados = {
-    magenta: '#de1777', 
+    magenta: '#de1777',
     negro: '#000000',
     texto: '#ffffff'
   };
 
-  // --- LÓGICA DE CATEGORÍA DINÁMICA ---
   useEffect(() => {
+
     const calcularCategoriaSaaS = async () => {
+
       if (!jugadora?.fecha_nacimiento || !jugadora?.organizacion_id) {
         setNombreCategoria(jugadora?.categoria_actual || "S/D");
         return;
       }
 
       try {
-        // Consultamos la tabla de categorías para esta liga
-        const { data: categorias, error } = await supabase
+
+        const { data: categorias } = await supabase
           .from('categorias')
           .select('nombre, año_desde, año_hasta')
           .eq('organizacion_id', jugadora.organizacion_id);
 
-        if (!error && categorias) {
+        if (categorias) {
+
           const añoNac = new Date(jugadora.fecha_nacimiento).getFullYear();
-          
-          // Buscamos el match en la tabla
-          const catMatch = categorias.find(c => 
+
+          const catMatch = categorias.find(c =>
             añoNac >= c.año_desde && añoNac <= (c.año_hasta || añoNac)
           );
 
-          // Si hay match usamos el nombre de la tabla (ej: "3ra." o "2011-2012")
-          // Si no, dejamos lo que ya traía la jugadora
           setNombreCategoria(catMatch ? catMatch.nombre : (jugadora.categoria_actual || "S/D"));
         }
-      // eslint-disable-next-line no-unused-vars
-      } catch (e) {
+
+      } catch {
         setNombreCategoria(jugadora.categoria_actual || "S/D");
       }
+
     };
 
     calcularCategoriaSaaS();
+
   }, [jugadora]);
 
-  if (!jugadora) return <div className="text-slate-500 text-[10px]">Cargando datos...</div>;
+  if (!jugadora) return null;
 
   const urlBase = "https://gestor-torneo.vercel.app";
   const urlValidacion = `${urlBase}/#/verificar/${jugadora.dni}`;
 
+  const esperarImagenes = async (elemento) => {
+
+    await document.fonts.ready;
+
+    const imgs = elemento.querySelectorAll("img");
+
+    await Promise.all(
+      Array.from(imgs)
+        .filter(img => !img.complete)
+        .map(img =>
+          new Promise(resolve => {
+            img.onload = resolve;
+            img.onerror = resolve;
+          })
+        )
+    );
+
+  };
+
   const handleDescargarPDF = async () => {
+
     const pdf = new jsPDF('l', 'mm', [85.6, 54]);
-    const opcionesCanvas = { 
-      scale: 4, 
-      useCORS: true, 
-      backgroundColor: null,
-      logging: false, 
+
+    const opcionesCanvas = {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
       imageTimeout: 0,
-      onclone: (clonedDoc) => {
-        clonedDoc.querySelectorAll('.carnet-container-pdf').forEach(el => {
-          el.style.webkitPrintColorAdjust = 'exact';
-          el.style.width = '323px';  
-          el.style.height = '204px'; 
-          el.style.transform = 'scale(1)'; 
-          el.style.margin = '0';
-          el.style.padding = '12px'; 
-          const img = el.querySelector('.foto-perfil-pdf');
-          if (img) {
-            img.style.objectFit = 'cover';
-            img.style.width = '100%';
-            img.style.height = '85%';
-          }
-        });
-      }
+      logging: false
     };
 
+    await esperarImagenes(carnetRef.current);
+
     const canvasFrente = await html2canvas(carnetRef.current, opcionesCanvas);
+
     pdf.addImage(canvasFrente.toDataURL('image/png'), 'PNG', 0, 0, 85.6, 54);
 
     pdf.addPage([85.6, 54], 'l');
-    const canvasDorso = await html2canvas(dorsoRef.current || carnetRef.current, opcionesCanvas);
+
+    await esperarImagenes(dorsoRef.current);
+
+    const canvasDorso = await html2canvas(dorsoRef.current, opcionesCanvas);
+
     pdf.addImage(canvasDorso.toDataURL('image/png'), 'PNG', 0, 0, 85.6, 54);
 
     pdf.save(`Carnet_${jugadora.apellido}.pdf`);
+
   };
 
   const cardContainerStyle = {
-    width: '323px',  
-    height: '204px', 
+    width: '323px',
+    height: '204px',
     background: `linear-gradient(145deg, ${EstilosPactados.magenta} 0%, ${EstilosPactados.negro} 75%)`,
     color: EstilosPactados.texto,
     position: 'relative',
-    overflow: 'hidden',
-    WebkitPrintColorAdjust: 'exact',
-    printColorAdjust: 'exact'
+    overflow: 'hidden'
   };
 
   return (
+
     <div className="flex flex-col items-center mt-6 space-y-6">
+
       <div className="flex flex-col gap-6 scale-110">
-        
+
         {/* FRENTE */}
-        <div 
-          ref={carnetRef} 
-          style={cardContainerStyle} 
-          className="rounded-xl p-3 shadow-2xl relative overflow-hidden border border-white/10 flex flex-col justify-between carnet-container-pdf"
-        >
-          <span className="absolute -right-2 -bottom-2 text-[55px] font-black italic opacity-10 pointer-events-none whitespace-nowrap uppercase">
-            {config?.nombre_liga?.split(' ')[0] || 'LIGA'}
-          </span>
 
-          <div className="z-10 flex justify-between items-start">
-            <div>
-              <h2 className="text-2xl font-black italic uppercase tracking-tighter leading-none">
-                {config?.nombre_liga || 'LIGA DE LAS NENAS'}
-              </h2>
-              <p className="text-[6px] font-bold uppercase tracking-[0.3em] opacity-80">
-                TEMPORADA OFICIAL 2026
-              </p>
-            </div>
-            {(jugadora.club_escudo || jugadora.equipos?.escudo_url) && (
-              <img 
-                src={jugadora.club_escudo || jugadora.equipos?.escudo_url} 
-                className="h-10 w-12 object-contain" 
-                alt="club"
-                crossOrigin="anonymous" 
-              />
-            )}
-          </div>
+        {!mostrarDorso && (
 
-          <div className="flex gap-3 z-10 flex-1 mt-2">
-            <div 
-              className="w-[95px] h-[115px] bg-black/40 border-2 border-white/30 rounded-lg shadow-lg"
-              style={{
-                backgroundImage: `url(${jugadora.foto_url || 'https://placehold.co/150x200/000/FFF?text=FOTO'})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat'
-              }}
-            ></div>
-            
+          <div
+            ref={carnetRef}
+            style={cardContainerStyle}
+            className="rounded-xl p-3 shadow-2xl border border-white/10 flex flex-col justify-between"
+          >
 
-            <div className="flex-1 flex flex-col justify-between py-0.5">
-              <div className="space-y-1">
-                <h3 className="text-[15px] font-black uppercase leading-[1] tracking-tighter break-words">
-                  {jugadora.apellido} {jugadora.nombre}
-                </h3>
-                
-                <div className="flex gap-3">
-                  <div>
-                    <p className="text-[6px] font-black opacity-60 uppercase">D.N.I.</p>
-                    <p className="text-[11px] font-bold">{jugadora.dni}</p>
-                  </div>
-                  <div>
-                    <p className="text-[6px] font-black opacity-60 uppercase">CATEGORÍA</p>
-                    {/* CAMBIO AQUÍ: Usamos la categoría dinámica calculada de la tabla */}
-                    <p className="text-[11px] font-bold uppercase">{nombreCategoria}</p>
-                  </div>
-                </div>
+            <span className="absolute -right-2 -bottom-2 text-[55px] font-black italic opacity-10 uppercase">
+              {config?.nombre_liga?.split(' ')[0] || 'LIGA'}
+            </span>
 
-                <div>
-                  <p className="text-[6px] font-black opacity-60 uppercase">CLUB</p>
-                  <p className="text-[11px] font-bold truncate uppercase">{jugadora.equipos?.nombre || jugadora.club_nombre || 'SIN EQUIPO'}</p>
-                </div>
-              </div>
+            <div className="z-10 flex justify-between items-start">
 
-              <div className={`mt-1 inline-flex items-center px-2 py-1 rounded-md border ${
-                jugadora.verificacion_manual || (Number(jugadora.distancia_biometrica_oficial > 0.6))
-                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-500' 
-                  : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-              }`}>
-                <p className="text-[7px] font-black uppercase tracking-widest">
-                  {jugadora.verificacion_manual || (Number(jugadora.distancia_biometrica_oficial) > 0.6) 
-                    ? 'VERIFICACIÓN PENDIENTE' 
-                    : 'BIOMETRÍA OK'}
+              <div>
+
+                <h2 className="text-2xl font-black italic uppercase">
+                  {config?.nombre_liga || 'LIGA DE LAS NENAS'}
+                </h2>
+
+                <p className="text-[6px] font-bold uppercase tracking-[0.3em] opacity-80">
+                  TEMPORADA OFICIAL 2026
                 </p>
+
               </div>
+
+              {(jugadora.club_escudo || jugadora.equipos?.escudo_url) && (
+
+                <img
+                  src={jugadora.club_escudo || jugadora.equipos?.escudo_url}
+                  className="h-10 w-12 object-contain"
+                  alt="club"
+                  crossOrigin="anonymous"
+                />
+
+              )}
+
             </div>
+
+            <div className="flex gap-3 z-10 flex-1 mt-2">
+
+              <div
+                className="w-[95px] h-[115px] bg-black/40 border-2 border-white/30 rounded-lg"
+                style={{
+                  backgroundImage: `url(${jugadora.foto_url || 'https://placehold.co/150x200/000/FFF?text=FOTO'})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center'
+                }}
+              />
+
+              <div className="flex-1 flex flex-col justify-between py-0.5">
+
+                <div className="space-y-1">
+
+                  <h3 className="text-[15px] font-black uppercase">
+                    {jugadora.apellido} {jugadora.nombre}
+                  </h3>
+
+                  <div className="flex gap-3">
+
+                    <div>
+                      <p className="text-[6px] font-black opacity-60 uppercase">DNI</p>
+                      <p className="text-[11px] font-bold">{jugadora.dni}</p>
+                    </div>
+
+                    <div>
+                      <p className="text-[6px] font-black opacity-60 uppercase">CATEGORÍA</p>
+                      <p className="text-[11px] font-bold uppercase">{nombreCategoria}</p>
+                    </div>
+
+                  </div>
+
+                  <div>
+                    <p className="text-[6px] font-black opacity-60 uppercase">CLUB</p>
+                    <p className="text-[11px] font-bold uppercase">
+                      {jugadora.equipos?.nombre || jugadora.club_nombre || 'SIN EQUIPO'}
+                    </p>
+                  </div>
+
+                </div>
+
+                <div className={`mt-1 inline-flex px-2 py-1 rounded-md border ${
+                  jugadora.verificacion_manual || Number(jugadora.distancia_biometrica_oficial) > 0.6
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
+                    : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                }`}>
+
+                  <p className="text-[7px] font-black uppercase tracking-widest">
+                    {jugadora.verificacion_manual || Number(jugadora.distancia_biometrica_oficial) > 0.6
+                      ? 'VERIFICACIÓN PENDIENTE'
+                      : 'BIOMETRÍA OK'}
+                  </p>
+
+                </div>
+
+              </div>
+
+            </div>
+
           </div>
-        </div>
+
+        )}
 
         {/* DORSO */}
-        <div 
-          ref={dorsoRef} 
-          style={cardContainerStyle} 
-          className="rounded-xl p-4 shadow-2xl relative overflow-hidden border border-white/10 flex items-center justify-between carnet-container-pdf"
-        >
-           <div className="z-10 w-1/2 flex flex-col items-center">
-              <div className="w-36 h-32 rounded-full bg-white/10 border border-white/20 flex items-center justify-center p-4 backdrop-blur-sm overflow-hidden">
-                {config?.logo_url && (
-                  <img 
-                    src={config.logo_url} 
-                    className="w-full h-full object-contain opacity-80 mix-blend-multiply" 
-                    alt="Logo" 
-                    crossOrigin="anonymous"
-                    style={{ filter: 'contrast(120%)' }} 
-                  />
-                )}
-              </div>
-              <p className="text-[6px] font-black uppercase mt-4 opacity-40 text-center tracking-[0.2em] leading-tight">
-                DOCUMENTO OFICIAL<br/>INTRANSFERIBLE
-              </p>
-           </div>
 
-           <div className="z-10 w-1/2 flex flex-col items-center">
-              <div className="bg-white p-2 rounded-lg shadow-2xl">
-                  <QRCodeSVG value={urlValidacion} size={85} level={"H"} />
+        {mostrarDorso && (
+
+          <div
+            ref={dorsoRef}
+            style={cardContainerStyle}
+            className="rounded-xl p-4 shadow-2xl border border-white/10 flex items-center justify-between"
+          >
+
+            <div className="w-1/2 flex flex-col items-center">
+
+              <div className="w-36 h-32 rounded-full bg-white/10 flex items-center justify-center p-4">
+
+                {config?.logo_url && (
+
+                  <img
+                    src={config.logo_url}
+                    className="w-full h-full object-contain"
+                    alt="logo"
+                    crossOrigin="anonymous"
+                  />
+
+                )}
+
               </div>
-              <p className="text-[6px] font-black mt-2 opacity-60 uppercase tracking-widest">
+
+              <p className="text-[6px] font-black uppercase mt-4 opacity-40 text-center">
+                DOCUMENTO OFICIAL
+              </p>
+
+            </div>
+
+            <div className="w-1/2 flex flex-col items-center">
+
+              <div className="bg-white p-2 rounded-lg">
+
+                <QRCodeSVG value={urlValidacion} size={85} level="H" />
+
+              </div>
+
+              <p className="text-[6px] font-black mt-2 opacity-60 uppercase">
                 VERIFICACIÓN DIGITAL
               </p>
-           </div>
-        </div>
+
+            </div>
+
+          </div>
+
+        )}
+
       </div>
 
-      <button 
-        onClick={handleDescargarPDF} 
-        className="text-white text-[11px] font-black py-4 px-12 rounded-2xl shadow-2xl transition-all uppercase tracking-[0.3em] hover:scale-105 active:scale-95" 
-        style={{ backgroundColor: EstilosPactados.magenta }}
-      >
-        📥 Descargar Carnet PDF
-      </button>
+      {!mostrarDorso && (
+
+        <button
+          onClick={handleDescargarPDF}
+          className="text-white text-[11px] font-black py-4 px-12 rounded-2xl shadow-2xl uppercase"
+          style={{ backgroundColor: EstilosPactados.magenta }}
+        >
+          📥 Descargar Carnet PDF
+        </button>
+
+      )}
+
     </div>
+
   );
+
 };
 
 export default CarnetJugadora;

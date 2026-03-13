@@ -148,47 +148,61 @@ const SuperAdminDashboard = () => {
   };
 
   // --- FUNCIÓN DE DESCARGA CON ESPERA PARA QR ---
-  const descargarLona1Metro = async (ref, nombre) => {
-    if (!ref.current) return;
-    setGenerandoLona(true);
+  const descargarLona1Metro = async (ref, nombreArchivo) => {
 
-    // 1. Avisamos al sistema que espere a que los elementos se dibujen
-    console.log("Preparando motores de renderizado...");
-    
-    try {
-      const doc = new jsPDF({
-        orientation: 'p',
-        unit: 'mm',
-        format: [1000, 1000],
-        compress: true
-      });
+  if (!ref.current) return;
 
-      // 2. IMPORTANTE: Esperamos 1 segundo antes de capturar
-      // Esto asegura que los QR y las fotos en el lienzo oculto se "despierten"
-      await new Promise(resolve => setTimeout(resolve, 1000));
+  setGenerandoLona(true);
 
-      const canvas = await html2canvas(ref.current, {
-        scale: 2, // Mantenemos 2 para evitar la imagen rota de la foto que me enviaste
-        useCORS: true,
-        allowTaint: false,
-        backgroundColor: '#ffffff',
-        logging: true, // Esto te mostrará el progreso en la consola
-        width: 3779,
-        height: 3779
-      });
+  try {
 
-      const imgData = canvas.toDataURL('image/png', 1.0);
-      doc.addImage(imgData, 'PNG', 0, 0, 1000, 1000);
-      doc.save(`${nombre}_FINAL.pdf`);
-      
-      console.log("¡Lona generada con éxito!");
-    } catch (error) {
-      console.error("Error crítico en la lona:", error);
-      alert("Error al generar el PDF. Revisa la consola.");
-    } finally {
-      setGenerandoLona(false);
-    }
-  };
+    // esperar carga de fuentes
+    await document.fonts.ready;
+
+    // esperar imágenes
+    await Promise.all(
+      Array.from(ref.current.querySelectorAll("img"))
+        .filter(img => !img.complete)
+        .map(img => new Promise(res => {
+          img.onload = res;
+          img.onerror = res;
+        }))
+    );
+
+    const canvas = await html2canvas(ref.current, {
+      scale: 1,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: "#ffffff",
+      imageTimeout: 0,
+      logging: false,
+      windowWidth: ref.current.scrollWidth,
+      windowHeight: ref.current.scrollHeight
+    });
+
+    const imgData = canvas.toDataURL("image/jpeg", 0.95);
+
+    const pdf = new jsPDF({
+      orientation: "p",
+      unit: "mm",
+      format: [1000, 1000]
+    });
+
+    pdf.addImage(imgData, "JPEG", 0, 0, 1000, 1000);
+
+    pdf.save(`${nombreArchivo}.pdf`);
+
+  } catch (error) {
+
+    console.error("Error generando PDF:", error);
+
+  } finally {
+
+    setGenerandoLona(false);
+
+  }
+
+};
 
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4 md:p-8 font-sans">

@@ -26,8 +26,8 @@ const SuperAdminDashboard = () => {
   const [jugadorasLiga, setJugadorasLiga] = useState([]);
   const [clubesMap, setClubesMap] = useState({});
   const [configLiga, setConfigLiga] = useState(null);
-  const lienzoJugadorasRef = useRef(null);
   const [loteParaImprimir, setLoteParaImprimir] = useState([]);
+  const lienzoJugadorasRef = useRef(null);
 
   useEffect(() => {
     fetchPerfil();
@@ -36,24 +36,25 @@ const SuperAdminDashboard = () => {
   }, []);
 
   useEffect(() => {
-    if (perfil) {
+    if (perfil?.organizacion_id) {
       cargarDatosLienzo(perfil.organizacion_id);
     }
   }, [perfil]);
 
   const cargarDatosLienzo = async (orgId) => {
+    if (!orgId) return; // Evita el error 400 de Supabase
     try {
       const { data: jugs } = await supabase.from('jugadoras').select('*').eq('organizacion_id', orgId);
       setJugadorasLiga(jugs || []);
+      
       const { data: eqs } = await supabase.from('equipos').select('id, nombre, logo_url').eq('organizacion_id', orgId);
       const mapping = {};
       eqs?.forEach(e => mapping[e.id] = { nombre: e.nombre, logo: e.logo_url });
       setClubesMap(mapping);
-      if (orgId) {
-        const { data: conf } = await supabase.from('configuracion_liga').select('*').eq('organizacion_id', orgId).maybeSingle();
-        setConfigLiga(conf);
-      }
-    } catch (err) { console.error(err); }
+
+      const { data: conf } = await supabase.from('configuracion_liga').select('*').eq('organizacion_id', orgId).maybeSingle();
+      setConfigLiga(conf);
+    } catch (err) { console.error("Error carga:", err); }
   };
 
   const fetchPerfil = async () => {
@@ -94,13 +95,12 @@ const SuperAdminDashboard = () => {
     e.preventDefault(); setLoading(true);
     try {
       const { data: org } = await supabase.from('organizaciones').insert([{ nombre: nombreLiga, slug: nombreLiga.toLowerCase().replace(/ /g, '-') }]).select().single();
-      const { data: auth } = await supabase.auth.signUp({ email: emailAdmin, password: passwordAdmin, options: { data: { rol: 'admin_liga', organizacion_id: org.id } } });
+      const { data: auth } = await supabase.auth.signUp({ email: emailAdmin, password: passwordAdmin });
       await supabase.from('perfiles').insert([{ id: auth.user.id, email: emailAdmin, rol: 'admin_liga', organizacion_id: org.id }]);
-      setMensaje({ tipo: 'success', texto: 'Éxito' });
+      setMensaje({ tipo: 'success', texto: 'Liga instalada correctamente.' });
     } catch (err) { setMensaje({ tipo: 'error', texto: err.message }); } finally { setLoading(false); }
   };
 
-  // --- FUNCIÓN DE DESCARGA POR LOTES (1000x500) ---
   const descargarLona1Metro = async (ref, nombreArchivo) => {
     if (!ref.current || jugadorasLiga.length === 0) return;
     setGenerandoLona(true);
@@ -109,16 +109,10 @@ const SuperAdminDashboard = () => {
       for (let i = 0; i < jugadorasLiga.length; i += JUGADORAS_POR_PLIEGO) {
         const lote = jugadorasLiga.slice(i, i + JUGADORAS_POR_PLIEGO);
         setLoteParaImprimir(lote);
-        await new Promise(r => setTimeout(r, 4000)); // Espera para blindaje de imágenes
+        await new Promise(r => setTimeout(r, 4500)); // Tiempo para blindar fotos
         const canvas = await html2canvas(ref.current, {
-          scale: 1.8, 
-          useCORS: true, 
-          backgroundColor: "#ffffff",
-          allowTaint: true,
-          imageTimeout: 0,
-          logging: false,
-          width: 3779, 
-          height: 1890 // 1000mm x 500mm
+          scale: 2, useCORS: true, backgroundColor: "#ffffff",
+          width: 3779, height: 1890 // 1000mm x 500mm
         });
         const pdf = new jsPDF({ orientation: "l", unit: "mm", format: [1000, 500], compress: true });
         pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 1000, 500);
@@ -131,26 +125,24 @@ const SuperAdminDashboard = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4 md:p-8 font-sans">
       <div className="max-w-6xl mx-auto space-y-12">
-        
         <header className="flex justify-between items-center">
           <div>
             <h1 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter">Control <span className="text-rose-600">Maestro</span></h1>
-            <p className="text-slate-500 font-bold uppercase text-[10px] tracking-[0.3em] mt-2 italic">Gestionando: {configLiga?.nombre_liga || 'Liga NCS'}</p>
+            <p className="text-slate-500 font-bold uppercase text-[10px] mt-2 tracking-widest">Liga: {configLiga?.nombre_liga || 'Admin Global'}</p>
           </div>
           <button 
             disabled={generandoLona || jugadorasLiga.length === 0}
-            onClick={() => descargarLona1Metro(lienzoJugadorasRef, 'LONA_PRO')}
+            onClick={() => descargarLona1Metro(lienzoJugadorasRef, 'PLIEGO_PRO')}
             className="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-2xl text-[10px] font-black flex items-center gap-2 shadow-lg transition-all"
           >
             <PrinterIcon className="w-5 h-5" /> {generandoLona ? 'GENERANDO...' : 'IMPRIMIR PLIEGOS 1000x500'}
           </button>
         </header>
 
-        {/* KPIs GLOBALES */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2rem] shadow-xl text-center"><p className="text-slate-500 font-black text-[10px] uppercase">Ligas</p><h3 className="text-4xl font-black italic">{stats.ligas}</h3></div>
           <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2rem] shadow-xl border-b-emerald-500/50 text-center"><p className="text-emerald-500 font-black text-[10px] uppercase">Jugadoras</p><h3 className="text-4xl font-black italic text-emerald-500">{stats.jugadoras}</h3></div>
-          <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2rem] shadow-xl border-b-rose-500/50 text-center"><p className="text-rose-500 font-black text-[10px] uppercase">Alertas</p><h3 className="text-4xl font-black italic">{stats.alertas}</h3></div>
+          <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2rem] shadow-xl border-b-rose-500/50 text-center"><p className="text-rose-500 font-black text-[10px] uppercase">Alertas</p><h3 className={`text-4xl font-black italic ${stats.alertas > 0 ? 'text-rose-600 animate-pulse' : 'text-slate-700'}`}>{stats.alertas}</h3></div>
         </div>
 
         <section className="bg-slate-900/30 rounded-3xl border border-white/5 overflow-hidden shadow-2xl">
@@ -161,7 +153,6 @@ const SuperAdminDashboard = () => {
         </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* RANKING */}
           <div className="space-y-6">
             <h2 className="text-xl font-black uppercase italic flex items-center gap-3"><span className="w-8 h-[2px] bg-rose-600"></span> Últimas Ligas</h2>
             <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] overflow-hidden shadow-2xl">
@@ -185,7 +176,6 @@ const SuperAdminDashboard = () => {
             </div>
           </div>
 
-          {/* ALTA DE LIGA */}
           <div className="space-y-6">
             <h2 className="text-xl font-black uppercase italic flex items-center gap-3"><span className="w-8 h-[2px] bg-rose-600"></span> Nuevo Cliente</h2>
             <form onSubmit={crearNuevaLiga} className="bg-slate-900 p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl space-y-4">
@@ -200,11 +190,10 @@ const SuperAdminDashboard = () => {
           </div>
         </div>
 
-        {/* LIENZO OCULTO (1000mm x 500mm) */}
         <div style={{ position: 'absolute', left: '-9999px', top: '0', pointerEvents: 'none', background: 'white' }}>
-          <div ref={lienzoJugadorasRef} style={{ width: '1000mm', height: '500mm', background: 'white', padding: '10mm', display: 'grid', gridTemplateColumns: 'repeat(5, 185mm)', gridAutoRows: '54mm', gap: '5mm' }}>
+          <div ref={lienzoJugadorasRef} style={{ width: '1000mm', height: '500mm', background: 'white', padding: '10mm', display: 'grid', gridTemplateColumns: 'repeat(5, 185mm)', gridAutoRows: '58mm', gap: '5mm' }}>
             {loteParaImprimir.map(jug => (
-              <div key={`pair-${jug.id}`} style={{ display: 'flex', gap: '2mm', alignItems: 'center' }}>
+              <div key={`pair-${jug.id}`} style={{ display: 'flex', gap: '10mm', alignItems: 'center' }}>
                 <div style={{ width: '85.6mm', height: '54mm' }}>
                   <CarnetJugadora jugadora={{...jug, club_nombre: clubesMap[jug.equipo_id]?.nombre, club_logo: clubesMap[jug.equipo_id]?.logo}} config={configLiga} mostrarDorso={false} />
                 </div>
@@ -215,7 +204,6 @@ const SuperAdminDashboard = () => {
             ))}
           </div>
         </div>
-        
       </div>
     </div>
   );

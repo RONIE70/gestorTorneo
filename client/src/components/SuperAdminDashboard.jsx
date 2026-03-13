@@ -147,16 +147,14 @@ const SuperAdminDashboard = () => {
     }
   };
 
-  // --- FUNCIÓN DE DESCARGA (CORREGIDA PARA QUE RESPONDA) ---
+  // --- FUNCIÓN DE DESCARGA CON ESPERA PARA QR ---
   const descargarLona1Metro = async (ref, nombre) => {
-    if (!ref.current) {
-      alert("Error: El lienzo no está listo.");
-      return;
-    }
-    
+    if (!ref.current) return;
     setGenerandoLona(true);
-    console.log("Generando PDF de 1 metro... por favor espera.");
 
+    // 1. Avisamos al sistema que espere a que los elementos se dibujen
+    console.log("Preparando motores de renderizado...");
+    
     try {
       const doc = new jsPDF({
         orientation: 'p',
@@ -165,21 +163,28 @@ const SuperAdminDashboard = () => {
         compress: true
       });
 
+      // 2. IMPORTANTE: Esperamos 1 segundo antes de capturar
+      // Esto asegura que los QR y las fotos en el lienzo oculto se "despierten"
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       const canvas = await html2canvas(ref.current, {
-        scale: 2, // Escala 2 es suficiente para alta calidad y no cuelga el PC
+        scale: 2, // Mantenemos 2 para evitar la imagen rota de la foto que me enviaste
         useCORS: true,
+        allowTaint: false,
         backgroundColor: '#ffffff',
-        logging: false,
-        windowWidth: 3779,
-        windowHeight: 3779
+        logging: true, // Esto te mostrará el progreso en la consola
+        width: 3779,
+        height: 3779
       });
 
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/png', 1.0);
       doc.addImage(imgData, 'PNG', 0, 0, 1000, 1000);
-      doc.save(`${nombre}_SUBLIMACION.pdf`);
+      doc.save(`${nombre}_FINAL.pdf`);
+      
+      console.log("¡Lona generada con éxito!");
     } catch (error) {
-      console.error("Error en pliego:", error);
-      alert("Error al generar el pliego masivo.");
+      console.error("Error crítico en la lona:", error);
+      alert("Error al generar el PDF. Revisa la consola.");
     } finally {
       setGenerandoLona(false);
     }
@@ -275,27 +280,51 @@ const SuperAdminDashboard = () => {
           </div>
         </div>
 
-        {/* --- LIENZO OCULTO TÉCNICO (USA jugadorasLiga) --- */}
-        <div style={{ position: 'absolute', left: '-9999px', top: '0', pointerEvents: 'none' }}>
+        {/* --- LIENZO OCULTO TÉCNICO --- */}
+        <div style={{ position: 'absolute', left: '-9999px', top: '0', pointerEvents: 'none', background: 'white' }}>
           <div 
             ref={lienzoJugadorasRef} 
             style={{ 
-              width: '1000mm', height: '1000mm', background: 'white', padding: '10mm',
-              display: 'grid', gridTemplateColumns: 'repeat(5, 180mm)', gridAutoRows: '60mm', gap: '2mm'
+              width: '1000mm', 
+              height: '1000mm', 
+              background: 'white', 
+              padding: '10mm',
+              display: 'grid',
+              // Definimos 5 pares (frente+dorso) por fila
+              gridTemplateColumns: 'repeat(5, 185mm)', 
+              gridAutoRows: '60mm',
+              gap: '2mm'
             }}
           >
             {jugadorasLiga.map(jug => (
-              <div key={jug.id} style={{ display: 'flex', gap: '2mm', alignItems: 'center' }}>
-                <div style={{ width: '85.6mm', height: '54mm', overflow: 'hidden' }}>
+              <div key={`lona-${jug.id}`} style={{ display: 'flex', gap: '2mm', background: 'white' }}>
+                
+                {/* LADO FRENTE */}
+                <div style={{ width: '85.6mm', height: '54mm' }}>
                   <CarnetJugadora 
-                    jugadora={{...jug, equipos: { nombre: clubesMap[jug.equipo_id]?.nombre, logo_url: clubesMap[jug.equipo_id]?.logo }}} 
-                    config={configLiga} 
+                    jugadora={{
+                      ...jug, 
+                      equipos: { 
+                        nombre: clubesMap[jug.equipo_id]?.nombre, 
+                        logo_url: clubesMap[jug.equipo_id]?.logo 
+                      } 
+                    }} 
+                    config={configLiga}
+                    mostrarDorso={false} 
                   />
                 </div>
-                <div style={{ width: '85.6mm', height: '54mm', overflow: 'hidden' }}>
+
+                {/* LADO DORSO (QR) */}
+                <div style={{ width: '85.6mm', height: '54mm' }}>
                   <CarnetJugadora 
-                    jugadora={{...jug, equipos: { nombre: clubesMap[jug.equipo_id]?.nombre, logo_url: clubesMap[jug.equipo_id]?.logo }}} 
-                    config={configLiga} 
+                    jugadora={{
+                      ...jug, 
+                      equipos: { 
+                        nombre: clubesMap[jug.equipo_id]?.nombre, 
+                        logo_url: clubesMap[jug.equipo_id]?.logo 
+                      } 
+                    }} 
+                    config={configLiga}
                     mostrarDorso={true} 
                   />
                 </div>

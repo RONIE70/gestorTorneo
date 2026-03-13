@@ -4,10 +4,13 @@ import html2canvas from 'html2canvas';
 import { QRCodeSVG } from 'qrcode.react';
 import { supabase } from '../supabaseClient'; // Asegúrate de que la ruta sea correcta
 
-const CarnetJugadora = ({ jugadora, config }) => {
+// eslint-disable-next-line no-unused-vars
+const CarnetJugadora = ({ jugadora, config, mostrarDorso = false }) => {
   const carnetRef = useRef();
   const dorsoRef = useRef();
   const [nombreCategoria, setNombreCategoria] = useState("");
+
+  const ID_LIGA_NENAS = "af190e5a-f84a-4fbf-8a82-1b04dbb72178";
 
   // Colores definitivos
   const EstilosPactados = {
@@ -87,7 +90,7 @@ const CarnetJugadora = ({ jugadora, config }) => {
     pdf.addImage(canvasFrente.toDataURL('image/png'), 'PNG', 0, 0, 85.6, 54);
 
     pdf.addPage([85.6, 54], 'l');
-    const canvasDorso = await html2canvas(dorsoRef.current, opcionesCanvas);
+    const canvasDorso = await html2canvas(dorsoRef.current || carnetRef.current, opcionesCanvas);
     pdf.addImage(canvasDorso.toDataURL('image/png'), 'PNG', 0, 0, 85.6, 54);
 
     pdf.save(`Carnet_${jugadora.apellido}.pdf`);
@@ -179,7 +182,7 @@ const CarnetJugadora = ({ jugadora, config }) => {
                   : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
               }`}>
                 <p className="text-[7px] font-black uppercase tracking-widest">
-                  {jugadora.verificacion_manual || (jugadora.distancia_biometrica_oficial > 0.6) 
+                  {jugadora.verificacion_manual || (Number(jugadora.distancia_biometrica_oficial) > 0.6) 
                     ? 'VERIFICACIÓN PENDIENTE' 
                     : 'BIOMETRÍA OK'}
                 </p>

@@ -957,7 +957,7 @@ const toggleSeleccionarTodas = () => {
     <span className="text-[10px] font-black uppercase text-slate-400 group-hover:text-white tracking-widest">
       {seleccionadas.length === plantel.filter(j => !j.estaSuspendida).length 
         ? 'Desmarcar todas' 
-        : 'Seleccionar todo el plantel habilitado'}
+        : 'Citar a todas'}
     </span>
   </div>
 )}

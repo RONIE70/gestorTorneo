@@ -156,28 +156,25 @@ const SuperAdminDashboard = () => {
 
   try {
 
-    // esperar carga de fuentes
     await document.fonts.ready;
 
-    // esperar imágenes
     const images = Array.from(ref.current.querySelectorAll("img"));
 
     await Promise.all(
-          images.map(img => {
-            if (img.complete) return Promise.resolve();
-            return new Promise(resolve => {
+      images.map(img =>
+        img.complete
+          ? Promise.resolve()
+          : new Promise(resolve => {
               img.onload = resolve;
               img.onerror = resolve;
-            });
-          })
-        );
+            })
+      )
+    );
 
-    // 1. ESPERA DE SEGURIDAD: Damos 2 segundos para que los escudos 
-      // y los QR se dibujen en el lienzo oculto antes de "sacar la foto".
-      await new Promise(resolve => setTimeout(resolve, 2000));    
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     const canvas = await html2canvas(ref.current, {
-      scale: 3,
+      scale: 2.5,
       useCORS: true,
       allowTaint: true,
       backgroundColor: "#ffffff",
@@ -187,7 +184,7 @@ const SuperAdminDashboard = () => {
       windowHeight: ref.current.scrollHeight
     });
 
-    const imgData = canvas.toDataURL("image/png", 0.95);
+    const imgData = canvas.toDataURL("image/png");
 
     const pdf = new jsPDF({
       orientation: "l",
@@ -196,7 +193,7 @@ const SuperAdminDashboard = () => {
       compress: true
     });
 
-    pdf.addImage(imgData, "JPEG", 0, 0, 1000, 500);
+    pdf.addImage(imgData, "PNG", 0, 0, 1000, 500);
 
     pdf.save(`${nombreArchivo}.pdf`);
 

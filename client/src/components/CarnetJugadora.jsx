@@ -82,8 +82,9 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false }) => {
     const pdf = new jsPDF('l', 'mm', [85.6, 54]);
 
     const opcionesCanvas = {
-      scale: 3,
+      scale: 2.5,
       useCORS: true,
+      allowTaint: true,
       backgroundColor: '#ffffff',
       imageTimeout: 0,
       logging: false
@@ -247,8 +248,8 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false }) => {
                     src={config.logo_url}
                     crossOrigin="anonymous"
                     className="w-full h-full object-contain"
-                    alt="logo" 
-                  />
+                    alt="logo"
+                    />
 
                 )}
 

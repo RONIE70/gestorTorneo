@@ -82,7 +82,7 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false }) => {
     const pdf = new jsPDF('l', 'mm', [85.6, 54]);
 
     const opcionesCanvas = {
-      scale: 2,
+      scale: 3,
       useCORS: true,
       backgroundColor: '#ffffff',
       imageTimeout: 0,
@@ -150,10 +150,10 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false }) => {
 
               </div>
 
-              {(jugadora.club_escudo || jugadora.equipos?.escudo_url) && (
+              {(jugadora.club_escudo || jugadora.equipos?.logo_url || jugadora.equipos?.escudo_url) && (
 
                 <img
-                  src={jugadora.club_escudo || jugadora.equipos?.escudo_url}
+                  src={jugadora.club_escudo || jugadora.equipos?.logo_url || jugadora.equipos?.escudo_url}
                   crossOrigin="anonymous"
                   className="h-10 w-12 object-contain"
                   alt="club"

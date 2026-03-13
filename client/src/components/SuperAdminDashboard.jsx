@@ -190,13 +190,13 @@ const SuperAdminDashboard = () => {
     const imgData = canvas.toDataURL("image/png", 0.95);
 
     const pdf = new jsPDF({
-      orientation: "p",
+      orientation: "l",
       unit: "mm",
-      format: [1000, 1000],
+      format: [1000, 500],
       compress: true
     });
 
-    pdf.addImage(imgData, "JPEG", 0, 0, 1000, 1000);
+    pdf.addImage(imgData, "JPEG", 0, 0, 1000, 500);
 
     pdf.save(`${nombreArchivo}.pdf`);
 
@@ -308,18 +308,18 @@ const SuperAdminDashboard = () => {
             ref={lienzoJugadorasRef} 
             style={{ 
               width: '1000mm', 
-              height: '1000mm', 
+              height: '500mm', 
               background: 'white', 
               padding: '10mm',
               display: 'grid',
               // Definimos 5 pares (frente+dorso) por fila
               gridTemplateColumns: 'repeat(5, 173.2mm)', 
-              gridAutoRows: '60mm',
+              gridAutoRows: '54mm',
               gap: '5mm'
             }}
           >
             {jugadorasLiga.map(jug => (
-              <div key={`lona-${jug.id}`} style={{ display: 'flex', background: 'white' }}>
+              <div key={`lona-${jug.id}`} style={{ display: 'flex'}}>
                 
                 {/* LADO FRENTE */}
                 <div style={{ width: '85.6mm', height: '54mm' }}>

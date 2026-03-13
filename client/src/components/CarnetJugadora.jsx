@@ -154,9 +154,9 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false }) => {
 
                 <img
                   src={jugadora.club_escudo || jugadora.equipos?.escudo_url}
+                  crossOrigin="anonymous"
                   className="h-10 w-12 object-contain"
                   alt="club"
-                  crossOrigin="anonymous"
                 />
 
               )}
@@ -245,9 +245,9 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false }) => {
 
                   <img
                     src={config.logo_url}
-                    className="w-full h-full object-contain"
-                    alt="logo"
                     crossOrigin="anonymous"
+                    className="w-full h-full object-contain"
+                    alt="logo" 
                   />
 
                 )}

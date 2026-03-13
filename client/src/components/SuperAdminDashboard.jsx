@@ -160,17 +160,24 @@ const SuperAdminDashboard = () => {
     await document.fonts.ready;
 
     // esperar imágenes
+    const images = Array.from(ref.current.querySelectorAll("img"));
+
     await Promise.all(
-      Array.from(ref.current.querySelectorAll("img"))
-        .filter(img => !img.complete)
-        .map(img => new Promise(res => {
-          img.onload = res;
-          img.onerror = res;
-        }))
-    );
+          images.map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise(resolve => {
+              img.onload = resolve;
+              img.onerror = resolve;
+            });
+          })
+        );
+
+    // 1. ESPERA DE SEGURIDAD: Damos 2 segundos para que los escudos 
+      // y los QR se dibujen en el lienzo oculto antes de "sacar la foto".
+      await new Promise(resolve => setTimeout(resolve, 2000));    
 
     const canvas = await html2canvas(ref.current, {
-      scale: 1,
+      scale: 3,
       useCORS: true,
       allowTaint: true,
       backgroundColor: "#ffffff",
@@ -180,12 +187,13 @@ const SuperAdminDashboard = () => {
       windowHeight: ref.current.scrollHeight
     });
 
-    const imgData = canvas.toDataURL("image/jpeg", 0.95);
+    const imgData = canvas.toDataURL("image/png", 0.95);
 
     const pdf = new jsPDF({
       orientation: "p",
       unit: "mm",
-      format: [1000, 1000]
+      format: [1000, 1000],
+      compress: true
     });
 
     pdf.addImage(imgData, "JPEG", 0, 0, 1000, 1000);
@@ -305,13 +313,13 @@ const SuperAdminDashboard = () => {
               padding: '10mm',
               display: 'grid',
               // Definimos 5 pares (frente+dorso) por fila
-              gridTemplateColumns: 'repeat(5, 185mm)', 
+              gridTemplateColumns: 'repeat(5, 173.2mm)', 
               gridAutoRows: '60mm',
-              gap: '2mm'
+              gap: '5mm'
             }}
           >
             {jugadorasLiga.map(jug => (
-              <div key={`lona-${jug.id}`} style={{ display: 'flex', gap: '2mm', background: 'white' }}>
+              <div key={`lona-${jug.id}`} style={{ display: 'flex', background: 'white' }}>
                 
                 {/* LADO FRENTE */}
                 <div style={{ width: '85.6mm', height: '54mm' }}>
@@ -329,7 +337,7 @@ const SuperAdminDashboard = () => {
                 </div>
 
                 {/* LADO DORSO (QR) */}
-                <div style={{ width: '85.6mm', height: '54mm' }}>
+                <div style={{ width: '85.6mm', height: '54mm', marginLeft: '2mm' }}>
                   <CarnetJugadora 
                     jugadora={{
                       ...jug, 

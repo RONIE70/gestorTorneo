@@ -218,7 +218,7 @@ const GestionDelegados = ({ clubData, configLiga }) => {
           club_id: parseInt(idClub),
           categoria: "DELEGADO",
           rol: "delegado",
-          organizacion_id: configLiga?.organizacion_id // Vinculación automática a la liga
+          //organizacion_id: configLiga?.organizacion_id // Vinculación automática a la liga
         }])
         .select()
         .single();

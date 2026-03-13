@@ -174,7 +174,7 @@ const CarnetJugadora = ({ jugadora, config }) => {
               </div>
 
               <div className={`mt-1 inline-flex items-center px-2 py-1 rounded-md border ${
-                jugadora.verificacion_manual || (jugadora.distancia_biometrica_oficial > 0.6)
+                jugadora.verificacion_manual || (Number(jugadora.distancia_biometrica_oficial > 0.6))
                   ? 'bg-amber-500/10 border-amber-500/30 text-amber-500' 
                   : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
               }`}>

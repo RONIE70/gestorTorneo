@@ -11,7 +11,7 @@ const VerificacionJugadoras = () => {
       const { data, error } = await supabase
         .from('jugadoras')
         .select('*, equipo:equipos(nombre)')
-        .or('verificacion_manual.eq.true,distancia_biometrica.gt.0.6')
+        .or('verificacion_manual.eq.true,distancia_biometrica_oficial.gt.0.6')
         .order('id', { ascending: false });
 
       if (error) throw error;
@@ -35,7 +35,7 @@ const VerificacionJugadoras = () => {
       .from('jugadoras')
       .update({ 
         verificacion_manual: false, 
-        distancia_biometrica: 0.1 
+        distancia_biometrica_oficial: 0.1 
       })
       .eq('id', id);
 
@@ -100,8 +100,8 @@ const VerificacionJugadoras = () => {
                   {/* Biometría */}
                   <div className="bg-slate-800 p-4 rounded-2xl border border-white/5">
                     <p className="text-[8px] text-slate-500 uppercase font-black">Distancia Biométrica</p>
-                    <p className={`text-xl font-black ${j.distancia_biometrica > 0.6 ? 'text-rose-500' : 'text-emerald-500'}`}>
-                      {(j.distancia_biometrica * 100).toFixed(1)}%
+                    <p className={`text-xl font-black ${j.distancia_biometrica_oficial > 0.6 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                      {(j.distancia_biometrica_oficial * 100).toFixed(1)}%
                     </p>
                   </div>
 

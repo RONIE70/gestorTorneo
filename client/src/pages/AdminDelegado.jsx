@@ -818,6 +818,20 @@ const verificarDniDuplicado = async (dni) => {
     if (!error) { setEditandoId(null); fetchData(); }
   };
 
+  // --- NUEVA FUNCIÓN PARA SELECCIONAR TODAS ---
+const toggleSeleccionarTodas = () => {
+  // Filtramos solo las jugadoras que NO están suspendidas
+  const jugadorasHabilitadas = plantel.filter(j => !j.estaSuspendida).map(j => j.id);
+
+  // Si ya están todas seleccionadas, las desmarcamos (limpiamos el array)
+  if (seleccionadas.length === jugadorasHabilitadas.length) {
+    setSeleccionadas([]);
+  } else {
+    // Si no, metemos todos los IDs habilitados de una vez
+    setSeleccionadas(jugadorasHabilitadas);
+  }
+};
+
   return (
     <div className="p-6 bg-slate-950 min-h-screen text-white font-sans">
       <header className="mb-8 border-b border-slate-800 pb-4 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -925,6 +939,28 @@ const verificarDniDuplicado = async (dni) => {
  <div className="lg:col-span-1 space-y-6">
   <div className="bg-slate-900 p-6 rounded-[2.5rem] border border-slate-800 shadow-2xl h-full relative overflow-hidden">
     <h2 className="text-xs font-black uppercase mb-6 text-emerald-500 flex items-center justify-between">
+      {/* NUEVO: BOTÓN / CHECKBOX SELECCIONAR TODAS */}
+{!cargandoPlantel && plantel.length > 0 && (
+  <div 
+    onClick={toggleSeleccionarTodas}
+    className="mb-4 flex items-center gap-3 bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 cursor-pointer hover:bg-slate-800 transition-all group"
+  >
+    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+      seleccionadas.length === plantel.filter(j => !j.estaSuspendida).length && plantel.length > 0
+        ? 'bg-emerald-500 border-emerald-500' 
+        : 'border-slate-600 group-hover:border-emerald-500'
+    }`}>
+      {seleccionadas.length === plantel.filter(j => !j.estaSuspendida).length && (
+        <span className="text-[10px] text-white">✓</span>
+      )}
+    </div>
+    <span className="text-[10px] font-black uppercase text-slate-400 group-hover:text-white tracking-widest">
+      {seleccionadas.length === plantel.filter(j => !j.estaSuspendida).length 
+        ? 'Desmarcar todas' 
+        : 'Seleccionar todo el plantel habilitado'}
+    </span>
+  </div>
+)}
       <div className="flex items-center gap-2">
         <span className="w-6 h-6 bg-emerald-600/20 rounded-full flex items-center justify-center text-[10px]">2</span>
         Citación de Jugadoras

@@ -99,34 +99,54 @@ const GestionFichajesAdmin = ({ perfil }) => {
         </div>
       </div>
 
-{/* VISTA PREVIA Y DESCARGA */}
-<div className="lg:col-span-2 p-8 flex flex-col items-center justify-center bg-black/40">
-  {seleccionada ? (
-    <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center">
-      <CarnetJugadora 
-        jugadora={{
-          ...seleccionada,
-          // Forzamos el nombre y el escudo desde la relación 'equipos' de Supabase
-          club_nombre: seleccionada.equipos?.nombre || seleccionada.club_nombre,
-          club_escudo: seleccionada.equipos?.escudo_url || seleccionada.club_escudo 
-        }} 
-        config={{
-          nombre_liga: seleccionada.organizaciones?.nombre,
-          logo_url: seleccionada.organizaciones?.logo_url || perfil.logo_url 
-        }} 
-      />
-      
-      <div className="mt-8 p-4 bg-white/5 rounded-2xl border border-white/10 text-center max-w-sm">
-        <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest leading-relaxed">
-          Listo para el lienzo de 1 mt².<br/>
-          Medida final: 8.5 cm x 5.5 cm
-        </p>
-      </div>
-    </div>
-  ) : (
-          <div className="text-center space-y-4 opacity-30">
-            <div className="text-5xl">📇</div>
-            <p className="text-xs font-black uppercase tracking-[0.3em]">Selecciona una jugadora<br/>para ver su carnet</p>
+{/* VISTA PREVIA DOBLE (FRENTE Y DORSO) */}
+      <div className="lg:col-span-2 p-8 flex flex-col items-center bg-black/40 overflow-y-auto max-h-[650px]">
+        {seleccionada ? (
+          <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center space-y-8">
+            
+            <div className="space-y-2 text-center">
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Vista Previa: Frente</p>
+              <CarnetJugadora 
+                jugadora={{
+                  ...seleccionada,
+                  // Sincronizamos nombres de campos para que el carnet no se pierda
+                  club_nombre: seleccionada.equipos?.nombre || seleccionada.club_nombre,
+                  club_escudo: seleccionada.equipos?.logo_url || seleccionada.equipos?.escudo_url || seleccionada.club_escudo 
+                }} 
+                config={{
+                  nombre_liga: seleccionada.organizaciones?.nombre,
+                  logo_url: seleccionada.organizaciones?.logo_url || perfil.logo_url 
+                }}
+                mostrarDorso={false} 
+              />
+            </div>
+
+            <div className="space-y-2 text-center">
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Vista Previa: Dorso</p>
+              <CarnetJugadora 
+                jugadora={{
+                  ...seleccionada,
+                  club_nombre: seleccionada.equipos?.nombre || seleccionada.club_nombre,
+                  club_escudo: seleccionada.equipos?.logo_url || seleccionada.equipos?.escudo_url || seleccionada.club_escudo 
+                }} 
+                config={{
+                  nombre_liga: seleccionada.organizaciones?.nombre,
+                  logo_url: seleccionada.organizaciones?.logo_url || perfil.logo_url 
+                }}
+                mostrarDorso={true} 
+              />
+            </div>
+
+            <div className="mt-4 p-4 bg-rose-500/5 rounded-2xl border border-rose-500/10 text-center max-w-sm">
+              <p className="text-[9px] text-rose-500 uppercase font-black tracking-widest leading-relaxed">
+                Verificá que el escudo y la foto carguen correctamente antes de imprimir la lona masiva.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-20">
+            <div className="text-6xl">🎴</div>
+            <p className="text-xs font-black uppercase tracking-[0.3em]">Seleccioná una jugadora<br/>para previsualizar ambos lados</p>
           </div>
         )}
       </div>

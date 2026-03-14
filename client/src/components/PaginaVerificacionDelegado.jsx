@@ -12,25 +12,27 @@ const PaginaVerificacionDelegado = () => {
   useEffect(() => {
     const verificar = async () => {
       try {
-        // Consultamos a la ruta de verificación que agregamos al Backend
+        console.log("Verificando DNI:", dni); // DEBUG
         const API_URL = "https://gestor-torneo-api.vercel.app";
         const res = await axios.get(`${API_URL}/api/verificar/delegado/${dni}`);
-      // Si el servidor nos devuelve datos, significa que existe y es válido
-      if (res.data && res.data.habilitado === true) {
-        setDatos(res.data.datos);
-      } else {
-        setError(true);
-      }
-    // eslint-disable-next-line no-unused-vars
-    } catch (err) {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-  if (dni) verificar();
-}, [dni]);
+        
+        console.log("Respuesta del servidor:", res.data); // DEBUG
 
+        if (res.data && res.data.habilitado === true) {
+          setDatos(res.data.datos);
+        } else {
+          setError(true);
+        }
+      } catch (err) {
+        console.error("Error en la petición:", err.response?.data || err.message); // DEBUG
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (dni) verificar();
+  }, [dni]);
+  
   if (loading) return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white">
       <div className="w-12 h-12 border-4 border-[#e10098] border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -87,7 +89,7 @@ const PaginaVerificacionDelegado = () => {
       </div>
 
       <p className="mt-auto mb-10 text-slate-600 text-[9px] font-black uppercase tracking-[0.2em] text-center">
-        Sistema de Gestión Deportiva <br /> Acreditación Digital NC-S1125
+        Sistema de Gestión Deportiva <br /> Acreditación Digital
       </p>
     </div>
   );

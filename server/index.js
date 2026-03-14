@@ -204,6 +204,38 @@ app.get('/api/delegados/:clubId', async (req, res) => {
   }
 });
 
+// Ruta para verificar Delegados por DNI
+app.get('/api/verificar/delegado/:dni', async (req, res) => {
+  const { dni } = req.params;
+
+  try {
+    const { data, error } = await supabase
+      .from('delegados')
+      .select(`
+        *,
+        equipos (
+          nombre,
+          escudo_url
+        )
+      `)
+      .eq('dni', dni)
+      .single(); // Traemos solo uno
+
+    if (error || !data) {
+      return res.status(404).json({ habilitado: false, mensaje: "Delegado no encontrado" });
+    }
+
+    // Si existe, respondemos con éxito
+    res.json({
+      habilitado: true,
+      datos: data
+    });
+
+  } catch (err) {
+    res.status(500).json({ habilitado: false, error: err.message });
+  }
+});
+
 
 
 // --- RUTA APROBAR MANUAL ---
@@ -222,3 +254,4 @@ const PORT = 5000;
 app.listen(PORT, () => console.log(`🚀 Servidor nc-s1125 INTELIGENTE en puerto ${PORT}`));
 
 module.exports = app;
+

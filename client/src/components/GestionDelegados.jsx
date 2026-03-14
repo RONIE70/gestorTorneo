@@ -29,15 +29,22 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
     }
   };
 
+  const cardStyle = {
+    width: '66.8mm',
+    height: '86.9mm',
+    backgroundColor: '#000000',
+    position: 'relative',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    border: '4px solid #e10098',
+    borderRadius: '20px'
+  };
+
   return (
     <div className="flex flex-col items-center gap-4">
-      <div 
-        ref={carnetRef}
-        className="w-[66.8mm] h-[86.9mm] bg-black border-[4px] border-[#e10098] rounded-[20px] overflow-hidden shadow-2xl relative flex flex-col items-center"
-        style={{ minWidth: '66.8mm', minHeight: '86.9mm', maxWidth: '66.8mm', maxHeight: '86.9mm', 
-          backgroundColor: '#000000' // Forzado para el canvas
-        }}
-      >
+      <div ref={carnetRef} style={cardStyle} className="shadow-2xl">
         <div className="w-full bg-[#e10098] py-1.5 text-center shadow-md z-20">
           <span className="text-black font-black tracking-[0.1em] text-[10px] uppercase">
             {configLiga?.nombre_liga || "Liga de las Nenas"}
@@ -47,7 +54,7 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
         <div className="mt-1 z-20">
           <span className="text-white text-[10px] font-black uppercase tracking-[0.25em]">DELEGADO HABILITADO</span>
         </div>
-
+        {/* Foto */}
         <div className="mt-2 w-28 h-32 rounded-full border-[3px] border-[#e10098] overflow-hidden bg-slate-900 shadow-lg z-20 flex items-center justify-center">
           <img 
             src={data.foto_url} 
@@ -56,7 +63,7 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
             alt="Foto" 
           />
         </div>
-
+        
         <div className="mt-1 text-center px-2 w-full z-20">
           <h4 className="text-white text-[16px] font-black uppercase tracking-tighter leading-none">
             {data.nombre_completo || data.nombre}
@@ -64,52 +71,38 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
           <p className="text-[#e10098] font-black text-[13px] mt-0.5 tracking-widest">{data.dni}</p>
         </div>
 
-        <div className="mt-auto mb-5 bg-white p-1 rounded-lg shadow-xl z-20">
-          <img 
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlVerificacion)}`} 
-            className="w-12 h-12" 
-            alt="QR" 
+        {/* QR GENERADO LOCALMENTE (Más seguro para PDF y escaneo) */}
+        <div className="mt-auto mb-6 bg-white p-1.5 rounded-xl shadow-xl z-20">
+          <QRCodeSVG 
+            value={urlVerificacion} 
+            size={55} 
+            level="H" 
+            includeMargin={false}
           />
         </div>
 
-        <div className="absolute bottom-1.5 z-20">
+        <div className="absolute bottom-1.5 z-20 text-center">
           <span className="text-[#e10098] text-[6px] font-black uppercase tracking-[0.4em] opacity-90">ACREDITACION OFICIAL</span>
         </div>
 
-        {/* MARCAS DE AGUA LATERALES */}
+        {/* --- MARCAS DE AGUA LATERALES (COMPATIBLES CON PDF) --- */}
+        
         {/* LADO IZQUIERDO */}
-        <div 
-          className="absolute left-1 top-0 bottom-0 flex items-center justify-center pointer-events-none opacity-20"
-          style={{ width: '20px' }}
-        >
-          <span 
-            className="text-white text-[18px] font-black uppercase whitespace-nowrap tracking-tighter"
-            style={{ 
-              writingMode: 'vertical-rl', 
-              transform: 'rotate(180deg)',
-              display: 'inline-block'
-            }}
-          >
+        <div className="absolute left-[-25px] top-1/2 -translate-y-1/2 -rotate-90 origin-center pointer-events-none opacity-20 w-[300px] text-center">
+          <span className="text-white text-[20px] font-black uppercase whitespace-nowrap tracking-tighter">
             {configLiga?.nombre_liga || "LIGA OFICIAL"}
           </span>
         </div>
 
         {/* LADO DERECHO */}
-        <div 
-          className="absolute right-1 top-0 bottom-0 flex items-center justify-center pointer-events-none opacity-20"
-          style={{ width: '20px' }}
-        >
-          <span 
-            className="text-white text-[18px] font-black uppercase whitespace-nowrap tracking-tighter"
-            style={{ 
-              writingMode: 'vertical-rl',
-              display: 'inline-block'
-            }}
-          >
-            {clubNombre || "CLUB"}
+        <div className="absolute right-[-25px] top-1/2 -translate-y-1/2 rotate-90 origin-center pointer-events-none opacity-20 w-[300px] text-center">
+          <span className="text-white text-[20px] font-black uppercase whitespace-nowrap tracking-tighter">
+            {clubNombre || "CLUB OFICIAL"}
           </span>
         </div>
+
       </div>
+      
       {!soloDiseño && (
         <button onClick={descargarCarnet} className="bg-slate-800 hover:bg-[#e10098] text-white hover:text-black px-4 py-2 rounded-xl text-[10px] font-black transition-all border border-slate-700 uppercase">
           <ArrowDownTrayIcon className="w-4 h-4 inline mr-2" />

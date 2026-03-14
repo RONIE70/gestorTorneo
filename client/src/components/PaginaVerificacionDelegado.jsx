@@ -32,7 +32,7 @@ const PaginaVerificacionDelegado = () => {
     };
     if (dni) verificar();
   }, [dni]);
-  
+
   if (loading) return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white">
       <div className="w-12 h-12 border-4 border-[#e10098] border-t-transparent rounded-full animate-spin mb-4"></div>

@@ -209,17 +209,18 @@ app.get('/api/verificar/delegado/:dni', async (req, res) => {
   const { dni } = req.params;
 
   try {
-    const { data, error } = await supabase
-      .from('delegados')
-      .select(`
-        *,
-        equipos (
-          nombre,
-          escudo_url
-        )
-      `)
-      .eq('dni', dni)
-      .single(); // Traemos solo uno
+    // Usando el nombre de la columna de la FK para evitar errores
+const { data, error } = await supabase
+  .from('delegados')
+  .select(`
+    *,
+    equipos:club_id (
+      nombre,
+      escudo_url
+    )
+  `)
+  .eq('dni', dni)
+  .single();
 
     if (error || !data) {
       return res.status(404).json({ habilitado: false, mensaje: "Delegado no encontrado" });

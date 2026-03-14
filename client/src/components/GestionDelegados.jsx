@@ -5,6 +5,7 @@ import { UserPlusIcon, ArrowDownTrayIcon, PrinterIcon } from '@heroicons/react/2
 import html2canvas from 'html2canvas';
 import { supabase } from '../supabaseClient';
 import jsPDF from 'jspdf';
+import { QRCodeSVG } from 'qrcode.react';
 
 // 1. COMPONENTE DEL CARNET (Recibe configLiga como prop)
 export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, configLiga }) => {
@@ -102,7 +103,7 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
         </div>
 
       </div>
-      
+
       {!soloDiseño && (
         <button onClick={descargarCarnet} className="bg-slate-800 hover:bg-[#e10098] text-white hover:text-black px-4 py-2 rounded-xl text-[10px] font-black transition-all border border-slate-700 uppercase">
           <ArrowDownTrayIcon className="w-4 h-4 inline mr-2" />

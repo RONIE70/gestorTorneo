@@ -23,12 +23,12 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
   };
 
   useEffect(() => {
-    const cargar = async () => {
+    const cargarTodo = async () => {
       if (!jugadora) return;
-      // Blindar imágenes
+      // Blindaje de imágenes
       const [f, e, l] = await Promise.all([
         toBase64(jugadora.foto_url),
-        toBase64(jugadora.club_escudo || jugadora.equipos?.escudo_url || jugadora.club_logo),
+        toBase64(jugadora.club_escudo || jugadora.equipos?.escudo_url || jugadora.equipos?.logo_url),
         toBase64(config?.logo_url)
       ]);
       setImgB64({ foto: f, escudo: e, logoLiga: l });
@@ -43,11 +43,12 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
         setNombreCategoria(match ? match.nombre : "S/D");
       }
     };
-    cargar();
+    cargarTodo();
   }, [jugadora, config]);
 
   if (!jugadora) return null;
   const urlValidacion = `https://gestor-torneo.vercel.app/#/verificar/${jugadora.dni}`;
+  
   const cardStyle = {
     width: '323px', height: '204px',
     background: `linear-gradient(145deg, ${EstilosPactados.magenta} 0%, ${EstilosPactados.negro} 75%)`,
@@ -61,24 +62,51 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
           <span className="absolute -right-2 -bottom-2 text-[55px] font-black italic opacity-10 uppercase pointer-events-none">LIGA</span>
           <div className="z-10 flex justify-between items-start">
             <div>
-              {/* Ajustado el tamaño para que entre el nombre completo */}
-              <h2 className="text-[16px] font-black italic uppercase leading-tight w-56">{config?.nombre_liga || 'LIGA'}</h2>
-              <p className="text-[6px] font-bold uppercase opacity-80 mt-0.5">TEMPORADA OFICIAL 2026</p>
+              {/* TAMAÑO AJUSTADO PARA NOMBRE COMPLETO */}
+              <h2 className="text-[16.5px] font-black italic uppercase leading-none w-58 tracking-tighter">
+                {config?.nombre_liga || 'LIGA'}
+              </h2>
+              <p className="text-[7px] font-bold uppercase opacity-80 mt-1">TEMPORADA OFICIAL 2026</p>
             </div>
-            {imgB64.escudo && <img src={imgB64.escudo} className="h-9 w-9 object-contain bg-white/10 rounded p-0.5" alt="e" />}
+            {imgB64.escudo && (
+  <img 
+    src={imgB64.escudo} 
+    style={{ 
+      position: 'absolute', 
+      right: '1.2cm', 
+      top: '12px', // Ajustado para que alinee con el texto de la liga
+      zIndex: 30 
+    }}
+    className="h-10 w-10 object-contain bg-white/10 rounded p-0.5 shadow-sm" 
+    alt="escudo" 
+  />
+)}
           </div>
-          <div className="flex gap-3 z-10 flex-1 mt-2 items-center">
-            <div className="w-[90px] h-[110px] min-w-[90px] bg-black/40 border-2 border-white/30 rounded-lg overflow-hidden">
-              {imgB64.foto && <img src={imgB64.foto} className="w-full h-full object-cover" alt="p" />}
+          <div className="flex gap-3 z-10 flex-1 mt-1 items-center">
+            <div className="w-[90px] h-[100px] min-w-[90px] bg-black/40 border-2 border-white/30 rounded-lg overflow-hidden">
+              <img src={imgB64.foto || jugadora.foto_url} className="w-full h-full object-cover" alt="p" />
             </div>
             <div className="flex-1 flex flex-col justify-center space-y-1">
               <h3 className="text-[14px] font-black uppercase leading-tight border-b border-white/20 pb-1">{jugadora.apellido} <br/> {jugadora.nombre}</h3>
-              <div className="flex gap-4">
-                <div><p className="text-[6px] opacity-60 uppercase font-bold">DNI</p><p className="text-[11px] font-bold">{jugadora.dni}</p></div>
-                <div><p className="text-[6px] opacity-60 uppercase font-bold">CAT</p><p className="text-[11px] font-bold uppercase">{nombreCategoria}</p></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><p className="text-[7px] opacity-60 uppercase font-bold">D.N.I.</p><p className="text-[11px] font-bold">{jugadora.dni}</p></div>
+                <div><p className="text-[7px] opacity-60 uppercase font-bold">CATEGORIA</p><p className="text-[11px] font-bold uppercase">{nombreCategoria}</p></div>
               </div>
-              <div><p className="text-[6px] opacity-60 uppercase font-bold">CLUB</p><p className="text-[10px] font-black uppercase leading-tight">{jugadora.club_nombre || jugadora.equipos?.nombre || 'SIN CLUB'}</p></div>
-              <div className="mt-1 inline-flex w-fit px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 text-[7px] font-black uppercase text-emerald-400">BIOMETRÍA OK</div>
+              <div><p className="text-[7px] opacity-60 uppercase font-bold">CLUB:                                                                                               </p><p className="text-[10px] font-black uppercase truncate">{jugadora.club_nombre || jugadora.equipos?.nombre || 'SIN CLUB'}</p></div>
+              {/* Tag Biometría posicionado a 1.5cm del borde derecho */}
+<div 
+  style={{ 
+    position: 'absolute', 
+    right: '1.5cm', 
+    bottom: '12px', // Ajusta esta altura para que no pise el borde inferior
+    zIndex: 20 
+  }}
+  className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 shadow-sm"
+>
+  <p className="text-[7px] font-black uppercase text-emerald-400 tracking-tighter leading-none">
+    BIOMETRÍA OK
+  </p>
+</div>
             </div>
           </div>
         </div>

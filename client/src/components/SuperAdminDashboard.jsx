@@ -2,102 +2,135 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { PrinterIcon } from '@heroicons/react/24/solid';
+import { PrinterIcon, ChartBarIcon, TrophyIcon } from '@heroicons/react/24/solid';
 import CarnetJugadora from './CarnetJugadora';
 import GestionFichajesAdmin from './GestionFichajesAdmin';
 
 const SuperAdminDashboard = () => {
   const [perfil, setPerfil] = useState(null);
+  const [stats, setStats] = useState({ ligas: 0, jugadoras: 0, alertas: 0 });
+  const [rankingLigas, setRankingLigas] = useState([]);
   const [generandoLona, setGenerandoLona] = useState(false);
   const [jugadorasLiga, setJugadorasLiga] = useState([]);
   const [loteParaImprimir, setLoteParaImprimir] = useState([]);
   const [clubesMap, setClubesMap] = useState({});
-  const [configLiga, setConfigLiga] = useState(null);
+  const [ligasMap, setLigasMap] = useState({}); // MAPA DE LIGAS PARA EL PLIEGO
   const lienzoRef = useRef(null);
 
   useEffect(() => {
-    const load = async () => {
+    const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: p } = await supabase.from('perfiles').select('*').eq('id', user.id).single();
         setPerfil(p);
-        if (p) cargarDatos(p.organizacion_id);
+        fetchGlobalStats();
+        fetchRankingLigas();
+        if (p) cargarDatosBase(p.organizacion_id);
       }
     };
-    load();
+    init();
   }, []);
 
-  const cargarDatos = async (orgId) => {
-    try {
-      let qJ = supabase.from('jugadoras').select('*');
-      if (orgId) qJ = qJ.eq('organizacion_id', orgId);
-      const { data: jugs } = await qJ;
-      setJugadorasLiga(jugs || []);
-      
-      let qE = supabase.from('equipos').select('id, nombre, logo_url, escudo_url');
-      if (orgId) qE = qE.eq('organizacion_id', orgId);
-      const { data: eqs } = await qE;
-      const map = {};
-      eqs?.forEach(e => map[e.id] = { nombre: e.nombre, logo: e.logo_url || e.escudo_url });
-      setClubesMap(map);
-
-      const { data: configs } = await supabase.from('configuracion_liga').select('*');
-      setConfigLiga(orgId ? configs.find(c => c.organizacion_id === orgId) : configs[0]);
-    } catch (err) { console.error(err); }
+  const fetchGlobalStats = async () => {
+    const { count: l } = await supabase.from('organizaciones').select('*', { count: 'exact', head: true });
+    const { count: j } = await supabase.from('jugadoras').select('*', { count: 'exact', head: true });
+    const { count: a } = await supabase.from('jugadoras').select('*', { count: 'exact', head: true }).or('verificacion_biometrica_estado.eq.rechazado,distancia_biometrica_oficial.gt.0.6');
+    setStats({ ligas: l || 0, jugadoras: j || 0, alertas: a || 0 });
   };
 
-  const imprimirBatch = async () => {
+  const fetchRankingLigas = async () => {
+    const { data: orgs } = await supabase.from('organizaciones').select('id, nombre, logo_url');
+    if (orgs) {
+      const ranking = await Promise.all(orgs.map(async (o) => {
+        const { count } = await supabase.from('jugadoras').select('*', { count: 'exact', head: true }).eq('organizacion_id', o.id);
+        return { ...o, total: count || 0 };
+      }));
+      setRankingLigas(ranking.sort((a, b) => b.total - a.total));
+    }
+  };
+
+  const cargarDatosBase = async (orgId) => {
+    let qJ = supabase.from('jugadoras').select('*');
+    if (orgId) qJ = qJ.eq('organizacion_id', orgId);
+    const { data: jugs } = await qJ;
+    setJugadorasLiga(jugs || []);
+    
+    // Mapeo de equipos
+    const { data: eqs } = await supabase.from('equipos').select('id, nombre, escudo_url');
+    const eMap = {}; eqs?.forEach(e => eMap[e.id] = { nombre: e.nombre, logo: e.escudo_url });
+    setClubesMap(eMap);
+
+    // MAPEO DE LIGAS (CRUCIAL PARA EL PLIEGO)
+    const { data: confs } = await supabase.from('configuracion_liga').select('*');
+    const lMap = {}; confs?.forEach(c => lMap[c.organizacion_id] = c);
+    setLigasMap(lMap);
+  };
+
+  const imprimirBatchHD = async () => {
     if (!lienzoRef.current || jugadorasLiga.length === 0) return;
     setGenerandoLona(true);
-    const POR_PLIEGO = 15; // 2 col x 7/8 filas
-    
+    const POR_PLIEGO = 15; 
     try {
       for (let i = 0; i < jugadorasLiga.length; i += POR_PLIEGO) {
         const lote = jugadorasLiga.slice(i, i + POR_PLIEGO);
         setLoteParaImprimir(lote);
-
-        // TIEMPO CRÍTICO: Esperar a que se dibujen las fotos Base64
-        await new Promise(r => setTimeout(r, 6000));
-
-        const canvas = await html2canvas(lienzoRef.current, {
-          scale: 2, useCORS: true, backgroundColor: "#ffffff",
-          width: 1890, height: 1890
-        });
-
+        await new Promise(r => setTimeout(r, 6000)); // Espera para blindaje
+        const canvas = await html2canvas(lienzoRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff", width: 1890, height: 1890 });
         const pdf = new jsPDF({ orientation: "p", unit: "mm", format: [500, 500] });
         pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 500, 500);
-        pdf.save(`PLIEGO_500x500_PARTE_${Math.floor(i/POR_PLIEGO)+1}.pdf`);
+        pdf.save(`PLIEGO_HD_P${Math.floor(i/15)+1}.pdf`);
       }
-      alert("✅ Pliegos descargados.");
-    } catch (e) { console.error(e); } finally { 
-      setGenerandoLona(false); 
-      setLoteParaImprimir([]);
-    }
+      alert("✅ Pliegos generados.");
+    } catch (e) { console.error(e); } finally { setGenerandoLona(false); setLoteParaImprimir([]); }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-8">
-      <header className="flex justify-between items-center mb-12">
-        <div>
-          <h1 className="text-3xl font-black uppercase italic italic">Control <span className="text-rose-600">Maestro</span></h1>
-          <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">S SaaS HD - Calandra 500mm x 500mm</p>
+    <div className="min-h-screen bg-slate-950 text-white p-4 md:p-8 font-sans">
+      <div className="max-w-7xl mx-auto space-y-10">
+        <header className="flex justify-between items-center border-b border-white/10 pb-8">
+          <h1 className="text-4xl font-black uppercase italic italic">Control <span className="text-rose-600">Maestro</span></h1>
+          <button onClick={imprimirBatchHD} disabled={generandoLona} className="bg-blue-600 px-8 py-4 rounded-2xl font-black flex items-center gap-3 transition-all shadow-xl disabled:opacity-30">
+            <PrinterIcon className="w-5 h-5" /> {generandoLona ? 'PROCESANDO...' : 'IMPRIMIR PLIEGOS HD'}
+          </button>
+        </header>
+
+        {/* ANALÍTICA RECUPERADA */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] shadow-xl"><ChartBarIcon className="w-6 h-6 text-slate-500 mb-2"/><p className="text-slate-500 font-black text-[10px] uppercase">Ligas</p><h3 className="text-4xl font-black italic">{stats.ligas}</h3></div>
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] shadow-xl border-b-emerald-500/50"><p className="text-emerald-500 font-black text-[10px] uppercase">Jugadoras</p><h3 className="text-4xl font-black italic text-emerald-500">{stats.jugadoras}</h3></div>
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] shadow-xl border-b-rose-500/50"><p className="text-rose-500 font-black text-[10px] uppercase">Alertas</p><h3 className="text-4xl font-black italic text-rose-500">{stats.alertas}</h3></div>
         </div>
-        <button onClick={imprimirBatch} disabled={generandoLona} className="bg-blue-600 px-8 py-4 rounded-2xl font-black flex items-center gap-3 transition-all disabled:opacity-30">
-          <PrinterIcon className="w-5 h-5" /> {generandoLona ? 'GENERANDO PLIEGOS...' : 'IMPRIMIR PLIEGOS HD'}
-        </button>
-      </header>
 
-      {perfil && <GestionFichajesAdmin perfil={perfil} />}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className="lg:col-span-1 bg-slate-900 rounded-3xl border border-white/5 p-4 max-h-[600px] overflow-y-auto">
+            <h2 className="text-lg font-black uppercase italic mb-4 flex items-center gap-2"><TrophyIcon className="w-5 h-5 text-amber-500"/> Ranking</h2>
+            {rankingLigas.map(l => <div key={l.id} className="p-3 border-b border-white/5 flex justify-between text-[11px] font-bold uppercase"><span>{l.nombre}</span><span className="text-emerald-500">{l.total} JUG</span></div>)}
+          </div>
+          <div className="lg:col-span-3">
+            <section className="bg-slate-900/30 rounded-3xl border border-white/5 overflow-hidden shadow-2xl">
+              {perfil && <GestionFichajesAdmin perfil={perfil} />}
+            </section>
+          </div>
+        </div>
 
-      {/* LIENZO OCULTO TÉCNICO */}
-      <div style={{ position: 'fixed', left: '-10000px', top: '0', background: 'white' }}>
-        <div ref={lienzoRef} style={{ width: '500mm', height: '500mm', background: 'white', padding: '10mm', display: 'grid', gridTemplateColumns: 'repeat(2, 185mm)', gridAutoRows: '54mm', gap: '8mm' }}>
-          {loteParaImprimir.map(jug => (
-            <div key={`p-${jug.id}`} style={{ display: 'flex', gap: '5mm', alignItems: 'center' }}>
-              <CarnetJugadora jugadora={{...jug, club_nombre: clubesMap[jug.equipo_id]?.nombre, club_escudo: clubesMap[jug.equipo_id]?.logo}} config={configLiga} mostrarDorso={false} />
-              <CarnetJugadora jugadora={{...jug, club_nombre: clubesMap[jug.equipo_id]?.nombre, club_escudo: clubesMap[jug.equipo_id]?.logo}} config={configLiga} mostrarDorso={true} />
-            </div>
-          ))}
+        {/* LIENZO TÉCNICO OCULTO (Corregido con ligasMap) */}
+        <div style={{ position: 'fixed', left: '-10000px', top: '0', background: 'white' }}>
+          <div ref={lienzoRef} style={{ width: '500mm', height: '500mm', background: 'white', padding: '10mm', display: 'grid', gridTemplateColumns: 'repeat(2, 185mm)', gridAutoRows: '54mm', gap: '8mm' }}>
+            {loteParaImprimir.map(jug => (
+              <div key={`p-${jug.id}`} style={{ display: 'flex', gap: '5mm', alignItems: 'center' }}>
+                <CarnetJugadora 
+                  jugadora={{...jug, club_nombre: clubesMap[jug.equipo_id]?.nombre, club_escudo: clubesMap[jug.equipo_id]?.logo}} 
+                  config={ligasMap[jug.organizacion_id]} // ASIGNA LA LIGA CORRECTA A CADA JUGADORA
+                  mostrarDorso={false} 
+                />
+                <CarnetJugadora 
+                  jugadora={{...jug, club_nombre: clubesMap[jug.equipo_id]?.nombre, club_escudo: clubesMap[jug.equipo_id]?.logo}} 
+                  config={ligasMap[jug.organizacion_id]} 
+                  mostrarDorso={true} 
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

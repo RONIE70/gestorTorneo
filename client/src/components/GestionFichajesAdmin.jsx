@@ -38,18 +38,16 @@ const GestionFichajesAdmin = ({ perfil }) => {
     } catch (e) { console.error(e); } finally { setDescargando(false); }
   };
 
-  const filtradas = jugadoras.filter(j => j.apellido?.toLowerCase().includes(filtro.toLowerCase()) || j.dni?.includes(filtro));
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 min-h-[700px] bg-slate-900/50">
       <div className="lg:col-span-1 border-r border-white/5 bg-slate-950/20 p-4">
-        <input type="text" placeholder="Filtrar..." className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-xs outline-none focus:border-rose-500 mb-4" onChange={e => setFiltro(e.target.value)} />
+        <input type="text" placeholder="Buscar..." className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-xs outline-none focus:border-rose-500 mb-4" onChange={e => setFiltro(e.target.value)} />
         <div className="overflow-y-auto max-h-[600px] space-y-2">
-          {filtradas.map(j => (
+          {jugadoras.filter(j => j.apellido?.toLowerCase().includes(filtro.toLowerCase()) || j.dni?.includes(filtro)).map(j => (
             <div key={j.id} onClick={() => setSeleccionada(j)} className={`p-4 rounded-xl cursor-pointer transition-all ${seleccionada?.id === j.id ? 'bg-rose-600 shadow-lg' : 'hover:bg-white/5'}`}>
               <div className="flex justify-between items-center">
                 <p className="text-xs font-black uppercase">{j.apellido}, {j.nombre}</p>
-                {/* PUNTO VERDE RECUPERADO */}
+                {/* PUNTO VERDE DE VERIFICACIÓN */}
                 <span className={`w-2 h-2 rounded-full ${Number(j.distancia_biometrica_oficial) <= 0.6 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-rose-500'}`} />
               </div>
               <p className="text-[9px] opacity-60 uppercase">{j.organizaciones?.nombre}</p>

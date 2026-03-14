@@ -60,10 +60,10 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
       {!mostrarDorso ? (
         <div className="p-3 flex flex-col h-full justify-between relative">
           <span className="absolute -right-2 -bottom-2 text-[55px] font-black italic opacity-10 uppercase pointer-events-none">LIGA</span>
-          <div className="z-10 flex justify-between items-start">
+          <div className="z-10 flex justify-between items-start mb-1">
             <div>
               {/* TAMAÑO AJUSTADO PARA NOMBRE COMPLETO */}
-              <h2 className="text-[16.5px] font-black italic uppercase leading-none w-58 tracking-tighter">
+              <h2 className="text-[17.5px] font-black italic uppercase leading-none w-58 tracking-tighter">
                 {config?.nombre_liga || 'LIGA'}
               </h2>
               <p className="text-[7px] font-bold uppercase opacity-80 mt-1">TEMPORADA OFICIAL 2026</p>
@@ -73,7 +73,7 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
     src={imgB64.escudo} 
     style={{ 
       position: 'absolute', 
-      right: '1.2cm', 
+      right: '1cm', 
       top: '12px', // Ajustado para que alinee con el texto de la liga
       zIndex: 30 
     }}
@@ -82,13 +82,13 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
   />
 )}
           </div>
-          <div className="flex gap-3 z-10 flex-1 mt-1 items-center">
+          <div className="flex gap-3 z-10 flex-1 mt-1">
             <div className="w-[90px] h-[100px] min-w-[90px] bg-black/40 border-2 border-white/30 rounded-lg overflow-hidden">
               <img src={imgB64.foto || jugadora.foto_url} className="w-full h-full object-cover" alt="p" />
             </div>
-            <div className="flex-1 flex flex-col justify-center space-y-1">
-              <h3 className="text-[14px] font-black uppercase leading-tight border-b border-white/20 pb-1">{jugadora.apellido} <br/> {jugadora.nombre}</h3>
-              <div className="grid grid-cols-2 gap-4">
+            <div className="flex-1 flex flex-col justify-start space-y-0.5 pt-1">
+              <h3 className="text-[13px] font-black uppercase leading-[1.1] border-b border-white/20 pb-0.5 mb-1">{jugadora.apellido} <br/> {jugadora.nombre}</h3>
+              <div className="grid grid-cols-2 gap-3">
                 <div><p className="text-[7px] opacity-60 uppercase font-bold">D.N.I.</p><p className="text-[11px] font-bold">{jugadora.dni}</p></div>
                 <div><p className="text-[7px] opacity-60 uppercase font-bold">CATEGORIA</p><p className="text-[11px] font-bold uppercase">{nombreCategoria}</p></div>
               </div>
@@ -97,15 +97,30 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
 <div 
   style={{ 
     position: 'absolute', 
-    right: '1.5cm', 
+    right: '1cm', 
     bottom: '12px', // Ajusta esta altura para que no pise el borde inferior
     zIndex: 20 
   }}
-  className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 shadow-sm"
+  className="inline-flex w-fit px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30"
 >
-  <p className="text-[7px] font-black uppercase text-emerald-400 tracking-tighter leading-none">
+  <div 
+  style={{ 
+    position: 'absolute', 
+    right: '1cm', 
+    bottom: '12px', 
+    zIndex: 20,
+    display: 'flex',           // Activa Flexbox
+    alignItems: 'center',      // Centra verticalmente
+    justifyContent: 'center',  // Centra horizontalmente
+    minWidth: '60px',          // Le damos un ancho mínimo para que respire
+    height: '14px'             // Altura fija para controlar el centro
+  }}
+  className="rounded bg-emerald-500/20 border border-emerald-500/30 px-2"
+>
+  <p className="text-[7px] font-black uppercase text-emerald-400 tracking-tighter leading-none m-0">
     BIOMETRÍA OK
   </p>
+</div>
 </div>
             </div>
           </div>

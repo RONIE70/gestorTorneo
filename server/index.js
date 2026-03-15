@@ -177,6 +177,24 @@ app.patch('/jugadoras/verificar/:id', async (req, res) => {
   }
 });
 
+app.get('/api/verificar/delegado/:dni', async (req, res) => {
+  const { dni } = req.params;
+  try {
+    const { data, error } = await supabase
+      .from('delegados')
+      .select('*, equipos:club_id(nombre, escudo_url)')
+      .eq('dni', dni.trim())
+      .maybeSingle();
+
+    if (error) return res.status(500).json({ habilitado: false, error: error.message });
+    if (!data) return res.status(404).json({ habilitado: false, mensaje: "No encontrado" });
+
+    res.json({ habilitado: true, datos: data });
+  } catch (err) {
+    res.status(500).json({ habilitado: false, error: err.message });
+  }
+});
+
 // Ruta para guardar delegados
 app.post('/api/delegados', async (req, res) => {
   try {
@@ -203,40 +221,6 @@ app.get('/api/delegados/:clubId', async (req, res) => {
     res.status(500).json({ error: "Error al traer delegados" });
   }
 });
-
-// Ruta para verificar Delegados por DNI
-app.get('/api/verificar/delegado/:dni', async (req, res) => {
-  const { dni } = req.params;
-
-  try {
-    // Usando el nombre de la columna de la FK para evitar errores
-const { data, error } = await supabase
-  .from('delegados')
-  .select(`
-    *,
-    equipos:club_id (
-      nombre,
-      escudo_url
-    )
-  `)
-  .eq('dni', dni)
-  .single();
-
-    if (error || !data) {
-      return res.status(404).json({ habilitado: false, mensaje: "Delegado no encontrado" });
-    }
-
-    // Si existe, respondemos con éxito
-    res.json({
-      habilitado: true,
-      datos: data
-    });
-
-  } catch (err) {
-    res.status(500).json({ habilitado: false, error: err.message });
-  }
-});
-
 
 
 // --- RUTA APROBAR MANUAL ---

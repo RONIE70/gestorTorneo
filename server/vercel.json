@@ -17,6 +17,7 @@
     { "src": "/dashboard-resumen", "dest": "index.js" },
     { "src": "/jugadoras/verificar/:id", "dest": "index.js" },
     { "src": "/jugadoras/:id/aprobar", "dest": "index.js" },
+    { "src": "/api/verificar/delegado/(?<dni>[^/]*)", "dest": "index.js" },
     { "src": "/verificar/:id*", "dest": "/index.html" },
     { "src": "/mastercontrol", "dest": "/index.html" },
     { "src": "/AdminDelegado", "dest": "/index.html" },

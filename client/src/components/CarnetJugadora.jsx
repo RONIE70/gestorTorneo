@@ -6,7 +6,13 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
   const [nombreCategoria, setNombreCategoria] = useState("");
   const [imgB64, setImgB64] = useState({ foto: null, escudo: null, logoLiga: null });
 
-  const EstilosPactados = { magenta: '#de1777', negro: '#000000', texto: '#ffffff' };
+  // CAMBIO: Eliminamos la transparencia del negro (#3937378c -> #1a1a1a)
+  // Las transparencias en sublimación suelen salir "lavadas" o con puntos extraños.
+  const EstilosPactados = { 
+    magenta: '#de1777', 
+    negro: '#1a1a1a', // Negro sólido para mayor contraste
+    texto: '#ffffff' 
+  };
 
   const toBase64 = async (url) => {
     if (!url || url.startsWith('data:')) return url;
@@ -47,113 +53,112 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
   if (!jugadora) return null;
   const urlValidacion = `https://gestor-torneo.vercel.app/#/verificar/${jugadora.dni}`;
   
+  // AJUSTE DE TAMAÑO: +1.5mm aprox (323px -> 329px / 204px -> 210px)
   const cardStyle = {
-    width: '323px',
-    height: '204px',
-    background: `linear-gradient(145deg, ${EstilosPactados.magenta} 0%, ${EstilosPactados.negro} 75%)`,
+    width: '329px', 
+    height: '210px',
+    background: `linear-gradient(145deg, ${EstilosPactados.magenta} 0%, ${EstilosPactados.negro} 70%)`,
     color: EstilosPactados.texto,
     position: 'relative',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    boxSizing: 'border-box' // Asegura que los bordes no resten espacio
+    boxSizing: 'border-box'
   };
 
   return (
-    <div ref={carnetRef} style={cardStyle} className="rounded-xl shadow-2xl border border-white/10">
+    <div ref={carnetRef} style={cardStyle} className="rounded-xl shadow-2xl border border-white/20">
       {!mostrarDorso ? (
         /* --- FRENTE --- */
-        <div className="p-3 flex flex-col h-full relative" style={{ paddingTop: '14px' }}>
-          <span className="absolute -right-2 -bottom-2 text-[55px] font-black italic opacity-10 uppercase pointer-events-none">LIGA</span>
+        <div className="p-3 flex flex-col h-full relative" style={{ paddingTop: '16px' }}>
+          <span className="absolute -right-2 -bottom-2 text-[60px] font-black italic opacity-10 uppercase pointer-events-none">LIGA</span>
           
-          {/* Cabecera: Agregamos padding extra arriba para evitar el corte en PDF */}
           <div className="z-10 flex justify-between items-start mb-1">
-            <div className="max-w-[210px]">
-              <h2 className="text-[17px] font-black italic uppercase leading-[1.2] tracking-tighter">
+            <div className="max-w-[200px]">
+              {/* Texto Liga: Aumentado a 19px para legibilidad */}
+              <h2 className="text-[19px] font-black italic uppercase leading-none tracking-tighter">
                 {config?.nombre_liga || 'LIGA'}
               </h2>
-              <p className="text-[7px] font-bold uppercase opacity-80 mt-0.5">TEMPORADA OFICIAL 2026</p>
+              <p className="text-[9px] font-bold uppercase opacity-90 mt-1">TEMPORADA OFICIAL 2026</p>
             </div>
             {imgB64.escudo && (
               <img 
                 src={imgB64.escudo} 
-                style={{ position: 'absolute', right: '12px', top: '12px', zIndex: 30 }}
-                className="h-9 w-9 object-contain bg-white/10 rounded p-0.5" 
+                style={{ position: 'absolute', right: '16px', top: '16px', zIndex: 30 }}
+                className="h-12 w-12 object-contain bg-white/20 rounded-md p-0.5" 
                 alt="esc" 
               />
             )}
           </div>
 
-          {/* Cuerpo Central */}
-          <div className="flex gap-3 z-10 mt-1 items-start">
-            {/* Foto Jugadora: Reducimos 2px el alto para ganar aire abajo */}
-            <div className="w-[90px] h-[103px] min-w-[90px] bg-black/40 border-2 border-white/30 rounded-lg overflow-hidden shadow-inner">
+          <div className="flex gap-4 z-10 mt-3 items-start">
+            {/* Foto Jugadora: Un poco más grande para compensar el tamaño extra */}
+            <div className="w-[95px] h-[108px] min-w-[95px] bg-black/40 border-2 border-white/30 rounded-lg overflow-hidden">
               <img src={imgB64.foto || jugadora.foto_url} className="w-full h-full object-cover" alt="p" />
             </div>
 
-            {/* Datos: Usamos un espaciado más rígido para que no se desplace en PDF */}
             <div className="flex-1 flex flex-col">
-              <h3 className="text-[13px] font-black uppercase leading-[1.2] border-b border-white/20 pb-1 mb-1">
+              {/* Nombre: Subimos a 16px para que no se empaste al sublimar */}
+              <h3 className="text-[16px] font-black uppercase leading-tight border-b-2 border-white/20 pb-1 mb-2">
                 {jugadora.apellido} <br/> {jugadora.nombre}
               </h3>
               
-              <div className="grid grid-cols-2 gap-2 mb-1">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <p className="text-[6px] opacity-60 uppercase font-bold">D.N.I.</p>
-                  <p className="text-[10px] font-bold leading-none">{jugadora.dni}</p>
+                  <p className="text-[9px] opacity-70 uppercase font-black">D.N.I.</p>
+                  <p className="text-[13px] font-bold leading-none">{jugadora.dni}</p>
                 </div>
                 <div>
-                  <p className="text-[6px] opacity-60 uppercase font-bold">CATEGORÍA</p>
-                  <p className="text-[10px] font-bold uppercase leading-none">{nombreCategoria}</p>
+                  <p className="text-[9px] opacity-70 uppercase font-black">CATEGORÍA</p>
+                  <p className="text-[13px] font-bold uppercase leading-none">{nombreCategoria}</p>
                 </div>
               </div>
 
-              {/* Club: Eliminamos el flex-1 para que no se estire y se corte */}
-              <div className="mt-0.5">
-                <p className="text-[6px] opacity-60 uppercase font-bold leading-none">CLUB</p>
-                <p className="text-[10px] font-black uppercase truncate max-w-[160px] leading-normal" style={{ paddingBottom: '4px' }}>
+              <div className="mt-2">
+                <p className="text-[9px] opacity-70 uppercase font-black leading-none">CLUB</p>
+                <p className="text-[13px] font-black uppercase truncate max-w-[160px] leading-normal">
                   {jugadora.club_nombre || jugadora.equipos?.nombre || 'SIN CLUB'}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Tag Biometría: UN SOLO DIV LIMPIO */}
+          {/* Tag Biometría: Color sólido y letras más grandes */}
           <div 
             style={{ 
               position: 'absolute', 
-              right: '12px', 
-              bottom: '12px', 
+              right: '16px', 
+              bottom: '16px', 
               zIndex: 40,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              minWidth: '85px',
-              height: '16px',
-              backgroundColor: 'rgba(16, 185, 129, 0.25)', 
-              border: '1px solid rgba(16, 185, 129, 0.5)'
+              minWidth: '95px',
+              height: '18px',
+              backgroundColor: '#0cfcac', // Verde sólido brillante
+              border: '1px solid #ffffff50'
             }}
             className="rounded"
           >
-            <p className="text-[7px] font-black uppercase text-emerald-400 tracking-tighter leading-none m-0">
+            <p className="text-[10px] font-black uppercase text-black tracking-tighter m-0">
               BIOMETRÍA OK
             </p>
           </div>
         </div>
       ) : (
         /* --- DORSO --- */
-        <div className="flex h-full w-full items-center justify-between p-4 z-10">
+        <div className="flex h-full w-full items-center justify-between p-5 z-10">
           <div className="w-1/2 flex flex-col items-center justify-center border-r border-white/10 h-3/4">
             <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center p-3">
-              {imgB64.logoLiga && <img src={imgB64.logoLiga} className="max-w-full max-h-full object-contain opacity-80" alt="l" />}
+              {imgB64.logoLiga && <img src={imgB64.logoLiga} className="max-w-full max-h-full object-contain" alt="l" />}
             </div>
-            <p className="text-[7px] font-black uppercase mt-3 opacity-50 text-center leading-tight">DOCUMENTO OFICIAL<br/>INTRANSFERIBLE</p>
+            <p className="text-[10px] font-black uppercase mt-4 opacity-70 text-center leading-tight">DOCUMENTO OFICIAL<br/>INTRANSFERIBLE</p>
           </div>
           <div className="w-1/2 flex flex-col items-center justify-center">
-            <div className="bg-white p-1.5 rounded-lg shadow-2xl">
-              <QRCodeSVG value={urlValidacion} size={85} level="H" />
+            <div className="bg-white p-2 rounded-lg">
+              <QRCodeSVG value={urlValidacion} size={90} level="H" />
             </div>
-            <p className="text-[7px] font-black mt-3 opacity-70 uppercase tracking-widest text-center">VERIFICACIÓN DIGITAL</p>
+            <p className="text-[10px] font-black mt-4 opacity-80 uppercase tracking-widest text-center">VERIFICACIÓN DIGITAL</p>
           </div>
         </div>
       )}

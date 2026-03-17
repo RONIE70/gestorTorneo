@@ -75,7 +75,7 @@ const SuperAdminDashboard = () => {
         const lote = jugadorasLiga.slice(i, i + POR_PLIEGO);
         setLoteParaImprimir(lote);
         await new Promise(r => setTimeout(r, 7000)); // Espera para blindaje
-        const canvas = await html2canvas(lienzoRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff", width: 1890, height: 1890 });
+        const canvas = await html2canvas(lienzoRef.current, { scale: 4, useCORS: true, backgroundColor: "#ffffff", width: 1890, height: 1890 });
         const pdf = new jsPDF({ orientation: "p", unit: "mm", format: [500, 500] });
         pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 500, 500);
         pdf.save(`PLIEGO_HD_P${Math.floor(i/16)+1}.pdf`);

@@ -63,57 +63,53 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
     <div ref={carnetRef} style={cardStyle} className="rounded-xl shadow-2xl border border-white/20">
       {!mostrarDorso ? (
         /* --- FRENTE --- */
-        <div className="p-3 flex flex-col h-full relative" style={{ paddingTop: '12px' }}>
-          {/* Marca de agua Liga (Ajustada para que no moleste) */}
+        <div className="p-3 flex flex-col h-full relative" style={{ paddingTop: '10px' }}> {/* Subimos el padding top de 12 a 10 */}
           <span className="absolute -right-2 -bottom-2 text-[55px] font-black italic opacity-10 uppercase pointer-events-none">LIGA</span>
           
           {/* Header */}
           <div className="z-10 flex justify-between items-start">
-            <div className="max-w-[200px]">
-              <h2 className="text-[18px] font-black italic uppercase leading-none tracking-tighter">
+            <div className="max-w-[190px]">
+              {/* Nombre Liga: +1px (Aumentado a 20px) */}
+              <h2 className="text-[20px] font-black italic uppercase leading-none tracking-tighter">
                 {config?.nombre_liga || 'LIGA'}
               </h2>
-              <p className="text-[8px] font-bold uppercase opacity-90 mt-1">TEMPORADA OFICIAL 2026</p>
+              <p className="text-[8px] font-bold uppercase opacity-90 mt-0.5">TEMPORADA OFICIAL 2026</p>
             </div>
             {imgB64.escudo && (
-              <img src={imgB64.escudo} className="h-10 w-10 object-contain bg-white/20 rounded-md p-0.5" alt="esc" />
+              <img 
+                src={imgB64.escudo} 
+                className="h-10 w-10 object-contain bg-white/20 rounded-md p-0.5" 
+                style={{ position: 'absolute', right: '22px', top: '10px' }} // Alejado del borde (de 16px a 22px)
+                alt="esc" 
+              />
             )}
           </div>
 
+          {/* Bloque Central: mt reducido de 1.5 a 1 para subir todo */}
           <div className="flex gap-4 z-10 mt-1 items-start">
-            {/* Columna Izquierda: Foto + Biometría */}
             <div className="flex flex-col items-center">
               <div className="w-[82px] h-[94px] border-2 border-white/30 rounded-lg overflow-hidden bg-black/40 shadow-lg">
                 <img src={imgB64.foto || jugadora.foto_url} className="w-full h-full object-cover" alt="p" />
               </div>
               
-              {/* TAG BIOMETRÍA: Centrado perfecto con Flex */}
+              {/* TAG BIOMETRÍA: Centrado horizontal y vertical perfecto */}
               <div 
-                className="mt-2 rounded border border-white/30"
-                style={{ 
-                  backgroundColor: '#0cfcac', 
-                  width: '82px', 
-                  height: '18px', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center' 
-                }}
+                className="mt-2 rounded border border-white/30 flex items-center justify-center"
+                style={{ backgroundColor: '#0cfcac', width: '82px', height: '18px' }}
               >
-                <p className="text-[8px] font-black uppercase text-black m-0 p-0 leading-none">
+                <p className="text-[8px] font-black uppercase text-black leading-none text-center w-full">
                   BIOMETRÍA OK
                 </p>
               </div>
             </div>
 
-            {/* Columna Derecha: Datos */}
-            <div className="flex-1 flex flex-col">
-              {/* Nombre y Apellido: Reducimos margen inferior */}
-              <h3 className="text-[15px] font-black uppercase leading-tight border-b border-white/20 pb-0.5 mb-1.5">
+            <div className="flex-1 flex flex-col -mt-0.5"> {/* Margen negativo para subir el bloque de texto */}
+              {/* Nombre Jugadora: +0.5px (16.5px) y mb reducido para subir DNI */}
+              <h3 className="text-[16.5px] font-black uppercase leading-tight border-b border-white/20 pb-0.5 mb-0.5">
                 {jugadora.apellido} <br/> {jugadora.nombre}
               </h3>
               
-              {/* DNI y Categoría en la misma línea visual */}
-              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mb-2">
+              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mb-1.5">
                 <div>
                   <p className="text-[7px] opacity-70 uppercase font-black leading-none">D.N.I.</p>
                   <p className="text-[12px] font-bold leading-tight">{jugadora.dni}</p>
@@ -124,11 +120,11 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
                 </div>
               </div>
 
-              {/* Club: Subido y en Magenta */}
-              <div className="mt-0.5">
+              {/* Club: Subido, +0.5px (14.5px) y en Magenta */}
+              <div className="mt-0">
                 <p className="text-[8px] opacity-70 uppercase font-black leading-none mb-0.5">CLUB</p>
                 <p 
-                  className="text-[14px] font-black uppercase leading-none truncate max-w-[165px]"
+                  className="text-[14.5px] font-black uppercase leading-none truncate max-w-[170px]"
                   style={{ color: EstilosPactados.magenta }}
                 >
                   {jugadora.club_nombre || jugadora.equipos?.nombre || 'SIN CLUB'}
@@ -138,7 +134,7 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
           </div>
         </div>
       ) : (
-        /* --- DORSO (Sin cambios, ya funcionaba bien) --- */
+        /* --- DORSO (Sin cambios) --- */
         <div className="flex h-full w-full items-center justify-between p-5 z-10">
           <div className="w-1/2 flex flex-col items-center justify-center border-r border-white/10 h-3/4">
             <div className="w-22 h-22 rounded-full bg-white/10 flex items-center justify-center p-3">

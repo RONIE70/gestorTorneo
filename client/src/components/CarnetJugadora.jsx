@@ -62,56 +62,75 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
   return (
     <div ref={carnetRef} style={cardStyle} className="rounded-xl shadow-2xl border border-white/20">
       {!mostrarDorso ? (
-        <div className="p-3 flex flex-col h-full relative" style={{ paddingTop: '16px' }}>
-          {/* Marca de agua Liga */}
-          <span className="absolute -right-2 -bottom-2 text-[60px] font-black italic opacity-10 uppercase pointer-events-none">LIGA</span>
+        /* --- FRENTE --- */
+        <div className="p-3 flex flex-col h-full relative" style={{ paddingTop: '12px' }}>
+          {/* Marca de agua Liga (Ajustada para que no moleste) */}
+          <span className="absolute -right-2 -bottom-2 text-[55px] font-black italic opacity-10 uppercase pointer-events-none">LIGA</span>
           
           {/* Header */}
-          <div className="z-10 flex justify-between items-start mb-1">
+          <div className="z-10 flex justify-between items-start">
             <div className="max-w-[200px]">
-              <h2 className="text-[19px] font-black italic uppercase leading-none tracking-tighter">
+              <h2 className="text-[18px] font-black italic uppercase leading-none tracking-tighter">
                 {config?.nombre_liga || 'LIGA'}
               </h2>
-              <p className="text-[9px] font-bold uppercase opacity-90 mt-1">TEMPORADA OFICIAL 2026</p>
+              <p className="text-[8px] font-bold uppercase opacity-90 mt-1">TEMPORADA OFICIAL 2026</p>
             </div>
             {imgB64.escudo && (
-              <img src={imgB64.escudo} className="h-12 w-12 object-contain bg-white/20 rounded-md p-0.5" alt="esc" />
+              <img src={imgB64.escudo} className="h-10 w-10 object-contain bg-white/20 rounded-md p-0.5" alt="esc" />
             )}
           </div>
 
-          <div className="flex gap-4 z-10 mt-2 items-start">
-            {/* Foto Jugadora: ACHICADA (82x94) */}
-            <div className="flex flex-col items-center gap-1.5">
-              <div className="w-[82px] h-[94px] border-2 border-white/30 rounded-lg overflow-hidden bg-black/40">
+          <div className="flex gap-4 z-10 mt-1 items-start">
+            {/* Columna Izquierda: Foto + Biometría */}
+            <div className="flex flex-col items-center">
+              <div className="w-[82px] h-[94px] border-2 border-white/30 rounded-lg overflow-hidden bg-black/40 shadow-lg">
                 <img src={imgB64.foto || jugadora.foto_url} className="w-full h-full object-cover" alt="p" />
               </div>
               
-              {/* TAG BIOMETRÍA: Ahora debajo de la foto para liberar espacio del club */}
-              <div className="bg-[#0cfcac] px-1 py-0.5 rounded border border-white/30 min-w-[82px] text-center">
-                <p className="text-[8px] font-black uppercase text-black m-0 leading-none">BIOMETRÍA OK</p>
+              {/* TAG BIOMETRÍA: Centrado perfecto con Flex */}
+              <div 
+                className="mt-2 rounded border border-white/30"
+                style={{ 
+                  backgroundColor: '#0cfcac', 
+                  width: '82px', 
+                  height: '18px', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center' 
+                }}
+              >
+                <p className="text-[8px] font-black uppercase text-black m-0 p-0 leading-none">
+                  BIOMETRÍA OK
+                </p>
               </div>
             </div>
 
+            {/* Columna Derecha: Datos */}
             <div className="flex-1 flex flex-col">
-              <h3 className="text-[16px] font-black uppercase leading-tight border-b-2 border-white/20 pb-1 mb-2">
+              {/* Nombre y Apellido: Reducimos margen inferior */}
+              <h3 className="text-[15px] font-black uppercase leading-tight border-b border-white/20 pb-0.5 mb-1.5">
                 {jugadora.apellido} <br/> {jugadora.nombre}
               </h3>
               
-              <div className="grid grid-cols-2 gap-2">
+              {/* DNI y Categoría en la misma línea visual */}
+              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mb-2">
                 <div>
-                  <p className="text-[8px] opacity-70 uppercase font-black">D.N.I.</p>
-                  <p className="text-[13px] font-bold leading-none">{jugadora.dni}</p>
+                  <p className="text-[7px] opacity-70 uppercase font-black leading-none">D.N.I.</p>
+                  <p className="text-[12px] font-bold leading-tight">{jugadora.dni}</p>
                 </div>
                 <div>
-                  <p className="text-[8px] opacity-70 uppercase font-black">CATEGORÍA</p>
-                  <p className="text-[13px] font-bold uppercase leading-none">{nombreCategoria}</p>
+                  <p className="text-[7px] opacity-70 uppercase font-black leading-none">CATEGORÍA</p>
+                  <p className="text-[12px] font-bold uppercase leading-tight">{nombreCategoria}</p>
                 </div>
               </div>
 
-              {/* Club: Ahora tiene más espacio porque la biometría se movió */}
-              <div className="mt-4">
-                <p className="text-[9px] opacity-70 uppercase font-black leading-none mb-1">CLUB</p>
-                <p className="text-[14px] font-black uppercase leading-tight text-[#0cfcac]">
+              {/* Club: Subido y en Magenta */}
+              <div className="mt-0.5">
+                <p className="text-[8px] opacity-70 uppercase font-black leading-none mb-0.5">CLUB</p>
+                <p 
+                  className="text-[14px] font-black uppercase leading-none truncate max-w-[165px]"
+                  style={{ color: EstilosPactados.magenta }}
+                >
                   {jugadora.club_nombre || jugadora.equipos?.nombre || 'SIN CLUB'}
                 </p>
               </div>
@@ -119,18 +138,19 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
           </div>
         </div>
       ) : (
+        /* --- DORSO (Sin cambios, ya funcionaba bien) --- */
         <div className="flex h-full w-full items-center justify-between p-5 z-10">
           <div className="w-1/2 flex flex-col items-center justify-center border-r border-white/10 h-3/4">
-            <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center p-3">
+            <div className="w-22 h-22 rounded-full bg-white/10 flex items-center justify-center p-3">
               {imgB64.logoLiga && <img src={imgB64.logoLiga} className="max-w-full max-h-full object-contain" alt="l" />}
             </div>
-            <p className="text-[10px] font-black uppercase mt-4 opacity-70 text-center leading-tight">DOCUMENTO OFICIAL<br/>INTRANSFERIBLE</p>
+            <p className="text-[9px] font-black uppercase mt-4 opacity-70 text-center leading-tight">DOCUMENTO OFICIAL<br/>INTRANSFERIBLE</p>
           </div>
           <div className="w-1/2 flex flex-col items-center justify-center">
             <div className="bg-white p-2 rounded-lg shadow-xl">
-              <QRCodeSVG value={urlValidacion} size={90} level="H" />
+              <QRCodeSVG value={urlValidacion} size={85} level="H" />
             </div>
-            <p className="text-[10px] font-black mt-4 opacity-80 uppercase tracking-widest text-center">VERIFICACIÓN DIGITAL</p>
+            <p className="text-[9px] font-black mt-3 opacity-80 uppercase tracking-widest text-center">VERIFICACIÓN DIGITAL</p>
           </div>
         </div>
       )}

@@ -64,7 +64,7 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
       {!mostrarDorso ? (
         /* --- FRENTE --- */
         <div className="p-3 flex flex-col h-full relative" style={{ paddingTop: '10px' }}> {/* Subimos el padding top de 12 a 10 */}
-          <span className="absolute -right-2 -bottom-2 text-[55px] font-black italic opacity-10 uppercase pointer-events-none">LIGA</span>
+          <span className="absolute -right-2 -bottom-2 text-[55px] font-black italic opacity-10 uppercase pointer-events-none">LIGA DE LAS NENAS </span>
           
           {/* Header */}
           <div className="z-10 flex justify-between items-start">
@@ -95,7 +95,7 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
               {/* TAG BIOMETRÍA: Centrado horizontal y vertical perfecto */}
               <div 
                 className="mt-2 rounded border border-white/30 flex items-center justify-center"
-                style={{ backgroundColor: '#0cfcac', width: '82px', height: '18px' }}
+                style={{ backgroundColor: '#a13e8d', width: '82px', height: '13px' }}
               >
                 <p className="text-[8px] font-black uppercase text-black leading-[18px] text-center m-0 p-0">
                   BIOMETRÍA OK

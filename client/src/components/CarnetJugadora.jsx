@@ -86,9 +86,9 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
           </div>
 
           {/* Bloque Central: mt reducido de 1.5 a 1 para subir todo */}
-          <div className="flex gap-4 z-10 mt-1 items-start">
+          <div className="flex gap-4 z-10 mt-1.5 items-start">
             <div className="flex flex-col items-center">
-              <div className="w-[82px] h-[94px] border-2 border-white/30 rounded-lg overflow-hidden bg-black/40 shadow-lg">
+              <div className="w-[82px] h-[90px] border-2 border-white/30 rounded-lg overflow-hidden bg-black/40 shadow-lg">
                 <img src={imgB64.foto || jugadora.foto_url} className="w-full h-full object-cover" alt="p" />
               </div>
               
@@ -97,15 +97,15 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
                 className="mt-2 rounded border border-white/30 flex items-center justify-center"
                 style={{ backgroundColor: '#0cfcac', width: '82px', height: '18px' }}
               >
-                <p className="text-[8px] font-black uppercase text-black leading-none text-center w-full">
+                <p className="text-[8px] font-black uppercase text-black leading-[18px] text-center m-0 p-0">
                   BIOMETRÍA OK
                 </p>
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col -mt-0.5"> {/* Margen negativo para subir el bloque de texto */}
+            <div className="flex-1 flex flex-col -mt-1.5"> {/* Margen negativo para subir el bloque de texto */}
               {/* Nombre Jugadora: +0.5px (16.5px) y mb reducido para subir DNI */}
-              <h3 className="text-[16.5px] font-black uppercase leading-tight border-b border-white/20 pb-0.5 mb-0.5">
+              <h3 className="text-[17px] font-black uppercase leading-tight border-b border-white/20 pb-0.5 mb-0.5">
                 {jugadora.apellido} <br/> {jugadora.nombre}
               </h3>
               
@@ -121,10 +121,10 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
               </div>
 
               {/* Club: Subido, +0.5px (14.5px) y en Magenta */}
-              <div className="mt-0">
+              <div className="mt-0.5">
                 <p className="text-[8px] opacity-70 uppercase font-black leading-none mb-0.5">CLUB</p>
                 <p 
-                  className="text-[14.5px] font-black uppercase leading-none truncate max-w-[170px]"
+                  className="text-[14.5px] font-black uppercase leading-[1.1]"
                   style={{ color: EstilosPactados.magenta }}
                 >
                   {jugadora.club_nombre || jugadora.equipos?.nombre || 'SIN CLUB'}

@@ -91,10 +91,13 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
             )}
           </div>
 
-          <div className="flex gap-4 z-10 mt-3 items-start">
+          <div className="flex gap-4 z-10 mt-1 items-start">
             {/* Foto Jugadora: Un poco más grande para compensar el tamaño extra */}
-            <div className="w-[95px] h-[108px] min-w-[95px] bg-black/40 border-2 border-white/30 rounded-lg overflow-hidden">
-              <img src={imgB64.foto || jugadora.foto_url} className="w-full h-full object-cover" alt="p" />
+            <div className="w-[85px] h-[97px] min-w-[95px] border-white/30 rounded-lg overflow-hidden">
+              <img src={imgB64.foto || jugadora.foto_url} 
+              className="w-full h-full object-cover" // <-- El object-cover mantiene la proporción
+              style={{ aspectRatio: '85/97' }} // <-- Fuerza la proporción en el PDF
+              alt="p" />
             </div>
 
             <div className="flex-1 flex flex-col">
@@ -114,8 +117,8 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
                 </div>
               </div>
 
-              <div className="mt-2">
-                <p className="text-[9px] opacity-70 uppercase font-black leading-none">CLUB</p>
+              <div className="mt-1">
+                <p className="text-[8px] opacity-70 uppercase font-black leading-none">CLUB</p>
                 <p className="text-[13px] font-black uppercase truncate max-w-[160px] leading-normal">
                   {jugadora.club_nombre || jugadora.equipos?.nombre || 'SIN CLUB'}
                 </p>
@@ -127,20 +130,20 @@ const CarnetJugadora = ({ jugadora, config, mostrarDorso = false, carnetRef }) =
           <div 
             style={{ 
               position: 'absolute', 
-              right: '16px', 
+              left: '16px', 
               bottom: '16px', 
               zIndex: 40,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              minWidth: '95px',
-              height: '18px',
+              minWidth: '85px',
+              height: '15px',
               backgroundColor: '#0cfcac', // Verde sólido brillante
               border: '1px solid #ffffff50'
             }}
             className="rounded"
           >
-            <p className="text-[10px] font-black uppercase text-black tracking-tighter m-0">
+            <p className="text-[9px] font-black uppercase text-black tracking-tighter m-0.5">
               BIOMETRÍA OK
             </p>
           </div>

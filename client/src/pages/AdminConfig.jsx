@@ -827,14 +827,6 @@ Inscripciones {perfil.inscripciones_abiertas ? 'Abiertas' : 'Cerradas'}
 <div>
 <h2 className="text-[10px] font-black uppercase text-blue-500 mb-3 tracking-widest">Sistema de Competición</h2>
 <select value={torneoModo} onChange={(e) => setTorneoModo(e.target.value)} className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-sm font-bold outline-none mb-4 cursor-pointer">
-<option value="todos_contra_todos">Liga (Ida y Vuelta)</option>
-<option value="apertura_clausura">Apertura y Clausura</option>
-<option value="zonas">Zonas / Clasificación</option>
-<option value="permanencia">Clasificación y Permanencia</option>
-</select>
-
-{/* --- Reemplazo desde la línea 568 --- */}
-<select value={torneoModo} onChange={(e) => setTorneoModo(e.target.value)} className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-sm font-bold outline-none mb-4 cursor-pointer">
   <option value="todos_contra_todos">Liga (Ida y Vuelta)</option>
   <option value="apertura_clausura">Apertura y Clausura</option>
   <option value="zonas">Zonas / Clasificación</option>

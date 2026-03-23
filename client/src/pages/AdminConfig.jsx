@@ -1000,6 +1000,7 @@ clubes={clubes}
 onEditar={editarEquipoPartido}
 onIntercambiar={intercambiarLocalia}
 readOnly={false}
+userOrgId={userOrgId}
 />
 )}
 

@@ -7,7 +7,8 @@ const AdminFixture = ({
   clubes = [], 
   onEditar, 
   onIntercambiar, 
-  readOnly = false 
+  readOnly = false,
+  userOrgId 
 }) => {
   const [fixture, setFixture] = useState(fechasGeneradas);
 
@@ -52,9 +53,12 @@ const AdminFixture = ({
           zona: f.zona || null,
           local_id: e.loc?.id || null,
           visitante_id: e.vis?.id || null,
+          nombre_manual_loc: e.loc?.id ? null : e.loc?.nombre,
+          nombre_manual_vis: e.vis?.id ? null : e.vis?.nombre,
           categoria: e.categoria,
           horario: e.horario,
-          finalizado: false
+          finalizado: false,
+          organizacion_id: userOrgId
         }))
       );
 

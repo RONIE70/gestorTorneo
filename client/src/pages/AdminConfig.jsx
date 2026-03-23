@@ -14,6 +14,8 @@ const [filtroClub, setFiltroClub] = useState('');
 const [loading, setLoading] = useState(true);
 const [torneoModo, setTorneoModo] = useState('todos_contra_todos');
 const [userOrgId, setUserOrgId] = useState(null);
+const [metodoZonas, setMetodoZonas] = useState('aleatorio');
+const [procesandoZonas, setProcesandoZonas] = useState(false);
 
 useEffect(() => {
   const obtenerContextoOrg = async () => {
@@ -415,6 +417,25 @@ setLoading(false);
 }
 };
 
+const asignarZonaManual = async (clubId, zona) => {
+  setProcesandoZonas(true); 
+  try {
+    const { error } = await supabase
+      .from('equipos')
+      .update({ zona: zona })
+      .eq('id', clubId);
+
+    if (error) throw error;
+    
+    // Esto es clave para que los contadores de A y B se actualicen solos
+    await fetchData(); 
+  } catch (err) {
+    console.error("Error al asignar zona:", err.message);
+  } finally {
+    setProcesandoZonas(false);
+  }
+};
+
 const handleNuevoTorneo = async () => {
   const nombre = prompt("Nombre del nuevo torneo (Ej: Clausura 2026):");
   if (!nombre) return;
@@ -461,161 +482,166 @@ ejecutarSorteoFinal('eliminacion_directa');
 };
 
 const ejecutarSorteoFinal = async (modalidadSeleccionada) => {
-setLoading(true);
-setShowModalPlayoff(false);
-setTipoPlayOff(modalidadSeleccionada);
-try {
-// --- 1. LIMPIEZA TOTAL DE DATOS PREVIOS ---
-const { error: errorLimpieza } = await supabase
-.from('partidos')
-.delete()
-.neq('id', 0);
+  setLoading(true);
+  setShowModalPlayoff(false);
+  setTipoPlayOff(modalidadSeleccionada);
 
-if (errorLimpieza) throw new Error("No se pudo resetear la tabla de partidos.");
-await supabase.from('equipos').update({ zona: null }).neq('id', 0);
+  try {
+    // 1. LIMPIEZA TOTAL DE PARTIDOS PREVIOS
+    const { error: errorLimpieza } = await supabase
+      .from('partidos')
+      .delete()
+      .neq('id', 0);
 
-// ACTUALIZACIÓN VITAL: Guardar la modalidad en el torneo para el Trigger
-  await supabase
-    .from('configuracion_torneo')
-    .update({ tipo_playoff: modalidadSeleccionada })
-    .eq('id', torneoActivoId);
+    if (errorLimpieza) throw new Error("No se pudo resetear la tabla de partidos.");
 
-// --- 2. PREPARACIÓN DE EQUIPOS ---
-let fixtureFinal = [];
-const cabezas = clubes.filter(c => c.es_cabeza_serie);
-const resto = clubes.filter(c => !c.es_cabeza_serie).sort(() => Math.random() - 0.5);
+    // 2. GESTIÓN DE ZONAS EN LA TABLA EQUIPOS
+    // Solo reseteamos las zonas si el método es ALEATORIO. 
+    // Si es MANUAL, respetamos lo que el usuario asignó en la pantalla.
+    if (metodoZonas === 'aleatorio' && torneoModo === 'zonas') {
+      await supabase.from('equipos').update({ zona: null }).neq('id', 0);
+    }
 
-if (torneoModo === 'zonas') {
-const grupos = Array.from({ length: cantidadZonas }, () => []);
-cabezas.forEach((c, i) => grupos[i % cantidadZonas].push(c));
-resto.forEach((eq, index) => {
-grupos[(index + cabezas.length) % cantidadZonas].push(eq);
-});
+    // Guardamos la modalidad elegida en la configuración del torneo
+    await supabase
+      .from('configuracion_torneo')
+      .update({ tipo_playoff: modalidadSeleccionada })
+      .eq('id', torneoActivoId);
 
+    // 3. PREPARACIÓN DE GRUPOS Y FIXTURE
+    let fixtureFinal = [];
+    let grupos = [];
 
-let maxFechaZonas = 0;
-for (let i = 0; i < grupos.length; i++) {
-const letraZona = String.fromCharCode(65 + i);
-const nombreZona = `Zona ${letraZona}`;
-const ids = grupos[i].map(e => e.id);
-await supabase.from('equipos').update({ zona: nombreZona }).in('id', ids);
+    if (torneoModo === 'zonas') {
+      if (metodoZonas === 'manual') {
+        // MODO MANUAL: Filtramos equipos por lo que tienen en la columna 'zona' actualmente
+        const zonaA = clubes.filter(c => c.zona === 'Zona A');
+        const zonaB = clubes.filter(c => c.zona === 'Zona B');
+        
+        if (zonaA.length === 0 && zonaB.length === 0) {
+          throw new Error("No hay equipos asignados a las zonas para el armado manual.");
+        }
+        grupos = [zonaA, zonaB];
+      } else {
+        // MODO ALEATORIO: Lógica de Cabezas de Serie + Sorteo Random
+        const cabezas = clubes.filter(c => c.es_cabeza_serie).sort(() => Math.random() - 0.5);
+        const resto = clubes.filter(c => !c.es_cabeza_serie).sort(() => Math.random() - 0.5);
 
-const fixGrupo = generarFixtureBerger(grupos[i]);
-if (fixGrupo.length > maxFechaZonas) maxFechaZonas = fixGrupo.length;
-fixtureFinal.push(...fixGrupo.map(fecha => ({
-...fecha,
-zona: nombreZona,
-fechaReal: calcularFechaCalendario(fecha.numero)
-})));
-}
+        grupos = Array.from({ length: cantidadZonas }, () => []);
+        
+        // Repartimos cabezas de serie (A, B, A, B...)
+        cabezas.forEach((c, i) => grupos[i % cantidadZonas].push(c));
+        // Repartimos el resto de equipos
+        resto.forEach((eq, index) => {
+          grupos[(index + cabezas.length) % cantidadZonas].push(eq);
+        });
+      }
 
-// --- 3. GENERACIÓN DE CRUCES DE PLAY-OFF ---
-const fechaPlayoff = maxFechaZonas + 1;
-let encuentrosPlayoff = [];
-if (modalidadSeleccionada === 'eliminacion_directa') {
-encuentrosPlayoff.push({
-id: 'f-1',
-loc: { id: null, nombre: "1° ZONA A" },
-vis: { id: null, nombre: "1° ZONA B" },
-etapa: 'GRAN FINAL'
-});
-}
-else if (modalidadSeleccionada === 'semis_y_final') {
-encuentrosPlayoff.push({ id: 's-1', loc: { id: null, nombre: "1° ZONA A" }, vis: { id: null, nombre: "2° ZONA B" }, etapa: 'SEMIFINAL 1' });
-encuentrosPlayoff.push({ id: 's-2', loc: { id: null, nombre: "1° ZONA B" }, vis: { id: null, nombre: "2° ZONA A" }, etapa: 'SEMIFINAL 2' });
-}
-else if (modalidadSeleccionada === 'mejores_6') {
-  encuentrosPlayoff.push({ id: 'llave-1', loc: { id: null, nombre: "1° GENERAL" }, vis: { id: null, nombre: "6° GENERAL" }, etapa: 'LLAVE 1' });
-  encuentrosPlayoff.push({ id: 'llave-2', loc: { id: null, nombre: "2° GENERAL" }, vis: { id: null, nombre: "5° GENERAL" }, etapa: 'LLAVE 2' });
-  encuentrosPlayoff.push({ id: 'llave-3', loc: { id: null, nombre: "3° GENERAL" }, vis: { id: null, nombre: "4° GENERAL" }, etapa: 'LLAVE 3' });
-}
-else if (modalidadSeleccionada === 'mundialito') {
-  encuentrosPlayoff.push({ id: 'm-1', loc: { id: null, nombre: "1° NORTE" }, vis: { id: null, nombre: "2° SUR" }, etapa: 'MUNDIALITO 1' });
-  encuentrosPlayoff.push({ id: 'm-2', loc: { id: null, nombre: "1° SUR" }, vis: { id: null, nombre: "2° NORTE" }, etapa: 'MUNDIALITO 2' });
-}
+      // Generamos los partidos (Sistema Berger) por cada grupo
+      let maxFechaZonas = 0;
+      for (let i = 0; i < grupos.length; i++) {
+        const letraZona = String.fromCharCode(65 + i);
+        const nombreZona = `Zona ${letraZona}`;
+        
+        // Si el sorteo fue ALEATORIO, actualizamos la base de datos con las nuevas zonas
+        if (metodoZonas === 'aleatorio') {
+          const ids = grupos[i].map(e => e.id);
+          await supabase.from('equipos').update({ zona: nombreZona }).in('id', ids);
+        }
 
-// --- NUEVA MODALIDAD AGREGADA AQUÍ ---
-else if (modalidadSeleccionada === 'finales_por_puesto') {
-// Partido por el título
-encuentrosPlayoff.push({
-id: 'f-titulo',
-loc: { id: null, nombre: "1° ZONA A" },
-vis: { id: null, nombre: "1° ZONA B" },
-etapa: 'GRAN FINAL'
-});
+        const fixGrupo = generarFixtureBerger(grupos[i]);
+        if (fixGrupo.length > maxFechaZonas) maxFechaZonas = fixGrupo.length;
 
+        fixtureFinal.push(...fixGrupo.map(fecha => ({
+          ...fecha,
+          zona: nombreZona,
+          fechaReal: calcularFechaCalendario(fecha.numero)
+        })));
+      }
 
-// Partido por el tercer puesto
-encuentrosPlayoff.push({
-id: 'f-tercer-puesto',
-loc: { id: null, nombre: "2° ZONA A" },
-vis: { id: null, nombre: "2° ZONA B" },
-etapa: '3° PUESTO'
-});
-}
-fixtureFinal.push({
-numero: fechaPlayoff,
-fechaReal: calcularFechaCalendario(fechaPlayoff),
-zona: 'PLAY-OFFS',
-encuentros: encuentrosPlayoff
-});
-} else {
-const ida = generarFixtureBerger([...clubes].sort(() => Math.random() - 0.5));
-fixtureFinal = ida.map(f => ({ ...f, fechaReal: calcularFechaCalendario(f.numero), zona: 'Única' }));
-}
+      // 4. GENERACIÓN DE FECHA DE PLAY-OFF
+      const fechaPlayoff = maxFechaZonas + 1;
+      let encuentrosPlayoff = [];
 
-// --- 4. GUARDADO MASIVO MULTI-CATEGORÍA ---
-// Filtramos solo las categorías que marcaste como "Participa del Torneo"
-const categoriasQueJuegan = categorias.filter(c => c.participa_torneo);
-const partidosParaInsertar = fixtureFinal.flatMap(fecha =>
+      if (modalidadSeleccionada === 'eliminacion_directa') {
+        encuentrosPlayoff.push({ id: 'f-1', loc: { id: null, nombre: "1° ZONA A" }, vis: { id: null, nombre: "1° ZONA B" }, etapa: 'GRAN FINAL' });
+      } 
+      else if (modalidadSeleccionada === 'finales_por_puesto') {
+        encuentrosPlayoff.push({ id: 'f-titulo', loc: { id: null, nombre: "1° ZONA A" }, vis: { id: null, nombre: "1° ZONA B" }, etapa: 'GRAN FINAL' });
+        encuentrosPlayoff.push({ id: 'f-3puesto', loc: { id: null, nombre: "2° ZONA A" }, vis: { id: null, nombre: "2° ZONA B" }, etapa: '3° PUESTO' });
+      }
+      else if (modalidadSeleccionada === 'semis_y_final') {
+        encuentrosPlayoff.push({ id: 's-1', loc: { id: null, nombre: "1° ZONA A" }, vis: { id: null, nombre: "2° ZONA B" }, etapa: 'SEMIFINAL 1' });
+        encuentrosPlayoff.push({ id: 's-2', loc: { id: null, nombre: "1° ZONA B" }, vis: { id: null, nombre: "2° ZONA A" }, etapa: 'SEMIFINAL 2' });
+      }
 
-fecha.encuentros.flatMap(enc => {
-// Si es un partido de zona (donde hay equipos reales)
-if (enc.loc.id && enc.vis.id) {
-// CREAMOS UN PARTIDO POR CADA CATEGORÍA ACTIVA
-return categoriasQueJuegan.map(cat => ({
-nro_fecha: fecha.numero,
-fecha_calendario: fecha.fechaReal,
-zona: fecha.zona || null,
-local_id: enc.loc.id,
-visitante_id: enc.vis.id,
-horario: cat.horario || '16:00', // Usa el horario configurado en la regla de categoría
-categoria: cat.nombre,
-organizacion_id: userOrgId, // AQUÍ SE GUARDA LA CATEGORÍA REAL AUTOMÁTICAMENTE
-jugado: false,
-finalizado: false
-}));
-} else {
-// Si es un Play-off (todavía sin IDs), guardamos solo un registro con la etapa
-return [{
-nro_fecha: fecha.numero,
-fecha_calendario: fecha.fechaReal,
-zona: 'PLAY-OFFS',
-local_id: null,
-visitante_id: null,
-horario: '16:00',
-categoria: enc.etapa || 'Final',
-organizacion_id: userOrgId,
-nombre_manual_loc: enc.loc?.nombre || "A DEFINIR",
-nombre_manual_vis: enc.vis?.nombre || "A DEFINIR",
-jugado: false,
-finalizado: false
-}];
-}
-})
-);
+      if (encuentrosPlayoff.length > 0) {
+        fixtureFinal.push({
+          numero: fechaPlayoff,
+          fechaReal: calcularFechaCalendario(fechaPlayoff),
+          zona: 'PLAY-OFFS',
+          encuentros: encuentrosPlayoff
+        });
+      }
 
-const { error: errorInsert } = await supabase.from('partidos').insert(partidosParaInsertar);
-if (errorInsert) throw errorInsert;
-setFixtureTemporal(fixtureFinal);
-await fetchData();
-alert(`✅ Sorteo "${modalidadSeleccionada}" generado y guardado.`);
-} catch (error) {
-console.error("Error crítico en el sorteo:", error);
-alert("❌ Error: " + error.message);
-} finally {
-setLoading(false);
-}
+    } else {
+      // MODO LIGA (Todos contra todos único)
+      const ida = generarFixtureBerger([...clubes].sort(() => Math.random() - 0.5));
+      fixtureFinal = ida.map(f => ({ ...f, fechaReal: calcularFechaCalendario(f.numero), zona: 'Única' }));
+    }
+
+    // 5. GUARDADO MASIVO (Mapeo a la tabla 'partidos')
+    const categoriasQueJuegan = categorias.filter(c => c.participa_torneo);
+    
+    const partidosParaInsertar = fixtureFinal.flatMap(fecha =>
+      fecha.encuentros.flatMap(enc => {
+        // Caso A: Partido de Fase de Grupos / Liga (con equipos reales)
+        if (enc.loc.id && enc.vis.id) {
+          return categoriasQueJuegan.map(cat => ({
+            nro_fecha: fecha.numero,
+            fecha_calendario: fecha.fechaReal,
+            zona: fecha.zona || null,
+            local_id: enc.loc.id,
+            visitante_id: enc.vis.id,
+            horario: cat.horario || '16:00',
+            categoria: cat.nombre,
+            organizacion_id: userOrgId,
+            finalizado: false,
+            jugado: false
+          }));
+        } else {
+          // Caso B: Partido de Play-off (con etiquetas manuales tipo "1° A")
+          return [{
+            nro_fecha: fecha.numero,
+            fecha_calendario: fecha.fechaReal,
+            zona: 'PLAY-OFFS',
+            local_id: null,
+            visitante_id: null,
+            nombre_manual_loc: enc.loc?.nombre || "A DEFINIR",
+            nombre_manual_vis: enc.vis?.nombre || "A DEFINIR",
+            horario: '16:00',
+            categoria: enc.etapa || 'Final',
+            organizacion_id: userOrgId,
+            finalizado: false,
+            jugado: false
+          }];
+        }
+      })
+    );
+
+    const { error: errorInsert } = await supabase.from('partidos').insert(partidosParaInsertar);
+    if (errorInsert) throw errorInsert;
+
+    setFixtureTemporal(fixtureFinal);
+    await fetchData(); // Sincronizamos el panel con los nuevos partidos
+    alert(`✅ Fixture generado y sincronizado (${modalidadSeleccionada}).`);
+
+  } catch (error) {
+    console.error("Error en sorteo:", error);
+    alert("❌ Error: " + error.message);
+  } finally {
+    setLoading(false);
+  }
 };
 
 const generarFixtureBerger = (lista) => {
@@ -690,7 +716,13 @@ return tablaZona[puesto - 1]
 };
 
 const obtenerGanador = (zona) => obtenerClasificadosZona(zona, 1);
-if (loading) return <div className="p-20 text-center text-amber-500 font-black animate-pulse uppercase tracking-widest">Sincronizando nc-s1125...</div>;
+
+
+if (loading) return <div className="p-20 text-center text-amber-500 font-black animate-pulse uppercase tracking-widest">Sincronizando GT SC1225...</div>;
+
+const hayEquiposSinZona = clubes.some(c => !c.zona || c.zona === 'S/D' || c.zona === '');
+const botonBloqueado = torneoModo === 'zonas' && metodoZonas === 'manual' && hayEquiposSinZona;
+
 return (
 <div className="p-4 md:p-8 bg-slate-950 min-h-screen text-white font-sans">
 {perfil.whatsapp_contacto && (
@@ -801,44 +833,119 @@ Inscripciones {perfil.inscripciones_abiertas ? 'Abiertas' : 'Cerradas'}
 <option value="permanencia">Clasificación y Permanencia</option>
 </select>
 
+{/* --- Reemplazo desde la línea 568 --- */}
+<select value={torneoModo} onChange={(e) => setTorneoModo(e.target.value)} className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-sm font-bold outline-none mb-4 cursor-pointer">
+  <option value="todos_contra_todos">Liga (Ida y Vuelta)</option>
+  <option value="apertura_clausura">Apertura y Clausura</option>
+  <option value="zonas">Zonas / Clasificación</option>
+  <option value="permanencia">Clasificación y Permanencia</option>
+</select>
+
+{/* AQUÍ COMIENZA LA INSERCIÓN DEL CÓDIGO PROPUESTO */}
 {torneoModo === 'zonas' && (
-<div className="grid grid-cols-2 gap-3 mb-4 animate-in fade-in">
-<div className="space-y-1">
-<label className="text-[8px] font-black uppercase text-amber-500 ml-1">Clasifican</label>
-<input type="number" value={clasificanPorZona} onChange={(e) => setClasificanPorZona(e.target.value)} className="w-full bg-slate-950 p-2 rounded-lg border border-slate-800 text-xs text-blue-400 font-black" />
-</div>
-<div className="space-y-1">
-<label className="text-[8px] font-black uppercase text-amber-500 ml-1">Zonas</label>
-<input type="number" min="2" max="4" value={cantidadZonas} onChange={(e) => setCantidadZonas(parseInt(e.target.value))} className="w-full bg-slate-950 p-2 rounded-lg border border-slate-800 text-xs text-amber-500 font-black" />
-</div>
-</div>
+  <>
+    {/* 1. Inputs de cantidad de zonas */}
+    <div className="grid grid-cols-2 gap-3 mb-4 animate-in fade-in">
+      <div className="space-y-1">
+        <label className="text-[8px] font-black uppercase text-amber-500 ml-1">Clasifican</label>
+        <input type="number" value={clasificanPorZona} onChange={(e) => setClasificanPorZona(e.target.value)} className="w-full bg-slate-950 p-2 rounded-lg border border-slate-800 text-xs text-blue-400 font-black" />
+      </div>
+      <div className="space-y-1">
+        <label className="text-[8px] font-black uppercase text-amber-500 ml-1">Zonas</label>
+        <input type="number" min="2" max="4" value={cantidadZonas} onChange={(e) => setCantidadZonas(parseInt(e.target.value))} className="w-full bg-slate-950 p-2 rounded-lg border border-slate-800 text-xs text-amber-500 font-black" />
+      </div>
+    </div>
+
+    {/* 2. BOTONES DE MODO (Aleatorio o Manual) */}
+    <div className="flex gap-2 p-1 bg-slate-950 rounded-2xl border border-slate-800 mb-6">
+      <button
+        onClick={() => setMetodoZonas('aleatorio')}
+        className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${
+          metodoZonas === 'aleatorio' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'
+        }`}
+      >
+        🎲 Aleatorio
+      </button>
+
+      {botonBloqueado && !perfil.inscripciones_abiertas && (
+  <p className="text-[9px] text-rose-500 font-black uppercase mt-4 animate-bounce text-center">
+    ❌ No puedes generar el fixture: Hay {clubes.filter(c => !c.zona || c.zona === 'S/D').length} equipos sin zona asignada.
+  </p>
 )}
-{/* SELECCIÓN DE CABEZAS DE SERIE (Solo visible en modo zonas) */}
-    {torneoModo === 'zonas' && (
-      <div className="mt-4 pt-4 border-t border-slate-800 animate-in fade-in slide-in-from-top-2">
-        <h2 className="text-[10px] font-black uppercase text-amber-500 mb-4 tracking-widest italic text-center">
-          Designar Cabezas de Serie
-        </h2>
+      <button
+        onClick={() => setMetodoZonas('manual')}
+        className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${
+          metodoZonas === 'manual' ? 'bg-rose-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'
+        }`}
+      >
+        ✍️ Manual
+      </button>
+    </div>
+
+    {/* 3. CONTENIDO CONDICIONAL */}
+    
+    {/* MODO ALEATORIO: Muestra los Cabezas de Serie */}
+    {metodoZonas === 'aleatorio' && (
+      <div className="mt-4 pt-4 border-t border-slate-800 animate-in fade-in">
+        <h2 className="text-[10px] font-black uppercase text-amber-500 mb-4 tracking-widest italic text-center">Designar Cabezas de Serie</h2>
         <div className="flex flex-wrap gap-2 mb-4 justify-center">
           {clubes.map(c => (
-            <button 
-              key={c.id} 
-              onClick={() => toggleCabezaSerie(c.id, c.es_cabeza_serie)} 
-              className={`px-3 py-2 rounded-xl text-[9px] font-black border transition-all flex items-center gap-2 ${
-                c.es_cabeza_serie 
-                ? 'bg-amber-600 border-amber-400 text-white shadow-lg shadow-amber-900/20' 
-                : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-600'
-              }`}
-            >
+            <button key={c.id} onClick={() => toggleCabezaSerie(c.id, c.es_cabeza_serie)} className={`px-3 py-2 rounded-xl text-[9px] font-black border transition-all ${c.es_cabeza_serie ? 'bg-amber-600 border-amber-400 text-white shadow-lg shadow-amber-900/20' : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-600'}`}>
               {c.es_cabeza_serie ? '⭐' : '☆'} {c.nombre}
             </button>
           ))}
         </div>
-        <p className="text-[8px] text-slate-600 text-center uppercase font-bold italic">
-          * Los cabezas de serie se distribuirán equitativamente entre las {cantidadZonas} zonas.
-        </p>
       </div>
     )}
+
+    {/* MODO MANUAL: Contadores + Grilla A/B */}
+    {metodoZonas === 'manual' && (
+      <div className="mt-4 pt-4 border-t border-slate-800 animate-in fade-in">
+        {/* CONTADORES */}
+        <div className="flex gap-4 mb-6 justify-center">
+          <div className="bg-blue-600/10 border border-blue-500/20 px-4 py-2 rounded-2xl text-center">
+            <p className="text-[7px] font-black uppercase text-blue-500">Zona A</p>
+            <p className="text-lg font-black italic">{clubes.filter(c => c.zona === 'Zona A').length}</p>
+          </div>
+          <div className="bg-rose-600/10 border border-rose-500/20 px-4 py-2 rounded-2xl text-center">
+            <p className="text-[7px] font-black uppercase text-rose-500">Zona B</p>
+            <p className="text-lg font-black italic">{clubes.filter(c => c.zona === 'Zona B').length}</p>
+          </div>
+        </div>
+
+        {/* GRILLA DE CLUBES */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {clubes.map((club) => (
+            <div key={club.id} className="bg-slate-950 p-3 rounded-2xl border border-slate-800 flex flex-col items-center gap-2">
+              <span className="text-[9px] font-black uppercase truncate w-full text-center">{club.nombre}</span>
+              <div className="flex w-full gap-1">
+                <button
+                  disabled={procesandoZonas}
+                  onClick={() => asignarZonaManual(club.id, 'Zona A')}
+                  className={`flex-1 py-2 rounded-xl text-[8px] font-black uppercase transition-all ${
+                    club.zona === 'Zona A' ? 'bg-blue-600 text-white' : 'bg-slate-900 text-slate-600'
+                  } ${procesandoZonas ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  A
+                </button>
+                <button
+                  disabled={procesandoZonas}
+                  onClick={() => asignarZonaManual(club.id, 'Zona B')}
+                  className={`flex-1 py-2 rounded-xl text-[8px] font-black uppercase transition-all ${
+                    club.zona === 'Zona B' ? 'bg-rose-600 text-white' : 'bg-slate-900 text-slate-600'
+                  } ${procesandoZonas ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  B
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+  </>
+)}
+{/* FIN DE LA INSERCIÓN */}
 
 <h2 className="text-[10px] font-black uppercase text-amber-500 mb-2 tracking-widest">Días de Juego (Multiselección)</h2>
 <div className="flex flex-wrap gap-2 mb-4">
@@ -878,8 +985,20 @@ ACTUALIZAR PARÁMETROS
 <p className="text-[9px] font-black uppercase text-slate-600 mb-1 ml-2 tracking-widest">Fecha de Inicio General</p>
 <input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-bold text-blue-400 outline-none" />
 </div>
-<button onClick={handleSorteo} className={`w-full py-6 rounded-[2rem] font-black uppercase text-xs shadow-xl active:scale-95 transition-all ${perfil.inscripciones_abiertas ? 'bg-slate-800 text-slate-600 cursor-not-allowed opacity-50' : 'bg-blue-600 hover:bg-blue-500 text-white animate-pulse'}`}>
-{perfil.inscripciones_abiertas ? '🔒 Cierra inscripciones' : '🚀 Generar Fixture Completo'}
+<button 
+  onClick={handleSorteo} 
+  disabled={perfil.inscripciones_abiertas || botonBloqueado} // Sumamos la validación aquí
+  className={`w-full py-6 rounded-[2rem] font-black uppercase text-xs shadow-xl active:scale-95 transition-all ${
+    (perfil.inscripciones_abiertas || botonBloqueado) 
+    ? 'bg-slate-800 text-slate-600 cursor-not-allowed opacity-50' 
+    : 'bg-blue-600 hover:bg-blue-500 text-white animate-pulse'
+  }`}
+>
+  {perfil.inscripciones_abiertas 
+    ? '🔒 Cierra inscripciones' 
+    : botonBloqueado 
+      ? '⚠️ Asigna todas las zonas' 
+      : '🚀 Generar Fixture Completo'}
 </button>
 </div>
 </section>
@@ -1091,7 +1210,7 @@ Cancelar y volver
 </div>
 </div>
 )}
-{/* --- HASTA AQUÍ --- */}
+
 </div>
 );
 };

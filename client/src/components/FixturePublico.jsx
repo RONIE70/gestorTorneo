@@ -78,82 +78,79 @@ const FixturePublico = () => {
 
   // --- DESCARGA DE PDF CON DISEÑO DE CARDS ---
   const descargarPDF = async (zonaLabel) => {
-    const doc = new jsPDF('p', 'mm', 'a4');
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const datosAgrupados = obtenerAgrupados(zonaLabel);
-    
-    // 1. HEADER (Uso de identidad.fondoHeader)
-    doc.setFillColor(identidad.fondoHeader);
-    doc.rect(0, 0, pageWidth, 40, 'F');
-    
-    doc.setTextColor(identidad.texto);
-    doc.setFontSize(22);
-    doc.setFont("helvetica", "bold");
-    doc.text("LIGA DE LAS NENAS", pageWidth / 2, 18, { align: 'center' });
-    
-    doc.setFontSize(10);
-    doc.setTextColor(identidad.acento); // Uso de identidad.acento
-    doc.text(`FIXTURE OFICIAL - ${zonaLabel.toUpperCase()}`, pageWidth / 2, 26, { align: 'center' });
-    
-    doc.setTextColor(identidad.texto);
-    doc.setFontSize(8);
-    doc.text(`Temporada 2026 | Generado: ${new Date().toLocaleDateString()}`, pageWidth / 2, 32, { align: 'center' });
-
-    let yPos = 50;
-    const cardWidth = 90;
-    const cardHeight = 45;
-    const margin = 10;
-
-    for (const numFecha of Object.keys(datosAgrupados)) {
-      if (yPos > 230) { doc.addPage(); yPos = 20; }
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const datosAgrupados = obtenerAgrupados(zonaLabel);
       
-      doc.setFontSize(14);
-      doc.setTextColor(0, 0, 0);
-      doc.text(`JORNADA ${numFecha}`, margin, yPos);
-      yPos += 8;
+      // HEADER DEL PDF usando identidad.fondo e identidad.texto
+      doc.setFillColor(identidad.fondo);
+      doc.rect(0, 0, pageWidth, 40, 'F');
+      doc.setTextColor(identidad.texto);
+      doc.setFontSize(22);
+      doc.setFont("helvetica", "bold");
+      doc.text("LIGA DE LAS NENAS", pageWidth / 2, 18, { align: 'center' });
+      
+      // SUBTÍTULO usando identidad.acento
+      doc.setFontSize(10);
+      doc.setTextColor(identidad.acento); 
+      doc.text(`FIXTURE OFICIAL - ${zonaLabel.toUpperCase()}`, pageWidth / 2, 26, { align: 'center' });
+      
+      doc.setTextColor(identidad.texto);
+      doc.setFontSize(8);
+      doc.text(`Temporada 2026 | Generado: ${new Date().toLocaleDateString()}`, pageWidth / 2, 32, { align: 'center' });
 
-      const cruces = datosAgrupados[numFecha];
-      for (let i = 0; i < cruces.length; i++) {
-        const p = cruces[i];
-        const xPos = i % 2 === 0 ? margin : margin + cardWidth + 5;
-        
-        // DIBUJAR CARD BLANCA
-        doc.setDrawColor(220, 220, 220);
-        doc.setFillColor(255, 255, 255);
-        doc.roundedRect(xPos, yPos, cardWidth, cardHeight, 4, 4, 'FD');
+      let yPos = 50;
+      const cardWidth = 90;
+      const cardHeight = 45;
+      const margin = 10;
 
-        // FECHA Y ZONA (Uso de identidad.subtitulo para el color azul en texto)
-        doc.setFontSize(7);
-        doc.setTextColor(59, 130, 246); 
-        doc.text(`${p.fecha_calendario || 'S/D'} • ${p.zona}`, xPos + cardWidth / 2, yPos + 6, { align: 'center' });
-
-        // ESCUDOS (Llamada activa a cargarImagen)
-        const imgLoc = await cargarImagen(p.local?.escudo_url);
-        const imgVis = await cargarImagen(p.visitante?.escudo_url);
-
-        if (imgLoc) doc.addImage(imgLoc, 'PNG', xPos + 10, yPos + 10, 15, 15);
-        if (imgVis) doc.addImage(imgVis, 'PNG', xPos + cardWidth - 25, yPos + 10, 15, 15);
-
-        // NOMBRES
-        doc.setFontSize(8);
+      for (const numFecha of Object.keys(datosAgrupados)) {
+        if (yPos > 230) { doc.addPage(); yPos = 20; }
+        doc.setFontSize(14);
         doc.setTextColor(0, 0, 0);
         doc.setFont("helvetica", "bold");
-        doc.text(p.local?.nombre || p.nombre_manual_loc || 'A DEF.', xPos + 17.5, yPos + 32, { align: 'center', maxWidth: 30 });
-        doc.text(p.visitante?.nombre || p.nombre_manual_vis || 'A DEF.', xPos + cardWidth - 17.5, yPos + 32, { align: 'center', maxWidth: 30 });
+        doc.text(`JORNADA ${numFecha}`, margin, yPos);
+        yPos += 8;
 
-        // VS (Uso de identidad.acento)
-        doc.setTextColor(identidad.acento);
-        doc.setFontSize(12);
-        doc.text("VS", xPos + cardWidth / 2, yPos + 22, { align: 'center' });
+        const cruces = datosAgrupados[numFecha];
+        for (let i = 0; i < cruces.length; i++) {
+          const p = cruces[i];
+          const xPos = i % 2 === 0 ? margin : margin + cardWidth + 5;
+          
+          doc.setDrawColor(220, 220, 220);
+          doc.setFillColor(255, 255, 255);
+          doc.roundedRect(xPos, yPos, cardWidth, cardHeight, 4, 4, 'FD');
 
-        if (i % 2 !== 0 || i === cruces.length - 1) {
-           if (i % 2 !== 0) yPos += cardHeight + 5;
+          // Fecha usando identidad.subtitulo (Blue)
+          doc.setFontSize(7);
+          doc.setTextColor(identidad.subtitulo); 
+          doc.text(`${p.fecha_calendario || 'S/D'} • ${p.zona}`, xPos + cardWidth / 2, yPos + 6, { align: 'center' });
+
+          const imgLoc = await cargarImagen(p.local?.escudo_url);
+          const imgVis = await cargarImagen(p.visitante?.escudo_url);
+          if (imgLoc) doc.addImage(imgLoc, 'PNG', xPos + 10, yPos + 10, 15, 15);
+          if (imgVis) doc.addImage(imgVis, 'PNG', xPos + cardWidth - 25, yPos + 10, 15, 15);
+
+          doc.setFontSize(8);
+          doc.setTextColor(0, 0, 0);
+          doc.text((p.local?.nombre || p.nombre_manual_loc || 'A DEF.').toUpperCase(), xPos + 17.5, yPos + 32, { align: 'center', maxWidth: 30 });
+          doc.text((p.visitante?.nombre || p.nombre_manual_vis || 'A DEF.').toUpperCase(), xPos + cardWidth - 17.5, yPos + 32, { align: 'center', maxWidth: 30 });
+
+          // VS usando identidad.acento (Pink)
+          doc.setTextColor(identidad.acento);
+          doc.setFontSize(12);
+          doc.text("VS", xPos + cardWidth / 2, yPos + 22, { align: 'center' });
+
+          if (i % 2 !== 0 || i === cruces.length - 1) { if (i % 2 !== 0) yPos += cardHeight + 5; }
+          if (yPos > 240) { doc.addPage(); yPos = 20; }
         }
-        if (yPos > 240) { doc.addPage(); yPos = 20; }
+        yPos += 15;
       }
-      yPos += 15;
+      doc.save(`Fixture_LdlN_2026_${zonaLabel.replace(/\s+/g, '_')}.pdf`);
+    } catch (err) {
+      console.error("Error PDF:", err);
     }
-    doc.save(`Fixture_LdlN_2026_${zonaLabel}.pdf`);
   };
 
   const agrupados = obtenerAgrupados(zonaSeleccionada);

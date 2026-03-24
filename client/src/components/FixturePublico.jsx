@@ -11,6 +11,7 @@ const FixturePublico = () => {
   const [zonasDisponibles, setZonasDisponibles] = useState([]);
   const [busquedaEquipo, setBusquedaEquipo] = useState('');
   const [clubes, setClubes] = useState([]);
+  const [logoLiga, setLogoLiga] = useState(null);
 
 
   const identidad = {
@@ -27,32 +28,21 @@ const FixturePublico = () => {
   const fetchFixture = async () => {
   try {
     setLoading(true);
-    // Traemos partidos y equipos en paralelo para que sea más rápido
-    const [partidosRes, equiposRes] = await Promise.all([
-      supabase
-        .from('partidos')
-        .select(`
-          *,
-          local:equipos!local_id(nombre, escudo_url),
-          visitante:equipos!visitante_id(nombre, escudo_url)
-        `)
-        .eq('finalizado', false)
-        .order('nro_fecha', { ascending: true }),
-      supabase
-        .from('equipos')
-        .select('*') // Traemos todos los clubes para calcular el LIBRE
+    const [partidosRes, equiposRes, ligaRes] = await Promise.all([
+      supabase.from('partidos').select(`*, local:equipos!local_id(nombre, escudo_url), visitante:equipos!visitante_id(nombre, escudo_url)`).eq('finalizado', false).order('nro_fecha', { ascending: true }),
+      supabase.from('equipos').select('*'),
+      supabase.from('configuracion_liga').select('logo_url').maybeSingle()
     ]);
 
     if (partidosRes.error) throw partidosRes.error;
-    if (equiposRes.error) throw equiposRes.error;
-
-    const zonas = [...new Set(partidosRes.data.map(p => p.zona).filter(Boolean))].sort();
-    
-    setZonasDisponibles(zonas);
     setPartidos(partidosRes.data);
-    setClubes(equiposRes.data); // <-- Aquí guardamos los clubes
+    setClubes(equiposRes.data || []);
+    setLogoLiga(ligaRes.data?.logo_url || null);
+    
+    const zonas = [...new Set(partidosRes.data.map(p => p.zona).filter(Boolean))].sort();
+    setZonasDisponibles(zonas);
   } catch (error) {
-    console.error("Error cargando datos:", error.message);
+    console.error("Error:", error.message);
   } finally {
     setLoading(false);
   }
@@ -91,121 +81,136 @@ const FixturePublico = () => {
 
   // --- DESCARGA DE PDF CON DISEÑO DE CARDS ---
  const descargarPDF = async (zonaLabel) => {
-    try {
-      const doc = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const margin = 10;
-      const cardWidth = (pageWidth - (margin * 2) - 10) / 3; 
-      const cardHeight = 48; // Aumentamos un poquito el alto por el borde grueso
-      const datosAgrupados = obtenerAgrupados(zonaLabel);
+  try {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 10;
+    const cardWidth = (pageWidth - (margin * 2) - 10) / 3;
+    const cardHeight = 50; 
+    const datosAgrupados = obtenerAgrupados(zonaLabel);
 
-      // 1. ENCABEZADO INSTITUCIONAL
-      doc.setFillColor(identidad.fondo);
-      doc.rect(0, 0, pageWidth, 40, 'F');
-      doc.setTextColor(identidad.texto);
-      doc.setFontSize(22);
-      doc.setFont("helvetica", "bold");
-      doc.text("LIGA DE LAS NENAS", pageWidth / 2, 18, { align: 'center' });
-      
-      doc.setFontSize(10);
-      doc.setTextColor(identidad.acento); 
-      doc.text(`FIXTURE OFICIAL - ${zonaLabel.toUpperCase()}`, pageWidth / 2, 26, { align: 'center' });
-      
-      doc.setTextColor(identidad.texto);
-      doc.setFontSize(8);
-      doc.text(`Temporada 2026 | Generado: ${new Date().toLocaleDateString()}`, pageWidth / 2, 32, { align: 'center' });
+    // 1. HEADER INSTITUCIONAL (FONDO NEGRO)
+    doc.setFillColor(0, 0, 0);
+    doc.rect(0, 0, pageWidth, 45, 'F');
 
-      let yPos = 50;
-
-      for (const numFecha of Object.keys(datosAgrupados)) {
-        if (yPos > 220) { doc.addPage(); yPos = 20; }
-
-        const cruces = datosAgrupados[numFecha];
-        const fechaReal = cruces[0]?.fecha_calendario || 'S/D';
-
-        // LÓGICA EQUIPO LIBRE
-        let equipoLibre = "NINGUNO";
-        if (zonaLabel !== 'TODAS' && clubes.length > 0) {
-          const clubesDeLaZona = clubes.filter(c => c.zona === zonaLabel);
-          const idsJugando = new Set();
-          cruces.forEach(p => {
-            if (p.local_id) idsJugando.add(p.local_id);
-            if (p.visitante_id) idsJugando.add(p.visitante_id);
-          });
-          const libre = clubesDeLaZona.find(c => !idsJugando.has(c.id));
-          if (libre) equipoLibre = libre.nombre;
-        }
-
-        // TÍTULO DE JORNADA
-        doc.setFontSize(11);
-        doc.setTextColor(0, 0, 0);
-        doc.setFont("helvetica", "bold");
-        doc.text(`JORNADA ${numFecha} • ${fechaReal} • LIBRE: ${equipoLibre.toUpperCase()}`, margin, yPos);
-        
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.2);
-        doc.line(margin, yPos + 2, pageWidth - margin, yPos + 2);
-        
-        yPos += 10;
-
-        // CRUCES EN 3 COLUMNAS
-        for (let i = 0; i < cruces.length; i++) {
-          const p = cruces[i];
-          const col = i % 3;
-          const row = Math.floor(i / 3);
-          const xPos = margin + (col * (cardWidth + 5));
-          const currentY = yPos + (row * (cardHeight + 5));
-
-          if (currentY > 250) { doc.addPage(); yPos = 20; }
-
-          // --- CONFIGURACIÓN DEL BORDE SEGÚN ZONA ---
-          // Zona A: Azul (#3b82f6) | Zona B: Pink (#ec4899)
-          if (p.zona === 'Zona A') {
-            doc.setDrawColor(59, 130, 246);
-          } else if (p.zona === 'Zona B') {
-            doc.setDrawColor(236, 72, 153);
-          } else {
-            doc.setDrawColor(200, 200, 200);
-          }
-          
-          doc.setLineWidth(0.8); // Borde bien grueso
-          doc.setFillColor(255, 255, 255);
-          doc.roundedRect(xPos, currentY, cardWidth, cardHeight, 4, 4, 'FD');
-
-          // ESCUDOS
-          const imgLoc = await cargarImagen(p.local?.escudo_url);
-          const imgVis = await cargarImagen(p.visitante?.escudo_url);
-          if (imgLoc) doc.addImage(imgLoc, 'PNG', xPos + 6, currentY + 10, 14, 14);
-          if (imgVis) doc.addImage(imgVis, 'PNG', xPos + cardWidth - 20, currentY + 10, 14, 14);
-
-          // TEXTOS
-          doc.setFontSize(7);
-          doc.setTextColor(0, 0, 0);
-          const nLoc = (p.local?.nombre || p.nombre_manual_loc || 'A DEF.').toUpperCase();
-          const nVis = (p.visitante?.nombre || p.nombre_manual_vis || 'A DEF.').toUpperCase();
-          
-          doc.text(nLoc, xPos + 13, currentY + 30, { align: 'center', maxWidth: cardWidth / 2 - 2 });
-          doc.text(nVis, xPos + cardWidth - 13, currentY + 30, { align: 'center', maxWidth: cardWidth / 2 - 2 });
-
-          doc.setTextColor(identidad.acento);
-          doc.setFontSize(10);
-          doc.text("VS", xPos + cardWidth / 2, currentY + 20, { align: 'center' });
-
-          doc.setFontSize(6);
-          doc.setTextColor(150, 150, 150);
-          doc.text(p.zona || '-', xPos + cardWidth / 2, currentY + 44, { align: 'center' });
-
-          if (col === 2 || i === cruces.length - 1) {
-            if (i === cruces.length - 1) yPos = currentY + cardHeight + 12;
-          }
-        }
-        yPos += 5;
-      }
-      doc.save(`Fixture_LdlN_2026_${zonaLabel.replace(/\s+/g, '_')}.pdf`);
-    } catch (err) {
-      console.error("Error PDF:", err);
+    // Logo de la Liga (Lado izquierdo del header)
+    if (logoLiga) {
+      const imgLogo = await cargarImagen(logoLiga);
+      if (imgLogo) doc.addImage(imgLogo, 'PNG', 15, 8, 28, 28);
     }
-  };
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text("LIGA DE LAS NENAS", pageWidth / 2 + 10, 20, { align: 'center' });
+    
+    // Subtítulo más grande como pediste
+    doc.setFontSize(14); 
+    doc.setTextColor(identidad.acento); 
+    doc.text(`FIXTURE OFICIAL - ${zonaLabel.toUpperCase()}`, pageWidth / 2 + 10, 28, { align: 'center' });
+    
+    doc.setFontSize(9);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Temporada 2026 | Generado: ${new Date().toLocaleDateString()}`, pageWidth / 2 + 10, 35, { align: 'center' });
+
+    let yPos = 55;
+
+    for (const numFecha of Object.keys(datosAgrupados)) {
+      if (yPos > 220) { doc.addPage(); yPos = 20; }
+
+      const cruces = datosAgrupados[numFecha];
+      const fechaReal = cruces[0]?.fecha_calendario || 'S/D';
+
+      // Lógica de Equipo LIBRE
+      let equipoLibre = "NINGUNO";
+      if (zonaLabel !== 'TODAS') {
+        const clubesDeLaZona = clubes.filter(c => c.zona === zonaLabel);
+        const idsJugando = new Set();
+        cruces.forEach(p => {
+          if (p.local_id) idsJugando.add(p.local_id);
+          if (p.visitante_id) idsJugando.add(p.visitante_id);
+        });
+        const libre = clubesDeLaZona.find(c => !idsJugando.has(c.id));
+        if (libre) equipoLibre = libre.nombre;
+      }
+
+      // ENCABEZADO DE JORNADA
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "bold");
+      // "Jornada" a la izquierda
+      doc.text(`JORNADA ${numFecha} • ${fechaReal}`, margin, yPos);
+      // "LIBRE" a la derecha
+      doc.setTextColor(identidad.acento);
+      doc.text(`LIBRE: ${equipoLibre.toUpperCase()}`, pageWidth - margin, yPos, { align: 'right' });
+      
+      doc.setDrawColor(230, 230, 230);
+      doc.line(margin, yPos + 2, pageWidth - margin, yPos + 2);
+      yPos += 10;
+
+      // CRUCES EN 3 COLUMNAS (CARDS NEGRAS)
+      for (let i = 0; i < cruces.length; i++) {
+        const p = cruces[i];
+        const col = i % 3;
+        const row = Math.floor(i / 3);
+        const xPos = margin + (col * (cardWidth + 5));
+        const currentY = yPos + (row * (cardHeight + 5));
+
+        if (currentY > 250) { doc.addPage(); yPos = 20; }
+
+        // --- DIBUJAR CARD NEGRA ---
+        doc.setFillColor(20, 20, 20); // Casi negro
+        // Borde según zona
+        if (p.zona === 'Zona A') doc.setDrawColor(59, 130, 246);
+        else if (p.zona === 'Zona B') doc.setDrawColor(236, 72, 153);
+        else doc.setDrawColor(60, 60, 60);
+
+        doc.setLineWidth(0.8);
+        doc.roundedRect(xPos, currentY, cardWidth, cardHeight, 4, 4, 'FD');
+
+        // Escudos (Dentro de un circulito blanco para que resalten sobre el negro)
+        const imgLoc = await cargarImagen(p.local?.escudo_url);
+        const imgVis = await cargarImagen(p.visitante?.escudo_url);
+
+        if (imgLoc) {
+          doc.setFillColor(255, 255, 255);
+          doc.ellipse(xPos + 12, currentY + 14, 8, 8, 'F');
+          doc.addImage(imgLoc, 'PNG', xPos + 6, currentY + 8, 12, 12);
+        }
+        if (imgVis) {
+          doc.setFillColor(255, 255, 255);
+          doc.ellipse(xPos + cardWidth - 12, currentY + 14, 8, 8, 'F');
+          doc.addImage(imgVis, 'PNG', xPos + cardWidth - 18, currentY + 8, 12, 12);
+        }
+
+        // Textos Blancos
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(7);
+        const nLoc = (p.local?.nombre || p.nombre_manual_loc || 'A DEF.').toUpperCase();
+        const nVis = (p.visitante?.nombre || p.nombre_manual_vis || 'A DEF.').toUpperCase();
+        
+        doc.text(nLoc, xPos + 13, currentY + 32, { align: 'center', maxWidth: cardWidth / 2 - 2 });
+        doc.text(nVis, xPos + cardWidth - 13, currentY + 32, { align: 'center', maxWidth: cardWidth / 2 - 2 });
+
+        doc.setTextColor(identidad.acento);
+        doc.setFontSize(10);
+        doc.text("VS", xPos + cardWidth / 2, currentY + 18, { align: 'center' });
+
+        doc.setFontSize(6);
+        doc.setTextColor(100, 100, 100);
+        doc.text(p.zona || '-', xPos + cardWidth / 2, currentY + 45, { align: 'center' });
+
+        if (col === 2 || i === cruces.length - 1) {
+          if (i === cruces.length - 1) yPos = currentY + cardHeight + 12;
+        }
+      }
+      yPos += 5;
+    }
+    doc.save(`Fixture_LdlN_2026_${zonaLabel.replace(/\s+/g, '_')}.pdf`);
+  } catch (err) {
+    console.error("Error PDF:", err);
+  }
+};
 
   const agrupados = obtenerAgrupados(zonaSeleccionada);
 

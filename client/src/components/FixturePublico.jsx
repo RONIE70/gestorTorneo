@@ -80,17 +80,18 @@ const FixturePublico = () => {
   };
 
   // --- DESCARGA DE PDF CON DISEÑO DE CARDS ---
-const descargarPDF = async (zonaLabel) => {
+ const descargarPDF = async (zonaLabel) => {
     try {
       const doc = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
       const margin = 10;
-      const cardWidth = (pageWidth - (margin * 2) - 8) / 3; // Ancho preciso para 3 columnas
+      // Calculamos el ancho exacto para que 3 columnas no se pisen (aprox 61mm c/u)
+      const cardWidth = (pageWidth - (margin * 2) - 10) / 3; 
       const cardHeight = 48;
       const datosAgrupados = obtenerAgrupados(zonaLabel);
 
-      // Header Institucional
-      doc.setFillColor(identidad.fondo);
+      // --- HEADER ---
+      doc.setFillColor(0, 0, 0);
       doc.rect(0, 0, pageWidth, 45, 'F');
 
       if (logoLiga) {
@@ -98,28 +99,32 @@ const descargarPDF = async (zonaLabel) => {
         if (imgLogo) doc.addImage(imgLogo, 'PNG', 12, 8, 28, 28);
       }
 
-      doc.setTextColor(identidad.texto);
+      doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(22);
       doc.text("LIGA DE LAS NENAS", pageWidth / 2 + 10, 18, { align: 'center' });
       
-      doc.setFontSize(16); // Texto más grande para el título
-      doc.setTextColor(identidad.acento); 
-      doc.text(`FIXTURE OFICIAL - ${zonaLabel.toUpperCase()}`, pageWidth / 2 + 10, 28, { align: 'center' });
+      doc.setFontSize(14);
+      doc.setTextColor(236, 72, 153); // Pink
+      doc.text(`FIXTURE OFICIAL - ${zonaLabel.toUpperCase()}`, pageWidth / 2 + 10, 26, { align: 'center' });
       
-      doc.setTextColor(identidad.texto);
+      doc.setTextColor(255, 255, 255);
       doc.setFontSize(8);
-      doc.text(`Temporada 2026 | Generado: ${new Date().toLocaleDateString()}`, pageWidth / 2 + 10, 35, { align: 'center' });
+      doc.text(`Temporada 2026 | Generado: ${new Date().toLocaleDateString()}`, pageWidth / 2 + 10, 33, { align: 'center' });
 
       let yPos = 55;
 
       for (const numFecha of Object.keys(datosAgrupados)) {
-        if (yPos > 230) { doc.addPage(); yPos = 20; }
-
         const cruces = datosAgrupados[numFecha];
+        
+        // Estimar si la jornada completa entra, si no, nueva página
+        const filasNecesarias = Math.ceil(cruces.length / 3);
+        const espacioNecesario = 15 + (filasNecesarias * (cardHeight + 5));
+        if (yPos + espacioNecesario > 280) { doc.addPage(); yPos = 20; }
+
         const fechaReal = cruces[0]?.fecha_calendario || 'S/D';
 
-        // Lógica equipo LIBRE
+        // Lógica LIBRE
         let equipoLibre = "NINGUNO";
         if (zonaLabel !== 'TODAS' && clubes.length > 0) {
           const clubesDeLaZona = clubes.filter(c => c.zona === zonaLabel);
@@ -132,13 +137,12 @@ const descargarPDF = async (zonaLabel) => {
           if (libre) equipoLibre = libre.nombre;
         }
 
-        // Línea de Jornada con LIBRE a la derecha
+        // Título Jornada
         doc.setFontSize(10);
         doc.setTextColor(0, 0, 0);
         doc.setFont("helvetica", "bold");
         doc.text(`JORNADA ${numFecha} • ${fechaReal}`, margin, yPos);
-        
-        doc.setTextColor(identidad.acento); // LIBRE en Pink
+        doc.setTextColor(236, 72, 153);
         doc.text(`LIBRE: ${equipoLibre.toUpperCase()}`, pageWidth - margin, yPos, { align: 'right' });
         
         doc.setDrawColor(230, 230, 230);
@@ -149,45 +153,49 @@ const descargarPDF = async (zonaLabel) => {
           const p = cruces[i];
           const col = i % 3;
           const row = Math.floor(i / 3);
-          const xPos = margin + (col * (cardWidth + 4));
-          const currentY = yPos + (row * (cardHeight + 4));
-
-          if (currentY > 250) { doc.addPage(); yPos = 20; }
+          const xPos = margin + (col * (cardWidth + 5));
+          const currentY = yPos + (row * (cardHeight + 5));
 
           // Card Negra
           doc.setFillColor(20, 20, 20);
           if (p.zona === 'Zona A') doc.setDrawColor(59, 130, 246);
-          else if (p.zona === 'Zona B') doc.setDrawColor(identidad.acento);
+          else if (p.zona === 'Zona B') doc.setDrawColor(236, 72, 153);
           else doc.setDrawColor(60, 60, 60);
 
           doc.setLineWidth(0.8);
           doc.roundedRect(xPos, currentY, cardWidth, cardHeight, 3, 3, 'FD');
 
-          // Escudos
+          // Escudos en círculos blancos
           const imgL = await cargarImagen(p.local?.escudo_url);
           const imgV = await cargarImagen(p.visitante?.escudo_url);
+
           if (imgL) {
             doc.setFillColor(255, 255, 255);
-            doc.ellipse(xPos + 9, currentY + 11, 6, 6, 'F');
-            doc.addImage(imgL, 'PNG', xPos + 5, currentY + 7, 8, 8);
+            doc.ellipse(xPos + 10, currentY + 12, 7, 7, 'F');
+            doc.addImage(imgL, 'PNG', xPos + 5, currentY + 7, 10, 10);
           }
           if (imgV) {
             doc.setFillColor(255, 255, 255);
-            doc.ellipse(xPos + cardWidth - 9, currentY + 11, 6, 6, 'F');
-            doc.addImage(imgV, 'PNG', xPos + cardWidth - 13, currentY + 7, 8, 8);
+            doc.ellipse(xPos + cardWidth - 10, currentY + 12, 7, 7, 'F');
+            doc.addImage(imgV, 'PNG', xPos + cardWidth - 15, currentY + 7, 10, 10);
           }
 
-          // Textos Blancos
-          doc.setTextColor(identidad.texto);
-          doc.setFontSize(6);
+          // Nombres (Reducimos font y maxWidth para evitar "encimado")
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(6.2);
           const nL = (p.local?.nombre || p.nombre_manual_loc || 'A DEF.').toUpperCase();
           const nV = (p.visitante?.nombre || p.nombre_manual_vis || 'A DEF.').toUpperCase();
-          doc.text(nL, xPos + 10, currentY + 28, { align: 'center', maxWidth: cardWidth / 2 - 3 });
-          doc.text(nV, xPos + cardWidth - 10, currentY + 28, { align: 'center', maxWidth: cardWidth / 2 - 3 });
+          
+          doc.text(nL, xPos + 11, currentY + 30, { align: 'center', maxWidth: cardWidth / 2 - 4 });
+          doc.text(nV, xPos + cardWidth - 11, currentY + 30, { align: 'center', maxWidth: cardWidth / 2 - 4 });
 
-          doc.setTextColor(identidad.acento);
+          doc.setTextColor(236, 72, 153);
           doc.setFontSize(9);
           doc.text("VS", xPos + cardWidth / 2, currentY + 18, { align: 'center' });
+
+          doc.setFontSize(5.5);
+          doc.setTextColor(100, 100, 100);
+          doc.text(p.zona || '-', xPos + cardWidth / 2, currentY + 44, { align: 'center' });
 
           if (col === 2 || i === cruces.length - 1) {
             if (i === cruces.length - 1) yPos = currentY + cardHeight + 10;
@@ -195,7 +203,12 @@ const descargarPDF = async (zonaLabel) => {
         }
         yPos += 5;
       }
-      doc.save(`Fixture_LdlN_2026_${zonaLabel.replace(/\s+/g, '_')}.pdf`);
+
+      // Método amigable para Celulares
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      // doc.save(...) // Opcional si prefieres descarga directa
     } catch (err) {
       console.error(err);
     }

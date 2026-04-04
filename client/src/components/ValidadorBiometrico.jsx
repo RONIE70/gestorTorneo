@@ -5,6 +5,7 @@ import EXIF from 'exif-js'; // Asegúrate de tenerlo instalado: npm install exif
 
 const ValidadorBiometrico = () => {
     const [pendientes, setPendientes] = useState([]);
+    const [filtroClub, setFiltroClub] = useState('');
     const [cargandoModelos, setCargandoModelos] = useState(true);
     const [seleccionada, setSeleccionada] = useState(null);
     const [resultadoIA, setResultadoIA] = useState(null);
@@ -83,6 +84,11 @@ useEffect(() => {
     }
 }, [userOrgId, fetchPendientes]);
 // Solo se recrea si cambia el ID de la organización
+
+// --- LÓGICA DE FILTRADO EN TIEMPO REAL ---
+    const pendientesFiltrados = pendientes.filter(j => 
+        (j.equipos?.nombre || "").toLowerCase().includes(filtroClub.toLowerCase())
+    );
 
 const analizarForense = (url) => {
     return new Promise((resolve) => {
@@ -234,19 +240,35 @@ const analizarForense = (url) => {
     return (
         <div className="flex h-screen bg-slate-950 text-white font-sans">
             {/* LISTADO LATERAL */}
-            <div className="w-1/4 border-r border-slate-800 overflow-y-auto p-6 bg-slate-900/50">
-                <h2 className="text-xl font-black italic mb-6 text-blue-500">PENDIENTES ({pendientes.length})</h2>
-                <div className="space-y-3">
-                    {pendientes.map(j => (
-                        <div 
-                            key={j.id} 
-                            onClick={() => { setSeleccionada(j); setResultadoIA(null); setResultadoForense(null); }}
-                            className={`p-4 rounded-2xl cursor-pointer border-2 transition-all ${seleccionada?.id === j.id ? 'border-blue-500 bg-blue-600/20 shadow-[0_0_15px_rgba(37,99,235,0.3)]' : 'border-slate-800 bg-slate-900 hover:border-slate-700'}`}
-                        >
-                            <p className="font-black uppercase text-xs">{j.apellido}, {j.nombre}</p>
-                            <p className="text-[9px] text-slate-500 font-bold uppercase">{j.equipos?.nombre || "Club no asignado"}</p>
-                        </div>
-                    ))}
+            <div className="w-1/4 border-r border-slate-800 overflow-y-auto p-6 bg-slate-900/50 flex flex-col">
+                <h2 className="text-xl font-black italic mb-2 text-blue-500 uppercase tracking-tighter">Pendientes ({pendientesFiltrados.length})</h2>
+                
+                {/* --- NUEVO INPUT DE BÚSQUEDA --- */}
+                <div className="mb-6">
+                    <input 
+                        type="text" 
+                        placeholder="Buscar por Club..." 
+                        value={filtroClub}
+                        onChange={(e) => setFiltroClub(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-blue-500 transition-all uppercase placeholder:text-slate-600"
+                    />
+                </div>
+
+                <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar">
+                    {pendientesFiltrados.length > 0 ? (
+                        pendientesFiltrados.map(j => (
+                            <div 
+                                key={j.id} 
+                                onClick={() => { setSeleccionada(j); setResultadoIA(null); setResultadoForense(null); }}
+                                className={`p-4 rounded-2xl cursor-pointer border-2 transition-all ${seleccionada?.id === j.id ? 'border-blue-500 bg-blue-600/20 shadow-[0_0_15px_rgba(37,99,235,0.3)]' : 'border-slate-800 bg-slate-900 hover:border-slate-700'}`}
+                            >
+                                <p className="font-black uppercase text-xs">{j.apellido}, {j.nombre}</p>
+                                <p className="text-[9px] text-slate-500 font-bold uppercase">{j.equipos?.nombre || "Club no asignado"}</p>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-[10px] text-slate-600 uppercase font-black text-center mt-10 italic">No hay resultados para "{filtroClub}"</p>
+                    )}
                 </div>
             </div>
 

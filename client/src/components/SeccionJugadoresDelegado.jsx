@@ -143,25 +143,26 @@ const SeccionJugadoresDelegado = ({ jugadoras, equipoConfig }) => {
               {jugadorasFiltradas.map(jug => (
                 <div key={jug.id} className="flex flex-col items-center">
                   <div className="relative group">
-                    <CarnetJugadora 
-                        jugadora={{
-                          ...jug, 
-                          // 1. Escudo del Club (Viene de la configuración del equipo del delegado)
-                          club_escudo: equipoConfig?.escudo_url || equipoConfig?.logo_url,
-                          club_nombre: equipoConfig?.nombre,
-                          
-                          // 2. Logo de la Liga (Usamos la URL de Cloudinary que pasaste)
-                          liga_logo: equipoConfig?.organizacion_logo || equipoConfig?.logo_url
-                        }} 
-                        // Pasamos los colores oficiales definidos en tu tabla configuracion_liga
-                        config={{
-                          ...equipoConfig,
-                          color_primario: equipoConfig?.color_primario || '#d90082', // El rosa de las nenas
-                          color_fondo: equipoConfig?.color_fondo_carnet || '#1e3a8a',
-                          mostrarDorso: false 
-                        }} 
-                        mostrarDorso={false} 
-                      />
+                    {/* 1. EL CARNET ORIGINAL (SIN TOCAR SU CÓDIGO) */}
+    <CarnetJugadora 
+      jugadora={{
+        ...jug,
+        club_escudo: equipoConfig?.escudo_url || equipoConfig?.logo_url,
+        club_nombre: equipoConfig?.nombre
+      }} 
+      config={equipoConfig} 
+      mostrarDorso={false} 
+    />
+
+    {/* 2. LOGO DE LA LIGA SUPERPUESTO ABAJO A LA DERECHA */}
+    {/* Ajustamos a bottom-[15px] y right-[15px] para que parezca un sello oficial */}
+    <div className="absolute bottom-[15px] right-[15px] z-20 pointer-events-none">
+      <img 
+        src="https://res.cloudinary.com/dgtc9qfmv/image/upload/v1770690271/rt0j5lpxilkn8o6ugate.png" 
+        alt="logo-liga"
+        className="h-12 w-12 object-contain drop-shadow-2xl opacity-95 brightness-110"
+      />
+    </div>
                       {/* 2. EL LOGO DE LA LIGA (SUPERPUESTO AL FRENTE) */}
                     <div className="absolute top-[45px] right-[22px] z-20 pointer-events-none">
                       <img 

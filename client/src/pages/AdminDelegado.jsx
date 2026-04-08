@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'; 
+import React, { useState, useEffect, useCallback, useMemo } from 'react'; 
 import { supabase } from '../supabaseClient';
 import axios from 'axios';
 import CarnetJugadora from '../components/CarnetJugadora'; 
@@ -6,7 +6,18 @@ import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import GestionDelegados from '../components/GestionDelegados';
+// 1. Asegurrate de que esté justo después de los imports
+import { 
+  ViewColumnsIcon, 
+  TableCellsIcon, 
+  ShieldCheckIcon,
+  ExclamationTriangleIcon,
+  IdentificationIcon 
+} from '@heroicons/react/24/outline';
 
+
+// --- ESTA ES LA LÍNEA QUE FALTA ---
+const CATEGORIAS_OFICIALES = ['2011-2012', '2013-2014', '2015-2016', '2017-2018'];
 
 const AdminDelegado = () => {
   // --- ESTADOS DE SESIÓN Y PERFIL ---
@@ -27,8 +38,9 @@ const AdminDelegado = () => {
   const [configLiga, setConfigLiga] = useState(null);
   // eslint-disable-next-line no-unused-vars
   const [leyendoOCR, setLeyendoOCR] = useState(false);
+  
   // Obtenemos las categorías únicas de la lista de partidos cargados
-  const categoriasDisponibles = [...new Set(partidos.map(p => p.categoria))].sort();
+  //const categoriasDisponibles = [...new Set(partidos.map(p => p.categoria))].sort();
 
   const navigate = useNavigate();
 
@@ -52,6 +64,65 @@ const AdminDelegado = () => {
     nombre: '', apellido: '', dni: '', fecha_nacimiento: '', equipo_id: '', club_nombre: '', club_escudo: ''   
   });
   const [logoBase64, setLogoBase64] = useState(null);
+
+  // --- 2. NUEVOS ESTADOS DE CONTROL ---
+  const [matchupActual, setMatchupActual] = useState(null);
+  const [categoriaSelCred, setCategoriaSelCred] = useState('TODAS');
+  const [vistaCred, setVistaCred] = useState('credencial');
+
+  // --- 3. LÓGICA DE FILTRADO (MEMOS) ---
+  
+  // Agrupar partidos para que no se repitan en el Select de Jornada
+  const crucesUnicos = useMemo(() => {
+    const vistos = new Set();
+    return partidos.filter(p => {
+      const idCruce = `${p.nro_fecha}-${p.local_id}-${p.visitante_id}`;
+      if (vistos.has(idCruce)) return false;
+      vistos.add(idCruce);
+      return true;
+    });
+  }, [partidos]);
+
+  // Obtener categorías del cruce seleccionado
+  const categoriasDelCruce = useMemo(() => {
+    if (!matchupActual) return [];
+    return partidos
+      .filter(p => 
+        p.nro_fecha === matchupActual.nro_fecha && 
+        p.local_id === matchupActual.local_id && 
+        p.visitante_id === matchupActual.visitante_id
+      )
+      .map(p => p.categoria)
+      .sort();
+  }, [partidos, matchupActual]);
+
+  // Contadores y Alertas para Credenciales
+  const statsCred = useMemo(() => {
+    const data = {
+      conteos: { 'TODAS': plantel.length },
+      alertas: { 'TODAS': false }
+    };
+    CATEGORIAS_OFICIALES.forEach(cat => {
+      data.conteos[cat] = 0;
+      data.alertas[cat] = false;
+    });
+    plantel.forEach(j => {
+      const catKey = j.categoria_actual || j.categoria;
+      if (catKey && Object.hasOwn(data.conteos, catKey)) {
+        data.conteos[catKey]++;
+        if (j.verificacion_biometrica_estado !== 'aprobado') {
+          data.alertas[catKey] = true;
+          data.alertas['TODAS'] = true;
+        }
+      }
+    });
+    return data;
+  }, [plantel]);
+
+  const jugadorasFiltradasCred = useMemo(() => {
+    if (categoriaSelCred === 'TODAS') return plantel;
+    return plantel.filter(j => (j.categoria_actual || j.categoria) === categoriaSelCred);
+  }, [plantel, categoriaSelCred]);
   
 
 
@@ -402,62 +473,6 @@ setTimeout(() => {
       setSeleccionadas([]);
     }
   };
-
-
-/*const escanearDNI = async (archivo) => {
-  if (!archivo) return;
-  setLeyendoOCR(true);
-  const urlTemporal = URL.createObjectURL(archivo);
-  
-  try {
-    const { data: { text } } = await Tesseract.recognize(urlTemporal, 'spa');
-    console.log("Texto extraído:", text); // Para debug en consola
-
-    // --- 1. EXTRAER DNI (8 dígitos) ---
-    const dniMatch = text.match(/\b\d{7,8}\b/) || text.match(/\d{2}\.?\d{3}\.?\d{3}/);
-    let dniFinal = "";
-    if (dniMatch) {
-      dniFinal = dniMatch[0].replace(/\./g, '');
-    }
-
-    // --- 2. EXTRAER NOMBRE Y APELLIDO (Lógica de líneas) ---
-    const lineas = text.split('\n').map(l => l.trim().toUpperCase()).filter(l => l.length > 2);
-    
-    let apellidoFinal = "";
-    let nombreFinal = "";
-
-    lineas.forEach((linea, index) => {
-      // Buscamos palabras clave en el DNI argentino (APELLIDOS / NOMBRES)
-      if (linea.includes("APELLIDO")) {
-        // El apellido suele ser la línea siguiente o estar después de los dos puntos
-        apellidoFinal = lineas[index + 1] || "";
-      }
-      if (linea.includes("NOMBRE")) {
-        nombreFinal = lineas[index + 1] || "";
-      }
-    });
-
-    // Limpieza de caracteres basura (filtramos si el OCR leyó símbolos raros)
-    const limpiarTexto = (t) => t.replace(/[^A-ZÁÉÍÓÚÑ\s]/g, '').trim();
-
-    // --- 3. ACTUALIZAR ESTADO DE FICHAJE ---
-    setDatosFichaje(prev => ({
-      ...prev,
-      dni: dniFinal || prev.dni,
-      apellido: limpiarTexto(apellidoFinal) || prev.apellido,
-      nombre: limpiarTexto(nombreFinal) || prev.nombre
-    }));
-
-    if (dniFinal) verificarDniDuplicado(dniFinal);
-
-  } catch (err) {
-    console.error("Error OCR completo:", err);
-  } finally {
-    setLeyendoOCR(false);
-    URL.revokeObjectURL(urlTemporal);
-  }
-};*/
-
   
 const manejarEnvioFichaje = async (e) => {
     e.preventDefault();
@@ -832,6 +847,29 @@ const toggleSeleccionarTodas = () => {
   }
 };
 
+// --- 5. HANDLERS DE SELECCIÓN DE CRUCES ---
+  const handleMatchupChange = (id) => {
+    const p = partidos.find(part => part.id === parseInt(id));
+    if (p) {
+      setMatchupActual({ nro_fecha: p.nro_fecha, local_id: p.local_id, visitante_id: p.visitante_id });
+      setPartidoSeleccionado(id);
+      setFiltroFechaPlanilla(p.nro_fecha);
+      setFiltroCatPlanilla(p.categoria);
+    }
+  };
+
+  const handleCategoryChange = (cat) => {
+    setFiltroCatPlanilla(cat);
+    const partidoReal = partidos.find(p => 
+      p.nro_fecha === matchupActual.nro_fecha && 
+      p.local_id === matchupActual.local_id && 
+      p.visitante_id === matchupActual.visitante_id && 
+      p.categoria === cat
+    );
+    if (partidoReal) setPartidoSeleccionado(partidoReal.id.toString());
+  };
+
+
   return (
     <div className="p-6 bg-slate-950 min-h-screen text-white font-sans">
       <header className="mb-8 border-b border-slate-800 pb-4 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -891,45 +929,61 @@ const toggleSeleccionarTodas = () => {
       {activeTab === 'planilla' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
           
-          {/* COLUMNA 1: SELECCIÓN */}
+          {/* COLUMNA 1: SELECCIÓN JORNADA */}
           <div className="space-y-6">
             <div className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 shadow-xl h-full">
               <h2 className="text-xs font-black uppercase mb-6 text-blue-500 flex items-center gap-2">
                 <span className="w-6 h-6 bg-blue-600/20 rounded-full flex items-center justify-center text-[10px]">1</span>
                 Seleccionar Jornada
               </h2>
-              
               <div className="space-y-4">
                 <div>
                   <label className="text-[10px] text-slate-500 uppercase font-bold ml-2">Próximo Partido</label>
                   <select 
-                    id="jornada" 
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs font-bold text-white outline-none mt-1 focus:border-blue-500" 
-                    onChange={(e) => setPartidoSeleccionado(e.target.value)}
-                    value={partidoSeleccionado}
+                    onChange={(e) => handleMatchupChange(e.target.value)}
+                    value={matchupActual ? (partidos.find(p => p.nro_fecha === matchupActual.nro_fecha && p.local_id === matchupActual.local_id)?.id || "") : ""}
                   >
                     <option value="">Elegir fecha...</option>
-                    {partidos.map(p => (
+                    {crucesUnicos.map(p => (
                       <option key={p.id} value={p.id}>Fecha {p.nro_fecha}: {p.local.nombre} vs {p.visitante.nombre}</option>
                     ))}
                   </select>
                 </div>
-
                 <div className="pt-4 border-t border-slate-800">
-                  <label className="text-[10px] text-slate-500 uppercase font-bold ml-2">Configuración de Planilla</label>
+                  <label className="text-[10px] text-slate-500 uppercase font-bold ml-2">Bloque / Categoría</label>
                   <div className="flex gap-2 mt-2">
                     <input type="number" value={filtroFechaPlanilla} readOnly className="w-16 bg-slate-950 border border-slate-800 p-3 rounded-xl text-xs text-white opacity-50" />
                     <select 
                       value={filtroCatPlanilla} 
-                      onChange={e => setFiltroCatPlanilla(e.target.value)} 
-                      className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl text-xs text-white outline-none"
+                      onChange={e => handleCategoryChange(e.target.value)} 
+                      disabled={!matchupActual}
+                      className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl text-xs text-white outline-none focus:border-emerald-500"
                     >
                       <option value="">Categoría...</option>
-                      {categoriasDisponibles.map(cat => (
+                      {categoriasDelCruce.map(cat => (
                         <option key={cat} value={cat}>{cat.toUpperCase()}</option>
                       ))}
                     </select>
                   </div>
+                </div>
+                {/* BOTÓN RÁPIDO A CREDENCIALES */}
+                <div className="pt-6 border-t border-slate-800">
+                  <button 
+                    onClick={() => setActiveTab('credenciales')}
+                    className="w-full bg-slate-800 hover:bg-slate-700 p-4 rounded-2xl flex items-center justify-between group transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-600/20 rounded-xl group-hover:bg-blue-600 transition-colors">
+                        <IdentificationIcon className="w-5 h-5 text-blue-500" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-[10px] font-black uppercase text-white leading-none">Ver Credenciales</p>
+                        <p className="text-[8px] font-bold text-slate-500 uppercase mt-1">Frente de Carnets</p>
+                      </div>
+                    </div>
+                    <span className="text-slate-600">→</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1075,6 +1129,56 @@ const toggleSeleccionarTodas = () => {
                 * Una vez enviada, la planilla será visible para el árbitro.
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* VISTA CREDENCIALES */}
+      {activeTab === 'credenciales' && (
+        <div className="animate-in fade-in slide-in-from-bottom-8 duration-500 space-y-8 pb-20">
+          <div className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-md py-4 border-b border-white/5">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
+              <div className="flex bg-slate-900 p-1 rounded-2xl border border-white/10 shadow-inner">
+                <button onClick={() => setVistaCred('tabla')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${vistaCred === 'tabla' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500'}`}>Lista</button>
+                <button onClick={() => setVistaCred('credencial')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${vistaCred === 'credencial' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}>Fotos</button>
+              </div>
+              <button onClick={() => setActiveTab('planilla')} className="text-[10px] font-black text-slate-500 uppercase hover:text-white bg-slate-900 px-6 py-3 rounded-xl border border-white/5 transition-all">✕ Cerrar y volver</button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
+              {['TODAS', ...CATEGORIAS_OFICIALES].map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoriaSelCred(cat)}
+                  className={`relative whitespace-nowrap px-5 py-2.5 rounded-full text-[10px] font-black uppercase border-2 transition-all duration-300 flex items-center gap-2 ${categoriaSelCred === cat ? 'bg-white border-white text-black scale-105' : 'bg-transparent border-slate-800 text-slate-500'}`}
+                >
+                  {cat}
+                  <span className={`px-2 py-0.5 rounded-md text-[8px] flex items-center gap-1 font-black ${statsCred.alertas[cat] ? 'bg-rose-600 text-white animate-pulse' : (categoriaSelCred === cat ? 'bg-black text-white' : 'bg-slate-800 text-slate-400')}`}>
+                    {statsCred.alertas[cat] && <ExclamationTriangleIcon className="w-3 h-3" />}
+                    {statsCred.conteos[cat] || 0}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className={vistaCred === 'tabla' ? "max-w-4xl mx-auto" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-16 gap-x-8 pt-4 justify-items-center"}>
+            {jugadorasFiltradasCred.map(jug => (
+              vistaCred === 'tabla' ? (
+                <div key={jug.id} className="bg-slate-900/50 p-5 rounded-2xl border border-white/5 mb-3 flex justify-between items-center group">
+                  <div className="flex items-center gap-4">
+                    <img src={jug.foto_url} className="w-10 h-10 rounded-lg object-cover" alt="p" />
+                    <span className="font-black uppercase italic tracking-tighter text-slate-200">{jug.apellido}, {jug.nombre}</span>
+                  </div>
+                  <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-lg ${jug.verificacion_biometrica_estado === 'aprobado' ? 'text-emerald-500 bg-emerald-500/10' : 'text-rose-500 bg-rose-500/10 animate-pulse'}`}>{jug.verificacion_biometrica_estado}</span>
+                </div>
+              ) : (
+                <div key={jug.id} className="relative group flex flex-col items-center">
+                  <CarnetJugadora jugadora={{...jug, club_nombre: clubes.find(c => c.id === (jug.equipo_id || equipoIdActual))?.nombre}} config={configLiga} mostrarDorso={false} />
+                  <div className={`absolute -bottom-5 left-1/2 -translate-x-1/2 px-8 py-3 rounded-2xl text-[10px] font-black uppercase shadow-2xl border-2 z-10 whitespace-nowrap tracking-widest ${jug.verificacion_biometrica_estado === 'aprobado' ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-rose-600 border-rose-400 text-white animate-pulse'}`}>
+                    {jug.verificacion_biometrica_estado === 'aprobado' ? '✓ Habilitada' : '✕ Inhabilitada'}
+                  </div>
+                </div>
+              )
+            ))}
           </div>
         </div>
       )}

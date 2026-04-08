@@ -1187,12 +1187,13 @@ const toggleSeleccionarTodas = () => {
                       mostrarDorso={false} 
                     />
 
-                    {/* LOGO DE LA LIGA SUPERPUESTO (ABAJO A LA DERECHA) */}
-                    <div className="absolute bottom-[12px] right-[15px] z-50 pointer-events-none">
+                    {/* LOGO DE LA LIGA (MÁS GRANDE Y POSICIONADO) */}
+                    <div className="absolute bottom-[8px] right-[10px] z-50 pointer-events-none">
                       <img 
                         src="https://res.cloudinary.com/dgtc9qfmv/image/upload/v1770690271/rt0j5lpxilkn8o6ugate.png" 
                         alt="logo-liga"
-                        className="h-13 w-13 object-contain drop-shadow-2xl brightness-110"
+                        // Subimos de h-12 a h-16 para que destaque más
+                        className="h-16 w-16 object-contain drop-shadow-2xl brightness-110 filter saturate-150"
                       />
                     </div>
                   </div>

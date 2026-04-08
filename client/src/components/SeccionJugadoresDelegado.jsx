@@ -74,7 +74,7 @@ const SeccionJugadoresDelegado = ({ jugadoras, equipoConfig }) => {
               onClick={() => setVista('credencial')} 
               className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${vista === 'credencial' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
             >
-              <ViewColumnsIcon className="w-4 h-4" /> Fotos
+              <ViewColumnsIcon className="w-4 h-4" /> Carnet
             </button>
           </div>
         </div>
@@ -144,10 +144,24 @@ const SeccionJugadoresDelegado = ({ jugadoras, equipoConfig }) => {
                 <div key={jug.id} className="flex flex-col items-center">
                   <div className="relative group">
                     <CarnetJugadora 
-                      jugadora={jug} 
-                      config={equipoConfig} 
-                      mostrarDorso={false} 
-                    />
+                        jugadora={{
+                          ...jug, 
+                          // 1. Escudo del Club (Viene de la configuración del equipo del delegado)
+                          club_escudo: equipoConfig?.escudo_url || equipoConfig?.logo_url,
+                          club_nombre: equipoConfig?.nombre,
+                          
+                          // 2. Logo de la Liga (Usamos la URL de Cloudinary que pasaste)
+                          liga_logo: "https://res.cloudinary.com/dgtc9qfmv/image/upload/v1770690271/rt0j5lpxilkn8o6ugate.png"
+                        }} 
+                        // Pasamos los colores oficiales definidos en tu tabla configuracion_liga
+                        config={{
+                          ...equipoConfig,
+                          color_primario: equipoConfig?.color_primario || '#d90082', // El rosa de las nenas
+                          color_fondo: equipoConfig?.color_fondo_carnet || '#1e3a8a',
+                          mostrarDorso: false 
+                        }} 
+                        mostrarDorso={false} 
+                      />
                     <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 px-6 py-2 rounded-2xl text-[10px] font-black uppercase shadow-2xl border-2 z-10 whitespace-nowrap transition-transform duration-300 group-hover:scale-110 ${
                       jug.verificacion_biometrica_estado === 'aprobado' 
                       ? 'bg-emerald-600 border-emerald-400 text-white' 

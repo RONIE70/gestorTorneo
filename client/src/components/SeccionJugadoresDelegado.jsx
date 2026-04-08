@@ -142,7 +142,7 @@ const SeccionJugadoresDelegado = ({ jugadoras, equipoConfig }) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-12 gap-x-6">
               {jugadorasFiltradas.map(jug => (
                 <div key={jug.id} className="flex flex-col items-center">
-                  <div className="relative group">
+                  <div className="relative group w-fit">
                     {/* 1. EL CARNET ORIGINAL (SIN TOCAR SU CÓDIGO) */}
     <CarnetJugadora 
       jugadora={{
@@ -154,23 +154,16 @@ const SeccionJugadoresDelegado = ({ jugadoras, equipoConfig }) => {
       mostrarDorso={false} 
     />
 
-    {/* 2. LOGO DE LA LIGA SUPERPUESTO ABAJO A LA DERECHA */}
-    {/* Ajustamos a bottom-[15px] y right-[15px] para que parezca un sello oficial */}
-    <div className="absolute bottom-[15px] right-[15px] z-20 pointer-events-none">
+    {/* 2. EL LOGO DE LA LIGA (ABAJO A LA DERECHA) */}
+    {/* Lo posicionamos a 10px del borde inferior y 10px del derecho del carnet */}
+    <div className="absolute bottom-[10px] right-[10px] z-20 pointer-events-none">
       <img 
         src="https://res.cloudinary.com/dgtc9qfmv/image/upload/v1770690271/rt0j5lpxilkn8o6ugate.png" 
         alt="logo-liga"
-        className="h-12 w-12 object-contain drop-shadow-2xl opacity-95 brightness-110"
+        className="h-12 w-12 object-contain drop-shadow-2xl brightness-110 opacity-95"
       />
     </div>
-                      {/* 2. EL LOGO DE LA LIGA (SUPERPUESTO AL FRENTE) */}
-                    <div className="absolute top-[45px] right-[22px] z-20 pointer-events-none">
-                      <img 
-                        src="https://res.cloudinary.com/dgtc9qfmv/image/upload/v1770690271/rt0j5lpxilkn8o6ugate.png" 
-                        alt="logo-liga"
-                        className="h-10 w-10 object-contain drop-shadow-lg opacity-90"
-                      />
-                    </div>
+                     
                     <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 px-6 py-2 rounded-2xl text-[10px] font-black uppercase shadow-2xl border-2 z-10 whitespace-nowrap transition-transform duration-300 group-hover:scale-110 ${
                       jug.verificacion_biometrica_estado === 'aprobado' 
                       ? 'bg-emerald-600 border-emerald-400 text-white' 

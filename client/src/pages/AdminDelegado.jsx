@@ -1140,7 +1140,7 @@ const toggleSeleccionarTodas = () => {
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
               <div className="flex bg-slate-900 p-1 rounded-2xl border border-white/10 shadow-inner">
                 <button onClick={() => setVistaCred('tabla')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${vistaCred === 'tabla' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500'}`}>Lista</button>
-                <button onClick={() => setVistaCred('credencial')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${vistaCred === 'credencial' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}>Fotos</button>
+                <button onClick={() => setVistaCred('credencial')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${vistaCred === 'credencial' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}>Carnet</button>
               </div>
               <button onClick={() => setActiveTab('planilla')} className="text-[10px] font-black text-slate-500 uppercase hover:text-white bg-slate-900 px-6 py-3 rounded-xl border border-white/5 transition-all">✕ Cerrar y volver</button>
             </div>

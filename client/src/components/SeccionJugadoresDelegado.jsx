@@ -151,7 +151,7 @@ const SeccionJugadoresDelegado = ({ jugadoras, equipoConfig }) => {
                           club_nombre: equipoConfig?.nombre,
                           
                           // 2. Logo de la Liga (Usamos la URL de Cloudinary que pasaste)
-                          liga_logo: "https://res.cloudinary.com/dgtc9qfmv/image/upload/v1770690271/rt0j5lpxilkn8o6ugate.png"
+                          liga_logo: equipoConfig?.organizacion_logo || equipoConfig?.logo_url
                         }} 
                         // Pasamos los colores oficiales definidos en tu tabla configuracion_liga
                         config={{
@@ -162,6 +162,14 @@ const SeccionJugadoresDelegado = ({ jugadoras, equipoConfig }) => {
                         }} 
                         mostrarDorso={false} 
                       />
+                      {/* 2. EL LOGO DE LA LIGA (SUPERPUESTO AL FRENTE) */}
+                    <div className="absolute top-[45px] right-[22px] z-20 pointer-events-none">
+                      <img 
+                        src="https://res.cloudinary.com/dgtc9qfmv/image/upload/v1770690271/rt0j5lpxilkn8o6ugate.png" 
+                        alt="logo-liga"
+                        className="h-10 w-10 object-contain drop-shadow-lg opacity-90"
+                      />
+                    </div>
                     <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 px-6 py-2 rounded-2xl text-[10px] font-black uppercase shadow-2xl border-2 z-10 whitespace-nowrap transition-transform duration-300 group-hover:scale-110 ${
                       jug.verificacion_biometrica_estado === 'aprobado' 
                       ? 'bg-emerald-600 border-emerald-400 text-white' 

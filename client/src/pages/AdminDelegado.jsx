@@ -1133,17 +1133,18 @@ const toggleSeleccionarTodas = () => {
         </div>
       )}
 
-      {/* VISTA CREDENCIALES */}
+      {/* --- VISTA DE CREDENCIALES (DENTRO DE ADMIN DELEGADO) --- */}
       {activeTab === 'credenciales' && (
         <div className="animate-in fade-in slide-in-from-bottom-8 duration-500 space-y-8 pb-20">
           <div className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-md py-4 border-b border-white/5">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
               <div className="flex bg-slate-900 p-1 rounded-2xl border border-white/10 shadow-inner">
-                <button onClick={() => setVistaCred('tabla')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${vistaCred === 'tabla' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500'}`}>Lista</button>
-                <button onClick={() => setVistaCred('credencial')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${vistaCred === 'credencial' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}>Carnet</button>
+                <button onClick={() => setVistaCred('tabla')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${vistaCred === 'tabla' ? 'bg-slate-800 text-white shadow-lg border border-white/10' : 'text-slate-500'}`}>Lista</button>
+                <button onClick={() => setVistaCred('credencial')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${vistaCred === 'credencial' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}>Fotos</button>
               </div>
               <button onClick={() => setActiveTab('planilla')} className="text-[10px] font-black text-slate-500 uppercase hover:text-white bg-slate-900 px-6 py-3 rounded-xl border border-white/5 transition-all">✕ Cerrar y volver</button>
             </div>
+
             <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
               {['TODAS', ...CATEGORIAS_OFICIALES].map(cat => (
                 <button
@@ -1160,6 +1161,7 @@ const toggleSeleccionarTodas = () => {
               ))}
             </div>
           </div>
+
           <div className={vistaCred === 'tabla' ? "max-w-4xl mx-auto" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-16 gap-x-8 pt-4 justify-items-center"}>
             {jugadorasFiltradasCred.map(jug => (
               vistaCred === 'tabla' ? (
@@ -1172,8 +1174,30 @@ const toggleSeleccionarTodas = () => {
                 </div>
               ) : (
                 <div key={jug.id} className="relative group flex flex-col items-center">
-                  <CarnetJugadora jugadora={{...jug, club_nombre: clubes.find(c => c.id === (jug.equipo_id || equipoIdActual))?.nombre}} config={configLiga} mostrarDorso={false} />
-                  <div className={`absolute -bottom-5 left-1/2 -translate-x-1/2 px-8 py-3 rounded-2xl text-[10px] font-black uppercase shadow-2xl border-2 z-10 whitespace-nowrap tracking-widest ${jug.verificacion_biometrica_estado === 'aprobado' ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-rose-600 border-rose-400 text-white animate-pulse'}`}>
+                  
+                  {/* CONTENEDOR RELATIVO CON ANCHO AJUSTADO AL CARNET */}
+                  <div className="relative w-fit">
+                    <CarnetJugadora 
+                      jugadora={{
+                        ...jug, 
+                        club_escudo: clubes.find(c => c.id === (jug.equipo_id || equipoIdActual))?.escudo_url || clubes.find(c => c.id === (jug.equipo_id || equipoIdActual))?.logo_url,
+                        club_nombre: clubes.find(c => c.id === (jug.equipo_id || equipoIdActual))?.nombre
+                      }} 
+                      config={configLiga} 
+                      mostrarDorso={false} 
+                    />
+
+                    {/* LOGO DE LA LIGA SUPERPUESTO (ABAJO A LA DERECHA) */}
+                    <div className="absolute bottom-[12px] right-[12px] z-50 pointer-events-none">
+                      <img 
+                        src="https://res.cloudinary.com/dgtc9qfmv/image/upload/v1770690271/rt0j5lpxilkn8o6ugate.png" 
+                        alt="logo-liga"
+                        className="h-11 w-11 object-contain drop-shadow-2xl brightness-110"
+                      />
+                    </div>
+                  </div>
+
+                  <div className={`absolute -bottom-5 left-1/2 -translate-x-1/2 px-8 py-3 rounded-2xl text-[10px] font-black uppercase shadow-2xl border-2 z-10 whitespace-nowrap tracking-widest ${jug.verificacion_biometrica_estado === 'aprobado' ? 'bg-emerald-600 border-emerald-400 text-white shadow-emerald-900/40' : 'bg-rose-600 border-rose-400 text-white animate-pulse shadow-rose-900/40'}`}>
                     {jug.verificacion_biometrica_estado === 'aprobado' ? '✓ Habilitada' : '✕ Inhabilitada'}
                   </div>
                 </div>
@@ -1182,6 +1206,7 @@ const toggleSeleccionarTodas = () => {
           </div>
         </div>
       )}
+
       
       {activeTab === 'fichaje' && (
         <div className="max-w-4xl mx-auto animate-in slide-in-from-bottom-8 duration-500">

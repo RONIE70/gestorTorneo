@@ -1188,11 +1188,11 @@ const toggleSeleccionarTodas = () => {
                     />
 
                     {/* LOGO DE LA LIGA SUPERPUESTO (ABAJO A LA DERECHA) */}
-                    <div className="absolute bottom-[12px] right-[12px] z-50 pointer-events-none">
+                    <div className="absolute bottom-[12px] right-[15px] z-50 pointer-events-none">
                       <img 
                         src="https://res.cloudinary.com/dgtc9qfmv/image/upload/v1770690271/rt0j5lpxilkn8o6ugate.png" 
                         alt="logo-liga"
-                        className="h-11 w-11 object-contain drop-shadow-2xl brightness-110"
+                        className="h-13 w-13 object-contain drop-shadow-2xl brightness-110"
                       />
                     </div>
                   </div>
@@ -1207,7 +1207,7 @@ const toggleSeleccionarTodas = () => {
         </div>
       )}
 
-      
+
       {activeTab === 'fichaje' && (
         <div className="max-w-4xl mx-auto animate-in slide-in-from-bottom-8 duration-500">
           {jugadoraRegistrada ? (

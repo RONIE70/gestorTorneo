@@ -3,6 +3,12 @@ import { supabase } from '../supabaseClient';
 import * as faceapi from 'face-api.js';
 import EXIF from 'exif-js'; // Asegúrate de tenerlo instalado: npm install exif-js
 
+// --- PARCHE DE SEGURIDAD PARA PRODUCCIÓN (VITE) ---
+// Esto soluciona el error "n is not defined" al forzar el uso del fetch nativo del navegador
+if (faceapi.env) {
+    faceapi.env.monkeyPatch({ fetch: window.fetch.bind(window) });
+}
+
 const ValidadorBiometrico = () => {
     const [pendientes, setPendientes] = useState([]);
     const [filtroClub, setFiltroClub] = useState('');
@@ -12,7 +18,18 @@ const ValidadorBiometrico = () => {
     const [resultadoForense, setResultadoForense] = useState(null);
     const [procesando, setProcesando] = useState(false);
     const [userOrgId, setUserOrgId] = useState(null);
-    
+
+    // --- FUNCIÓN DE CARGA NATIVA PARA EVITAR EL ERROR 'N' ---
+    const cargarImagenNativa = (url) => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            // Timestamp para evitar caché sin CORS
+            img.src = url + (url.includes('?') ? '&' : '?') + "v=" + Date.now();
+            img.onload = () => resolve(img);
+            img.onerror = (e) => reject(e);
+        });
+    };
 
     useEffect(() => {
         const obtenerContexto = async () => {
@@ -98,7 +115,7 @@ const analizarForense = (url) => {
         img.onload = function() {
             try {
                 EXIF.getData(img, function() {
-                    const tags = EXIF.getAllTags(this);
+                    const tags = EXIF.getAllTags(img); // Usamos img directamente para evitar conflictos de context
                     if (!tags || Object.keys(tags).length === 0) {
                         resolve({ sospechosa: false, mensaje: "✅ Imagen Original", software: "Sin metadatos" });
                         return;
@@ -123,8 +140,6 @@ const analizarForense = (url) => {
             resolve({ sospechosa: false, mensaje: "✅ Imagen Original", software: "Error de carga" });
         };
 
-        // --- AQUÍ VA EL CAMBIO ---
-        // En lugar de img.src = url; usás esto:
         img.src = url + (url.includes('?') ? '&' : '?') + "t=" + new Date().getTime();
     });
 };
@@ -137,7 +152,6 @@ const analizarForense = (url) => {
 
     try {
         // --- 1. SEGURO FORENSE ---
-        // Usamos un bloque try/catch independiente para que si falla no detenga la IA
         try {
             const forense = await analizarForense(jugadora.foto_url);
             setResultadoForense(forense);
@@ -150,28 +164,28 @@ const analizarForense = (url) => {
             });
         }
 
-        // --- 2. CARGA DE IMÁGENES ---
-        const imgPerfil = await faceapi.fetchImage(jugadora.foto_url);
-        const imgDni = await faceapi.fetchImage(jugadora.dni_foto_url);
+        // --- 2. CARGA DE IMÁGENES (CORRECCIÓN VITE) ---
+        // Sustituimos faceapi.fetchImage por nuestro cargador nativo para evitar el error 'n'
+        const imgPerfil = await cargarImagenNativa(jugadora.foto_url);
+        const imgDni = await cargarImagenNativa(jugadora.dni_foto_url);
 
-        // --- 3. BIOMETRÍA (Tu lógica original con umbral 0.4) ---
-        // Agregamos opciones para asegurar la detección
+        // --- 3. BIOMETRÍA ---
         const opciones = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.2 });
         
         let det1 = await faceapi.detectSingleFace(imgPerfil, opciones).withFaceLandmarks().withFaceDescriptor();
         let det2 = await faceapi.detectSingleFace(imgDni, opciones).withFaceLandmarks().withFaceDescriptor();
-        // Intentamos una detección más profunda con TinyFaceDetector si el primero falla
+        
         if (!det2) {
             det2 = await faceapi.detectSingleFace(imgDni, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
         }
 
         if (det1 && det2) {
             const distancia = faceapi.euclideanDistance(det1.descriptor, det2.descriptor);
-            const esMismaPersona = distancia < 0.2;
+            const esMismaPersona = distancia < 0.45; // Ajustado umbral a 0.45 para mayor precisión en DNI
 
             setResultadoIA({
                 distancia: distancia.toFixed(4),
-                mensaje: esMismaPersona ? "✅ IDENTIDAD CONFIRMADA" : "⚠️ DIFERENCIA ADMISIBLE",
+                mensaje: esMismaPersona ? "✅ IDENTIDAD CONFIRMADA" : "⚠️ DIFERENCIA DETECTADA",
                 match: esMismaPersona
             });
         } else {
@@ -191,9 +205,6 @@ const analizarForense = (url) => {
 };
 
    const actualizarEstado = async (id, nuevoEstado, distancia) => {
-    // 1. Procesamos la distancia: 
-    // Si no hay distancia (error de IA), usamos 0.0001
-    // Si hay distancia, la convertimos a número decimal
     let valorDistancia = 0.0001;
     if (distancia && distancia !== "0.0001") {
         valorDistancia = parseFloat(distancia);
@@ -204,20 +215,11 @@ const analizarForense = (url) => {
     const { error } = await supabase
         .from('jugadoras')
         .update({ 
-            // Estado de la biometría
             verificacion_biometrica_estado: nuevoEstado,
-            
-            // Usamos solo la columna oficial (la otra ya no existe)
             distancia_biometrica_oficial: valorDistancia,
-            
-            // Metadatos y Auditoría
             fecha_validacion: new Date().toISOString(),
             observaciones_ia: resultadoForense?.mensaje || "",
-            
-            // SINCRONIZACIÓN CON CARNETS:
-            // Forzamos false en manual para que el carnet lea el estado biométrico
             verificacion_manual: false, 
-            // Forzamos true en habil_admin para que aparezca en el Panel Maestro
             estado_habil_admin: esAprobado 
         })
         .eq('id', id)
@@ -227,7 +229,6 @@ const analizarForense = (url) => {
         console.error("Error al actualizar:", error.message);
         alert("No se pudo guardar: " + error.message);
     } else {
-        // Limpiamos y refrescamos la lista
         setSeleccionada(null);
         setResultadoIA(null);
         setResultadoForense(null);
@@ -243,7 +244,6 @@ const analizarForense = (url) => {
             <div className="w-1/4 border-r border-slate-800 overflow-y-auto p-6 bg-slate-900/50 flex flex-col">
                 <h2 className="text-xl font-black italic mb-2 text-blue-500 uppercase tracking-tighter">Pendientes ({pendientesFiltrados.length})</h2>
                 
-                {/* --- NUEVO INPUT DE BÚSQUEDA --- */}
                 <div className="mb-6">
                     <input 
                         type="text" 

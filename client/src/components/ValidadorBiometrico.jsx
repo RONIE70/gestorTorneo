@@ -3,11 +3,6 @@ import { supabase } from '../supabaseClient';
 import * as faceapi from 'face-api.js';
 import EXIF from 'exif-js'; // Asegúrate de tenerlo instalado: npm install exif-js
 
-// --- PARCHE DE SEGURIDAD PARA PRODUCCIÓN (VITE) ---
-// Esto soluciona el error "n is not defined" al forzar el uso del fetch nativo del navegador
-if (faceapi.env) {
-    faceapi.env.monkeyPatch({ fetch: window.fetch.bind(window) });
-}
 
 const ValidadorBiometrico = () => {
     const [pendientes, setPendientes] = useState([]);
@@ -48,25 +43,41 @@ const ValidadorBiometrico = () => {
 
     // 1. CARGA DE MODELOS PESADOS (PC)
     useEffect(() => {
-        const loadModels = async () => {
-            const MODEL_URL = window.location.origin + '/models';
-            try {
-                await Promise.all([
-                    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)
-                ]);
-                setCargandoModelos(false);
-                fetchPendientes();
-            } catch (err) {
-                console.error("Error cargando modelos IA", err);
-            }
-        };
-        loadModels();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    const loadModels = async () => {
+        const MODEL_URL = '/models/';
 
+        try {
+
+            // 🔧 PARCHE VITE + VERCEL
+            faceapi.env.monkeyPatch({
+                fetch: window.fetch.bind(window)
+            });
+
+            faceapi.env.setEnv(faceapi.env.createBrowserEnv());
+
+            // 🔧 IMPORTANTE EN VERCEL
+            await faceapi.tf.setBackend('cpu');
+            await faceapi.tf.ready();
+
+            await Promise.all([
+                faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+                faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+                faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)
+            ]);
+
+            setCargandoModelos(false);
+            fetchPendientes();
+
+        } catch (err) {
+            console.error("Error cargando modelos IA", err);
+        }
+    };
+
+    loadModels();
+
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
    
 // Usamos useCallback para que la función no cambie en cada render
 const fetchPendientes = useCallback(async () => {
@@ -163,6 +174,12 @@ const analizarForense = (url) => {
                 software: "Error de lectura" 
             });
         }
+
+        if (!jugadora.foto_url || !jugadora.dni_foto_url) {
+    alert("Faltan imágenes para validar");
+    setProcesando(false);
+    return;
+}
 
         // --- 2. CARGA DE IMÁGENES (CORRECCIÓN VITE) ---
         // Sustituimos faceapi.fetchImage por nuestro cargador nativo para evitar el error 'n'

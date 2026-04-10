@@ -115,7 +115,7 @@ function App() {
             <Route 
               path="/admin/verificar-jugadoras" 
               element={
-                <ProtectedRoute rolesPermitidos={['superadmin', 'admin_liga', 'colaborador']}>
+                <ProtectedRoute rolesPermitidos={['superadmin', 'admin_liga', 'colaborador', 'colaborador']}>
                   <VerificacionJugadoras />
                 </ProtectedRoute>
               } 
@@ -143,7 +143,7 @@ function App() {
             <Route 
               path="/AdminDelegado" 
               element={
-                <ProtectedRoute rolesPermitidos={['superadmin','delegado','admin_liga']}>
+                <ProtectedRoute rolesPermitidos={['superadmin','delegado','admin_liga', 'colaborador']}>
                   <AdminDelegado />
                 </ProtectedRoute>
               } 
@@ -151,7 +151,7 @@ function App() {
             <Route 
               path="/registro" 
               element={
-                <ProtectedRoute rolesPermitidos={['superadmin','delegado','admin_liga']}>
+                <ProtectedRoute rolesPermitidos={['superadmin','delegado','admin_liga', 'colaborador']}>
                   <FormularioFichaje />
                 </ProtectedRoute>
               } 
@@ -159,7 +159,7 @@ function App() {
             <Route 
               path="/ListaJugadoras" 
               element={
-                <ProtectedRoute rolesPermitidos={['delegado', 'colaborador', 'superadmin', 'admin_liga']}>
+                <ProtectedRoute rolesPermitidos={['delegado', 'colaborador', 'superadmin', 'admin_liga', 'colaborador']}>
                   <ListaJugadoras />
                 </ProtectedRoute>
               } 
@@ -169,7 +169,7 @@ function App() {
             <Route 
               path="/AdminArbitros" 
               element={
-                <ProtectedRoute rolesPermitidos={['arbitro', 'superadmin','admin_liga']}>
+                <ProtectedRoute rolesPermitidos={['arbitro', 'superadmin','admin_liga', 'colaborador']}>
                   <AdminArbitros />
                 </ProtectedRoute>
               } 

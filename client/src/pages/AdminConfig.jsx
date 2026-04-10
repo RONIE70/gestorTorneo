@@ -268,17 +268,22 @@ setLoading(false);
 
 
 const toggleInscripciones = async () => {
-const nuevoEstado = !perfil.inscripciones_abiertas;
-const { error } = await supabase
-.from('configuracion_liga')
-.update({ inscripciones_abiertas: nuevoEstado })
-.eq('organizacion_id', userOrgId);
-if (error) {
-alert("Error al cambiar estado: " + error.message);
-} else {
-setPerfil({ ...perfil, inscripciones_abiertas: nuevoEstado });
-alert(nuevoEstado ? "🔓 Inscripciones ABIERTAS para nuevos clubes." : "🔒 Inscripciones CERRADAS. El fixture ahora puede ser generado.");
-}
+  const nuevoEstado = !perfil.inscripciones_abiertas;
+  const { error } = await supabase
+    .from('configuracion_liga')
+    .update({ inscripciones_abiertas: nuevoEstado })
+    .eq('organizacion_id', userOrgId);
+
+  if (error) {
+    alert("❌ Error: " + error.message);
+  } else {
+    setPerfil({ ...perfil, inscripciones_abiertas: nuevoEstado });
+    // Mensaje unificado para Clubes y Fichaje de Nenas
+    alert(nuevoEstado 
+      ? "🔓 SISTEMA ABIERTO: Los delegados pueden fichar nenas y registrar clubes." 
+      : "🔒 SISTEMA CERRADO: Se bloqueó el acceso al fichaje para todos los delegados."
+    );
+  }
 };
 
 const handleLogoUpload = async (e) => {

@@ -682,7 +682,14 @@ const verificarDniDuplicado = async (dni) => {
   doc.setTextColor(100, 100, 100);
   doc.text("PLANILLA DE JUEGO OFICIAL", 105, 21, { align: 'center' });
 
-  // Información del Encuentro
+   // Definimos las 3 filas vacías para completar a mano
+  const FILAS_VACIAS_MANUAL = [
+    ['', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '']
+  ];
+
+  // Información del Encuentro / local
   doc.setFontSize(9);
   doc.setTextColor(0, 0, 0); // Texto negro para impresión
   doc.text(`FECHA NRO: ${partido.nro_fecha}`, 45, 30);
@@ -708,6 +715,8 @@ const verificarDniDuplicado = async (dni) => {
       6: { cellWidth: 10, halign: 'center' }   // R
     }
   };
+
+ 
 
   // --- FUNCIÓN PARA DIBUJAR FALTAS Y CONTROL DISCIPLINARIO ---
   const drawControlesGlobales = (startX, startY) => {
@@ -745,7 +754,10 @@ const verificarDniDuplicado = async (dni) => {
     ...configuracionTabla,
     startY: 45,
     head: [['N°', 'NOMBRE Y APELLIDO', 'DNI', 'FIRMA JUGADORA', 'GOLES', 'A', 'R']],
-    body: localPlayers.map((j, i) => [i + 1, j.apellido.toUpperCase() + " " + j.nombre, j.dni, "", "", "", ""]),
+    body: [
+      ...localPlayers.map((j, i) => [i + 1, j.apellido.toUpperCase() + " " + j.nombre, j.dni, "", "", "", ""]),
+      ...FILAS_VACIAS_MANUAL
+    ],
   });
 
   let currentY = doc.lastAutoTable.finalY + 8;
@@ -761,6 +773,7 @@ const verificarDniDuplicado = async (dni) => {
     startY: currentY + 3,
     head: [['N°', 'NOMBRE Y APELLIDO', 'DNI', 'FIRMA JUGADORA', 'GOLES', 'A', 'R']],
     body: visitaPlayers.map((j, i) => [i + 1, j.apellido.toUpperCase() + " " + j.nombre, j.dni, "", "", "", ""]),
+    ...FILAS_VACIAS_MANUAL
   });
 
   currentY = doc.lastAutoTable.finalY + 8;

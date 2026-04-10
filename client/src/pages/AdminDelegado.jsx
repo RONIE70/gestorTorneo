@@ -1212,147 +1212,151 @@ const toggleSeleccionarTodas = () => {
       )}
 
 
-      {activeTab === 'fichaje' && (
-        <div className="max-w-4xl mx-auto animate-in slide-in-from-bottom-8 duration-500">
-          {jugadoraRegistrada ? (
-             <div className="flex flex-col items-center gap-6"><CarnetJugadora jugadora={jugadoraRegistrada} config={configLiga}/>
-             <button onClick={() => setJugadoraRegistrada(null)} className="bg-blue-600 text-white px-10 py-3 rounded-full font-black uppercase text-[10px]">Nuevo Fichaje</button></div>
-          ) : (
-            <div className="bg-slate-900 p-8 rounded-[3rem] border border-slate-800 shadow-2xl">
-              <h2 className="text-xl font-black uppercase text-emerald-500 mb-6 italic">Fichaje Oficial</h2>
-              <form id="formFicha"   onSubmit={manejarEnvioFichaje} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* INPUT NOMBRE */}
- <input id="nombre"
-  type="text" 
-  placeholder="NOMBRE" 
-  className="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-xs font-bold uppercase outline-none focus:border-emerald-500" 
-  value={datosFichaje.nombre}
-  onChange={(e) => {
-    // 1. Filtrar: Solo permite letras (incluyendo ñ y tildes) y espacios
-    const val = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
-    setDatosFichaje({...datosFichaje, nombre: val});
-  }} 
-  required 
- />
+    {activeTab === 'fichaje' && (
+  <div className="max-w-4xl mx-auto animate-in slide-in-from-bottom-8 duration-500">
+    
+    {/* --- VALIDACIÓN DE CIERRE DE FICHAJE --- */}
+    {!configLiga?.inscripciones_abiertas ? (
+      <div className="bg-slate-900 border-2 border-dashed border-slate-800 p-20 rounded-[3rem] text-center space-y-4">
+        <div className="text-6xl grayscale opacity-50 mb-4">🔒</div>
+        <h2 className="text-xl font-black uppercase italic text-rose-500">Fichaje Cerrado</h2>
+        <p className="text-slate-500 text-[10px] font-bold uppercase max-w-xs mx-auto leading-relaxed">
+          La ventana de inscripciones oficial ha sido cerrada por la organización. 
+          No se pueden registrar nuevas jugadoras hasta la próxima apertura.
+        </p>
+        <button 
+          onClick={() => setActiveTab('planilla')} 
+          className="mt-6 px-8 py-3 bg-slate-800 text-white text-[10px] font-black uppercase rounded-xl hover:bg-slate-700 transition-all"
+        >
+          Volver a Citaciones
+        </button>
+      </div>
+    ) : (
+      /* --- SI ESTÁ ABIERTO, MUESTRA TU CÓDIGO ORIGINAL --- */
+      <>
+        {jugadoraRegistrada ? (
+          <div className="flex flex-col items-center gap-6">
+            <CarnetJugadora jugadora={jugadoraRegistrada} config={configLiga}/>
+            <button onClick={() => setJugadoraRegistrada(null)} className="bg-blue-600 text-white px-10 py-3 rounded-full font-black uppercase text-[10px]">Nuevo Fichaje</button>
+          </div>
+        ) : (
+          <div className="bg-slate-900 p-8 rounded-[3rem] border border-slate-800 shadow-2xl">
+            <h2 className="text-xl font-black uppercase text-emerald-500 mb-6 italic">Fichaje Oficial</h2>
+            <form id="formFicha" onSubmit={manejarEnvioFichaje} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* INPUT NOMBRE */}
+              <input 
+                id="nombre"
+                type="text" 
+                placeholder="NOMBRE" 
+                className="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-xs font-bold uppercase outline-none focus:border-emerald-500" 
+                value={datosFichaje.nombre}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+                  setDatosFichaje({...datosFichaje, nombre: val});
+                }} 
+                required 
+              />
 
- {/* INPUT APELLIDO */}
- <input id="apellido"
-  type="text" 
-  placeholder="APELLIDO" 
-  className="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-xs font-bold uppercase outline-none focus:border-emerald-500" 
-  value={datosFichaje.apellido}
-  onChange={(e) => {
-    // 1. Filtrar: Solo permite letras y espacios
-    const val = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
-    setDatosFichaje({...datosFichaje, apellido: val});
-  }} 
-  required 
-/>
- <div className="flex flex-col gap-1">
-  <input 
-    id="dni" 
-    type="text" 
-    maxLength="8" 
-    placeholder="DNI" 
-    value={datosFichaje.dni} 
-    onChange={(e) => {
-      const val = e.target.value.replace(/\D/g, ''); 
-      setDatosFichaje({...datosFichaje, dni: val});
-      if (errorDni) setErrorDni(""); // Limpiar error mientras escribe de nuevo
-    }} 
-    onBlur={(e) => verificarDniDuplicado(e.target.value)} 
-    className={`bg-slate-950 p-4 rounded-xl border ${errorDni ? 'border-rose-500' : 'border-slate-800'} text-xs font-bold transition-colors`} 
-    required 
-  />
-  {/* EL CARTELITO ROJO */}
-  {errorDni && (
-    <span className="text-[9px] font-black text-rose-500 uppercase tracking-tighter ml-2 animate-pulse">
-      {errorDni}
-    </span>
-  )}
- </div>
+              {/* INPUT APELLIDO */}
+              <input 
+                id="apellido"
+                type="text" 
+                placeholder="APELLIDO" 
+                className="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-xs font-bold uppercase outline-none focus:border-emerald-500" 
+                value={datosFichaje.apellido}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+                  setDatosFichaje({...datosFichaje, apellido: val});
+                }} 
+                required 
+              />
 
- {/* INPUT FECHA NACIMIENTO - Restaurado */}
- <div className="flex flex-col gap-1">
-  <label for="nacimiento"  id="FechNac"  className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
-    Fecha de Nacimiento
-  </label>
-  <input 
-    id="nacimiento"
-    type="date" 
-    className="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-xs font-bold uppercase outline-none focus:border-emerald-500 text-white" 
-    value={datosFichaje.fecha_nacimiento}
-    onChange={(e) => setDatosFichaje({...datosFichaje, fecha_nacimiento: e.target.value})} 
-    required 
-  />
- </div>
+              <div className="flex flex-col gap-1">
+                <input 
+                  id="dni" 
+                  type="text" 
+                  maxLength="8" 
+                  placeholder="DNI" 
+                  value={datosFichaje.dni} 
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, ''); 
+                    setDatosFichaje({...datosFichaje, dni: val});
+                    if (errorDni) setErrorDni(""); 
+                  }} 
+                  onBlur={(e) => verificarDniDuplicado(e.target.value)} 
+                  className={`bg-slate-950 p-4 rounded-xl border ${errorDni ? 'border-rose-500' : 'border-slate-800'} text-xs font-bold transition-colors`} 
+                  required 
+                />
+                {errorDni && (
+                  <span className="text-[9px] font-black text-rose-500 uppercase tracking-tighter ml-2 animate-pulse">
+                    {errorDni}
+                  </span>
+                )}
+              </div>
 
- <div className="relative group">
-  <label htmlFor="clubAsig" className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
-    Club Destino del Fichaje
-  </label>
-  
-  {/* REGLA DE NEGOCIO: Selección dinámica para Admins / Fijo para Delegados */}
-  {(perfilUsuario?.rol === 'admin_liga' || perfilUsuario?.rol === 'superadmin') ? (
-    <select 
-      id="clubAsig"
-      className="bg-slate-950 p-5 rounded-2xl border border-slate-800 w-full text-xs font-black uppercase text-white outline-none focus:border-emerald-500"
-      value={equipoIdActual || ""}
-      onChange={(e) => setEquipoIdActual(Number(e.target.value))}
-      required
-    >
-      <option value="">-- SELECCIONAR CLUB --</option>
-      {clubes.map(club => (
-        <option key={club.id} value={club.id}>{club.nombre}</option>
-      ))}
-    </select>
-  ) : (
-    /* Vista para DELEGADO */
-    <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex items-center gap-3 shadow-inner">
-      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-      <span className="text-xs font-black uppercase text-white tracking-tighter">
-        {clubes.find(c => c.id === equipoIdActual)?.nombre || "Cargando Club..."}
-      </span>
-    </div>
-  )}
+              <div className="flex flex-col gap-1">
+                <label htmlFor="nacimiento" id="FechNac" className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
+                  Fecha de Nacimiento
+                </label>
+                <input 
+                  id="nacimiento"
+                  type="date" 
+                  className="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-xs font-bold uppercase outline-none focus:border-emerald-500 text-white" 
+                  value={datosFichaje.fecha_nacimiento}
+                  onChange={(e) => setDatosFichaje({...datosFichaje, fecha_nacimiento: e.target.value})} 
+                  required 
+                />
+              </div>
 
-  {/* MANTENEMOS TU INPUT HIDDEN: Así respetamos la persistencia que mencionaste */}
-  <input 
-    type="hidden" 
-    name="equipo_id_hidden" 
-    value={equipoIdActual || ''} 
-    required 
-  />
- </div>
-                <div className="col-span-full grid grid-cols-2 gap-4">
-                   <div className="space-y-2"><p className="text-[9px] font-black uppercase text-blue-500 ml-2 italic">Foto Carnet Actual</p><input type="file" className="w-full text-[10px] text-slate-500" onChange={e => setFilePerfil(e.target.files[0])} required /></div>
-                   <div className="space-y-2">
-  <p className="text-[9px] font-black uppercase text-emerald-500 ml-2 italic">
-    Foto frente DNI 
-  </p>
-  <input 
-    type="file" 
-    className="w-full text-[10px] text-slate-500" 
-    onChange={(e) => {
-      const archivo = e.target.files[0];
-      if (archivo) {
-        setFileDNI(archivo); // Mantiene tu lógica para biometría/servidor
-        //escanearDNI(archivo); // Dispara la lectura automática del texto
-      }
-    }} 
-    required 
-  />
- </div>
+              <div className="relative group">
+                <label htmlFor="clubAsig" className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block tracking-widest">
+                  Club Destino del Fichaje
+                </label>
+                {(perfilUsuario?.rol === 'admin_liga' || perfilUsuario?.rol === 'superadmin' || perfilUsuario?.rol === 'colaborador') ? (
+                  <select 
+                    id="clubAsig"
+                    className="bg-slate-950 p-5 rounded-2xl border border-slate-800 w-full text-xs font-black uppercase text-white outline-none focus:border-emerald-500"
+                    value={equipoIdActual || ""}
+                    onChange={(e) => setEquipoIdActual(Number(e.target.value))}
+                    required
+                  >
+                    <option value="">-- SELECCIONAR CLUB --</option>
+                    {clubes.map(club => (
+                      <option key={club.id} value={club.id}>{club.nombre}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex items-center gap-3 shadow-inner">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <span className="text-xs font-black uppercase text-white tracking-tighter">
+                      {clubes.find(c => c.id === equipoIdActual)?.nombre || "Cargando Club..."}
+                    </span>
+                  </div>
+                )}
+                <input type="hidden" name="equipo_id_hidden" value={equipoIdActual || ''} required />
+              </div>
+
+              <div className="col-span-full grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <p className="text-[9px] font-black uppercase text-blue-500 ml-2 italic">Foto Carnet Actual</p>
+                  <input type="file" className="w-full text-[10px] text-slate-500" onChange={e => setFilePerfil(e.target.files[0])} required />
                 </div>
-                <button disabled={cargandoFichaje} className={`col-span-full py-5 rounded-2xl font-black text-xs uppercase shadow-xl ${cargandoFichaje ? 'bg-slate-700 text-slate-500' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}>
-                  {cargandoFichaje ? "PROCESANDO BIOMETRÍA..." : "VALIDAR Y GENERAR CREDENCIAL"}
-                </button>
-              </form>
-            </div>
-          )}
-        </div>
-      )}
+                <div className="space-y-2">
+                  <p className="text-[9px] font-black uppercase text-emerald-500 ml-2 italic">Foto frente DNI</p>
+                  <input type="file" className="w-full text-[10px] text-slate-500" onChange={e => setFileDNI(e.target.files[0])} required />
+                </div>
+              </div>
 
+              <button disabled={cargandoFichaje} className={`col-span-full py-5 rounded-2xl font-black text-xs uppercase shadow-xl ${cargandoFichaje ? 'bg-slate-700 text-slate-500' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}>
+                {cargandoFichaje ? "PROCESANDO BIOMETRÍA..." : "VALIDAR Y GENERAR CREDENCIAL"}
+              </button>
+            </form>
+          </div>
+        )}
+      </>
+    )}
+  </div>
+)}
       {activeTab === 'delegados' && (
         <div className="animate-in fade-in duration-500">
           <GestionDelegados 

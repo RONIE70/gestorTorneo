@@ -66,7 +66,7 @@ const ValidadorBiometrico = () => {
 
         try {
             // 🔧 IMPORTANTE EN VERCEL
-            await faceapi.tf.setBackend('cpu');
+            await faceapi.tf.setBackend('webgl');
             await faceapi.tf.ready();
 
             await Promise.all([
@@ -166,68 +166,63 @@ const analizarForense = (url) => {
 
 
  const ejecutarCheckCompleto = async (jugadora) => {
-    setProcesando(true);
-    setResultadoIA(null);
-    setResultadoForense(null);
+        if (procesando) return;
+        setProcesando(true);
+        setResultadoIA(null);
+        setResultadoForense(null);
 
-    try {
-        // --- 1. SEGURO FORENSE ---
         try {
+            // 1. ANÁLISIS FORENSE
             const forense = await analizarForense(jugadora.foto_url);
             setResultadoForense(forense);
-        } catch (forenseError) {
-            console.warn("Fallo análisis forense, pero seguimos con IA:", forenseError);
-            setResultadoForense({ 
-                sospechosa: false, 
-                mensaje: "ℹ️ Metadatos no disponibles", 
-                software: "Error de lectura" 
-            });
-        }
 
-        if (!jugadora.foto_url || !jugadora.dni_foto_url) {
-            alert("Faltan imágenes para validar");
-            setProcesando(false);
-            return;
-        }
+            // 🕒 RESPIRO PARA EL NAVEGADOR (Evita el Pop-up de bloqueo)
+            await new Promise(r => setTimeout(r, 150));
 
-        // --- 2. CARGA DE IMÁGENES (CORRECCIÓN VITE) ---
-        const imgPerfil = await cargarImagenNativa(jugadora.foto_url);
-        const imgDni = await cargarImagenNativa(jugadora.dni_foto_url);
+            if (!jugadora.foto_url || !jugadora.dni_foto_url) {
+                alert("Faltan imágenes para validar");
+                setProcesando(false);
+                return;
+            }
 
-        // --- 3. BIOMETRÍA ---
-        const opciones = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.2 });
-        
-        let det1 = await faceapi.detectSingleFace(imgPerfil, opciones).withFaceLandmarks().withFaceDescriptor();
-        let det2 = await faceapi.detectSingleFace(imgDni, opciones).withFaceLandmarks().withFaceDescriptor();
-        
-        if (!det2) {
-            det2 = await faceapi.detectSingleFace(imgDni, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
-        }
+            // 2. CARGA DE IMÁGENES
+            const imgPerfil = await cargarImagenNativa(jugadora.foto_url);
+            const imgDni = await cargarImagenNativa(jugadora.dni_foto_url);
 
-        if (det1 && det2) {
-            const distancia = faceapi.euclideanDistance(det1.descriptor, det2.descriptor);
-            const esMismaPersona = distancia < 0.45; 
-
-            setResultadoIA({
-                distancia: distancia.toFixed(4),
-                mensaje: esMismaPersona ? "✅ IDENTIDAD CONFIRMADA" : "⚠️ DIFERENCIA DETECTADA",
-                match: esMismaPersona
-            });
-        } else {
-            let errorMsg = "❌ NO SE DETECTÓ ROSTRO EN: ";
-            if (!det1 && !det2) errorMsg += "AMBAS FOTOS";
-            else if (!det1) errorMsg += "FOTO PERFIL";
-            else errorMsg += "FOTO DNI";
+            // 3. BIOMETRÍA CON RENDIMIENTO OPTIMIZADO
+            const opciones = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.25 });
             
-            setResultadoIA({ mensaje: errorMsg, match: false, error: true });
+            // Detección 1
+            let det1 = await faceapi.detectSingleFace(imgPerfil, opciones).withFaceLandmarks().withFaceDescriptor();
+            
+            // Otro pequeño respiro
+            await new Promise(r => setTimeout(r, 100));
+
+            // Detección 2
+            let det2 = await faceapi.detectSingleFace(imgDni, opciones).withFaceLandmarks().withFaceDescriptor();
+            
+            if (!det2) {
+                det2 = await faceapi.detectSingleFace(imgDni, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+            }
+
+            if (det1 && det2) {
+                const distancia = faceapi.euclideanDistance(det1.descriptor, det2.descriptor);
+                const esMismaPersona = distancia < 0.45; 
+                setResultadoIA({
+                    distancia: distancia.toFixed(4),
+                    mensaje: esMismaPersona ? "✅ IDENTIDAD CONFIRMADA" : "⚠️ DIFERENCIA DETECTADA",
+                    match: esMismaPersona
+                });
+            } else {
+                setResultadoIA({ mensaje: "❌ ROSTRO NO DETECTADO", match: false, error: true });
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error de procesamiento. El navegador liberó memoria.");
+        } finally {
+            setProcesando(false);
         }
-    } catch (err) {
-        console.error("Error crítico en el proceso:", err);
-        alert("Hubo un problema al cargar las imágenes. Verificá la conexión.");
-    } finally {
-        setProcesando(false);
-    }
-};
+    };
 
    const actualizarEstado = async (id, nuevoEstado, distancia) => {
     let valorDistancia = 0.0001;

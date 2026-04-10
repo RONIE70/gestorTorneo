@@ -194,7 +194,7 @@ const DashboardLiga = () => {
         </Link>
 
         {/* 2. DELEGADOS */}
-        {['delegado', 'superadmin', 'admin_liga'].includes(userRol) ? (
+        {['delegado', 'superadmin', 'admin_liga','colaborador'].includes(userRol) ? (
           <Link to="/AdminDelegado" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-emerald-500 shadow-2xl hover:-translate-y-1">
             <span className="text-3xl mb-3 block">🛡️</span>
             <h3 className="text-lg font-black uppercase italic tracking-tighter text-emerald-500">Delegados</h3>
@@ -220,7 +220,7 @@ const DashboardLiga = () => {
         )}
 
         {/* 4. ÁRBITROS */}
-        {['arbitro', 'superadmin', 'admin_liga'].includes(userRol) ? (
+        {['arbitro', 'superadmin', 'admin_liga','colaborador'].includes(userRol) ? (
           <Link to="/AdminArbitros" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-amber-500 shadow-2xl hover:-translate-y-1">
             <span className="text-3xl mb-3 block">🏁</span>
             <h3 className="text-lg font-black uppercase italic tracking-tighter text-amber-500">Árbitros</h3>

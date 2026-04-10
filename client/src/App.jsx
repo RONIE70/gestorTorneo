@@ -115,7 +115,7 @@ function App() {
             <Route 
               path="/admin/verificar-jugadoras" 
               element={
-                <ProtectedRoute rolesPermitidos={['superadmin', 'admin_liga', 'colaborador', 'colaborador']}>
+                <ProtectedRoute rolesPermitidos={['superadmin', 'admin_liga', 'colaborador']}>
                   <VerificacionJugadoras />
                 </ProtectedRoute>
               } 
@@ -159,7 +159,7 @@ function App() {
             <Route 
               path="/ListaJugadoras" 
               element={
-                <ProtectedRoute rolesPermitidos={['delegado', 'colaborador', 'superadmin', 'admin_liga', 'colaborador']}>
+                <ProtectedRoute rolesPermitidos={['delegado', 'colaborador', 'superadmin', 'admin_liga']}>
                   <ListaJugadoras />
                 </ProtectedRoute>
               } 

@@ -606,7 +606,7 @@ const verificarDniDuplicado = async (dni) => {
     // 1. Obtener datos del partido y su organización
     const { data: partido, error: pErr } = await supabase
       .from('partidos')
-      .select('id, local_id, visitante_id, categoria, nro_fecha, organizacion_id')
+      .select('id, local_id, visitante_id, categoria, nro_fecha, organizacion_id, fecha_calendario, zona')
       .eq('id', partidoSeleccionado)
       .single();
 
@@ -667,10 +667,41 @@ const verificarDniDuplicado = async (dni) => {
   const colorMagenta = [217, 0, 130]; 
   const nombreLiga = configLiga?.nombre_liga || "LIGA OFICIAL";
 
-  // --- 1. ENCABEZADO Y LOGO ---
+  // --- 1. FUNCIONES INTERNAS DE AYUDA (Definidas al inicio para evitar errores) ---
+  
+  // Función para dibujar los cuadros de faltas e informes debajo de las tablas
+  const drawControlesGlobales = (startX, startY) => {
+    doc.setFontSize(8);
+    doc.setTextColor(0);
+    doc.setFont("helvetica", "bold");
+    doc.setDrawColor(0);
+    
+    doc.text("FALTAS 1T:", startX, startY);
+    for (let i = 0; i < 5; i++) doc.rect(startX + 18 + (i * 6), startY - 3.5, 4.5, 4.5);
+
+    doc.text("FALTAS 2T:", startX + 55, startY);
+    for (let i = 0; i < 5; i++) doc.rect(startX + 73 + (i * 6), startY - 3.5, 4.5, 4.5);
+
+    doc.text("EXPULSIÓN: J", startX + 110, startY);
+    doc.rect(startX + 130, startY - 3.5, 4.5, 4.5);
+    doc.text("D", startX + 137, startY);
+    doc.rect(startX + 141, startY - 3.5, 4.5, 4.5);
+    doc.text("P", startX + 148, startY);
+    doc.rect(startX + 152, startY - 3.5, 4.5, 4.5);
+
+    doc.text("INFORME:", startX + 162, startY);
+    doc.rect(startX + 178, startY - 3.5, 4.5, 4.5);
+  };
+
+  const FILAS_VACIAS_MANUAL = [
+    ['', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '']
+  ];
+
+  // --- 2. ENCABEZADO Y LOGO ---
   if (logoBase64) {
-    // eslint-disable-next-line no-unused-vars, no-empty
-    try { doc.addImage(logoBase64, 'PNG', 14, 8, 22, 22); } catch (e) {}
+    try { doc.addImage(logoBase64, 'PNG', 14, 8, 22, 22); } catch (e) { console.error("Error logo:", e); }
   }
 
   doc.setFontSize(16);
@@ -682,73 +713,42 @@ const verificarDniDuplicado = async (dni) => {
   doc.setTextColor(100, 100, 100);
   doc.text("PLANILLA DE JUEGO OFICIAL", 105, 21, { align: 'center' });
 
-   // Definimos las 3 filas vacías para completar a mano
-  const FILAS_VACIAS_MANUAL = [
-    ['', '', '', '', '', '', ''],
-    ['', '', '', '', '', '', ''],
-    ['', '', '', '', '', '', '']
-  ];
-
-  // Información del Encuentro / local
+  // --- 3. DATOS DEL PARTIDO (ZONA Y FECHA) ---
   doc.setFontSize(9);
-  doc.setTextColor(0, 0, 0); // Texto negro para impresión
-  doc.text(`FECHA NRO: ${partido.nro_fecha}`, 45, 30);
+  doc.setTextColor(0, 0, 0); 
+  doc.text(`FECHA NRO: ${partido.nro_fecha || '---'}`, 45, 30);
   doc.text(`FECHA REAL: ${partido.fecha_calendario || ' / / '}`, 85, 30);
-  doc.text(`CATEGORÍA: ${partido.categoria.toUpperCase()}`, 130, 30);
+  doc.text(`CATEGORÍA: ${(partido.categoria || '---').toUpperCase()}`, 130, 30);
   doc.text(`ZONA: ${partido.zona || '---'}`, 175, 30);
   
-  doc.setDrawColor(0); // Líneas negras
+  doc.setDrawColor(0); 
   doc.line(14, 33, 196, 33); 
 
-  // --- 2. CONFIGURACIÓN DE TABLAS JUGADORAS ---
+  // --- 4. CONFIGURACIÓN DE TABLA COMPACTA ---
   const configuracionTabla = {
     theme: 'grid',
     headStyles: { fillColor: [240, 240, 240], textColor: 0, fontSize: 8, fontStyle: 'bold', halign: 'center' },
-    styles: { fontSize: 8, cellPadding: 2, lineColor: [0, 0, 0] }, // Bordes negros
+    styles: { 
+      fontSize: 7.5,      // Fuente más pequeña para que entre todo
+      cellPadding: 1,     // Padding mínimo
+      lineColor: [0, 0, 0],
+      minCellHeight: 4    // Altura reducida para ahorrar espacio
+    },
     columnStyles: {
-      0: { cellWidth: 10, halign: 'center' },   // N°
-      1: { cellWidth: 70 },                    // Nombre y Apellido
+      0: { cellWidth: 8, halign: 'center' },   // N°
+      1: { cellWidth: 72 },                    // Nombre y Apellido
       2: { cellWidth: 25, halign: 'center' },  // DNI
       3: { cellWidth: 45 },                    // FIRMA JUGADORA
       4: { cellWidth: 15, halign: 'center' },  // GOLES
-      5: { cellWidth: 10, halign: 'center' },  // A
-      6: { cellWidth: 10, halign: 'center' }   // R
+      5: { cellWidth: 8, halign: 'center' },   // A
+      6: { cellWidth: 8, halign: 'center' }    // R
     }
   };
 
- 
-
-  // --- FUNCIÓN PARA DIBUJAR FALTAS Y CONTROL DISCIPLINARIO ---
-  const drawControlesGlobales = (startX, startY) => {
-    doc.setFontSize(8);
-    doc.setTextColor(0);
-    doc.setFont("helvetica", "bold");
-    doc.setDrawColor(0);
-    
-    // Faltas Horizontales
-    doc.text("FALTAS 1T:", startX, startY);
-    for (let i = 0; i < 5; i++) doc.rect(startX + 18 + (i * 6), startY - 3.5, 4.5, 4.5);
-
-    doc.text("FALTAS 2T:", startX + 55, startY);
-    for (let i = 0; i < 5; i++) doc.rect(startX + 73 + (i * 6), startY - 3.5, 4.5, 4.5);
-
-    // Expulsión J, D, P
-    doc.text("EXPULSIÓN: J", startX + 110, startY);
-    doc.rect(startX + 130, startY - 3.5, 4.5, 4.5);
-    doc.text("D", startX + 137, startY);
-    doc.rect(startX + 141, startY - 3.5, 4.5, 4.5);
-    doc.text("P", startX + 148, startY);
-    doc.rect(startX + 152, startY - 3.5, 4.5, 4.5);
-
-    // Informe
-    doc.text("INFORME:", startX + 162, startY);
-    doc.rect(startX + 178, startY - 3.5, 4.5, 4.5);
-  };
-
-  // --- TABLA LOCAL ---
-  doc.setFontSize(11);
+  // --- 5. TABLA LOCAL ---
+  doc.setFontSize(10);
   doc.setTextColor(...colorMagenta);
-  doc.text(`LOCAL: ${partido.local.nombre}`, 14, 42);
+  doc.text(`LOCAL: ${partido.local?.nombre || '---'}`, 14, 42);
   
   autoTable(doc, {
     ...configuracionTabla,
@@ -760,66 +760,56 @@ const verificarDniDuplicado = async (dni) => {
     ],
   });
 
-  let currentY = doc.lastAutoTable.finalY + 8;
+  let currentY = doc.lastAutoTable.finalY + 6;
   drawControlesGlobales(14, currentY);
 
-  // --- TABLA VISITANTE ---
-  currentY += 12;
-  doc.setFontSize(11);
-  doc.text(`VISITA: ${partido.visitante.nombre}`, 14, currentY);
+  // --- 6. TABLA VISITANTE ---
+  currentY += 10;
+  doc.setFontSize(10);
+  doc.setTextColor(...colorMagenta);
+  doc.text(`VISITA: ${partido.visitante?.nombre || '---'}`, 14, currentY);
   
   autoTable(doc, {
     ...configuracionTabla,
     startY: currentY + 3,
     head: [['N°', 'NOMBRE Y APELLIDO', 'DNI', 'FIRMA JUGADORA', 'GOLES', 'A', 'R']],
-    body: visitaPlayers.map((j, i) => [i + 1, j.apellido.toUpperCase() + " " + j.nombre, j.dni, "", "", "", ""]),
-    ...FILAS_VACIAS_MANUAL
+    body: [
+      ...visitaPlayers.map((j, i) => [i + 1, j.apellido.toUpperCase() + " " + j.nombre, j.dni, "", "", "", ""]),
+      ...FILAS_VACIAS_MANUAL
+    ],
   });
 
-  currentY = doc.lastAutoTable.finalY + 8;
+  currentY = doc.lastAutoTable.finalY + 6;
   drawControlesGlobales(14, currentY);
 
-  // --- 3. CUADRO DE RESULTADOS ESTILO EXCEL (AJUSTADO) ---
-  const resY = 255;
+  // --- 7. RESULTADOS Y FIRMAS ---
+  const resY = 260;
   doc.setDrawColor(0);
-  doc.setLineWidth(0.4);
-  
-  // Encabezado (Más estrecho para evitar solapamiento)
-  const tableWidth = 63; // Ancho total reducido de 80 a 70
   doc.setFillColor(240, 240, 240);
-  doc.rect(14, resY, tableWidth, 8, 'FD'); 
+  doc.rect(14, resY, 63, 6, 'FD'); 
   doc.setFontSize(8);
   doc.setTextColor(0);
-  doc.text("TABLA DE RESULTADOS FINALES", 14 + (tableWidth / 2), resY + 5.5, { align: 'center' });
+  doc.text("TABLA DE RESULTADOS FINALES", 45.5, resY + 4.5, { align: 'center' });
 
-  // Función para filas ajustadas
   const drawExcelRow = (x, y, label) => {
     doc.setLineWidth(0.2);
-    doc.rect(x, y, 45, 10); // Celda Nombre reducida de 55 a 50
-    doc.rect(x + 45, y, 18, 10); // Celda Score reducida de 25 a 20
+    doc.rect(x, y, 45, 8); 
+    doc.rect(x + 45, y, 18, 8); 
     doc.setFont("helvetica", "bold");
-    doc.text(label, x + 2, y + 6.5);
+    doc.text(label, x + 2, y + 5.5);
   };
 
-  drawExcelRow(14, resY + 8, `LOC: ${partido.local.nombre.substring(0, 15)}`);
-  drawExcelRow(14, resY + 18, `VIS: ${partido.visitante.nombre.substring(0, 15)}`);
+  drawExcelRow(14, resY + 6, `LOC: ${(partido.local?.nombre || '').substring(0, 15)}`);
+  drawExcelRow(14, resY + 14, `VIS: ${(partido.visitante?.nombre || '').substring(0, 15)}`);
 
-  // --- 4. FIRMAS FINALES (Líneas Negras) ---
-  doc.setFontSize(7);
-  doc.setDrawColor(0);
   const lineY = 285;
-  
-  doc.line(80, lineY, 110, lineY);
-  doc.text("FIRMA ÁRBITRO", 95, lineY + 4, { align: 'center' });
+  doc.setFontSize(7);
+  doc.line(80, lineY, 110, lineY); doc.text("FIRMA ÁRBITRO", 95, lineY + 4, { align: 'center' });
+  doc.line(125, lineY, 155, lineY); doc.text("FIRMA DEL. LOCAL", 140, lineY + 4, { align: 'center' });
+  doc.line(170, lineY, 200, lineY); doc.text("FIRMA DEL. VISITA", 185, lineY + 4, { align: 'center' });
 
-  doc.line(125, lineY, 155, lineY);
-  doc.text("FIRMA DEL. LOCAL", 140, lineY + 4, { align: 'center' });
-
-  doc.line(170, lineY, 200, lineY);
-  doc.text("FIRMA DEL. VISITA", 185, lineY + 4, { align: 'center' });
-
-  doc.save(`Planilla_${partido.local.nombre}_vs_${partido.visitante.nombre}.pdf`);
- };
+  doc.save(`Planilla_${partido.local?.nombre}_vs_${partido.visitante?.nombre}.pdf`);
+};
 
     // --- RENDER DE CARGA ---
     if (loadingSession) {

@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import * as faceapi from 'face-api.js';
-import EXIF from 'exif-js';
+import EXIF from 'exif-js'; // Asegúrate de tenerlo instalado: npm install exif-js
 
-// --- 1. PARCHE MAESTRO (FUERA DEL COMPONENTE) ---
-// Esto es VITAL: Debe ejecutarse antes de que React intente renderizar nada.
-// Evita el error "n is not defined" inyectando el fetch nativo globalmente.
+// --- 1. PARCHE MAESTRO ANTI-CRASH (VITE/EXIF-JS) ---
+// Este bloque soluciona el error "n is not defined" que ves en la consola.
+// El error viene de un bug interno de exif-js (visto en image_50ac66.png).
 if (typeof window !== 'undefined') {
+    // Definimos 'n' globalmente para que el bucle de la librería no falle.
+    window.n = window.n || 0; 
+
+    // Parche para face-api.js en entornos minificados.
     faceapi.env.monkeyPatch({
         fetch: window.fetch.bind(window),
         Canvas: window.HTMLCanvasElement,
@@ -57,209 +61,211 @@ const ValidadorBiometrico = () => {
 
     // 1. CARGA DE MODELOS PESADOS (PC)
     useEffect(() => {
-        const loadModels = async () => {
-            const MODEL_URL = '/models/';
-
-            try {
-                // 🔧 CONFIGURACIÓN DE TENSORFLOW PARA PRODUCCIÓN
-                await faceapi.tf.setBackend('cpu');
-                await faceapi.tf.ready();
-
-                await Promise.all([
-                    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)
-                ]);
-
-                setCargandoModelos(false);
-                fetchPendientes();
-
-            } catch (err) {
-                console.error("Error cargando modelos IA", err);
-            }
-        };
-
-        loadModels();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-   
-    const fetchPendientes = useCallback(async () => {
-        if (!userOrgId) return;
+    const loadModels = async () => {
+        const MODEL_URL = '/models/';
 
         try {
-            const { data, error } = await supabase
-                .from('jugadoras')
-                .select(`
-                    *,
-                    equipos:equipo_id!inner (
-                        nombre
-                    )
-                `)
-                .eq('organizacion_id', userOrgId)
-                .eq('verificacion_biometrica_estado', 'pendiente')
-                .order('id', { ascending: false });
+            // 🔧 IMPORTANTE EN VERCEL
+            await faceapi.tf.setBackend('cpu');
+            await faceapi.tf.ready();
 
-            if (error) {
-                console.error("Error Supabase:", error.message);
-                return;
-            }
-            setPendientes(data || []);
-        } catch (err) {
-            console.error("Error inesperado:", err);
-        }
-    }, [userOrgId]); 
+            await Promise.all([
+                faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+                faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+                faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)
+            ]);
 
-    useEffect(() => {
-        if (userOrgId) {
+            setCargandoModelos(false);
             fetchPendientes();
-        }
-    }, [userOrgId, fetchPendientes]);
 
+        } catch (err) {
+            console.error("Error cargando modelos IA", err);
+        }
+    };
+
+    loadModels();
+
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+    
+// Usamos useCallback para que la función no cambie en cada render
+const fetchPendientes = useCallback(async () => {
+    if (!userOrgId) return;
+
+    try {
+        const { data, error } = await supabase
+            .from('jugadoras')
+            .select(`
+                *,
+                equipos:equipo_id!inner (
+                    nombre
+                )
+            `)
+            .eq('organizacion_id', userOrgId)
+            .eq('verificacion_biometrica_estado', 'pendiente')
+            .order('id', { ascending: false });
+
+        if (error) {
+            console.error("Error Supabase:", error.message);
+            return;
+        }
+        setPendientes(data || []);
+    } catch (err) {
+        console.error("Error inesperado:", err);
+    }
+}, [userOrgId]); 
+
+useEffect(() => {
+    if (userOrgId) {
+        fetchPendientes();
+    }
+}, [userOrgId, fetchPendientes]);
+
+// --- LÓGICA DE FILTRADO EN TIEMPO REAL ---
     const pendientesFiltrados = pendientes.filter(j => 
         (j.equipos?.nombre || "").toLowerCase().includes(filtroClub.toLowerCase())
     );
 
-    const analizarForense = (url) => {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.crossOrigin = "anonymous"; 
-            
-            img.onload = function() {
-                try {
-                    EXIF.getData(img, function() {
-                        const tags = EXIF.getAllTags(img); 
-                        if (!tags || Object.keys(tags).length === 0) {
-                            resolve({ sospechosa: false, mensaje: "✅ Imagen Original", software: "Sin metadatos" });
-                            return;
-                        }
-                        const software = (tags.Software || "").toLowerCase();
-                        const editores = ["photoshop", "adobe", "canva", "picsart", "gimp", "lightroom"];
-                        const esEditada = editores.some(ed => software.includes(ed));
-                        
-                        resolve({
-                            sospechosa: esEditada,
-                            software: tags.Software || "Cámara Nativa",
-                            mensaje: esEditada ? `⚠️ EDITADA CON: ${tags.Software}` : "✅ Imagen Original"
-                        });
-                    });
-                } catch (err) {
-                    console.warn("Fallo al leer EXIF", err);
-                    resolve({ sospechosa: false, mensaje: "✅ Imagen Original", software: "No legible" });
-                }
-            };
-
-            img.onerror = () => {
-                resolve({ sospechosa: false, mensaje: "✅ Imagen Original", software: "Error de carga" });
-            };
-
-            img.src = url + (url.includes('?') ? '&' : '?') + "t=" + new Date().getTime();
-        });
-    };
-
-    const ejecutarCheckCompleto = async (jugadora) => {
-        // Bloqueo de seguridad: No iniciar si ya se está procesando
-        if (procesando) return;
+const analizarForense = (url) => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous"; 
         
-        setProcesando(true);
+        img.onload = function() {
+            try {
+                EXIF.getData(img, function() {
+                    const tags = EXIF.getAllTags(img); 
+                    if (!tags || Object.keys(tags).length === 0) {
+                        resolve({ sospechosa: false, mensaje: "✅ Imagen Original", software: "Sin metadatos" });
+                        return;
+                    }
+                    const software = (tags.Software || "").toLowerCase();
+                    const editores = ["photoshop", "adobe", "canva", "picsart", "gimp", "lightroom"];
+                    const esEditada = editores.some(ed => software.includes(ed));
+                    
+                    resolve({
+                        sospechosa: esEditada,
+                        software: tags.Software || "Cámara Nativa",
+                        mensaje: esEditada ? `⚠️ EDITADA CON: ${tags.Software}` : "✅ Imagen Original"
+                    });
+                });
+            } catch (err) {
+                console.warn("Fallo al leer EXIF", err);
+                resolve({ sospechosa: false, mensaje: "✅ Imagen Original", software: "No legible" });
+            }
+        };
+
+        img.onerror = () => {
+            resolve({ sospechosa: false, mensaje: "✅ Imagen Original", software: "Error de carga" });
+        };
+
+        img.src = url + (url.includes('?') ? '&' : '?') + "t=" + new Date().getTime();
+    });
+};
+
+
+ const ejecutarCheckCompleto = async (jugadora) => {
+    setProcesando(true);
+    setResultadoIA(null);
+    setResultadoForense(null);
+
+    try {
+        // --- 1. SEGURO FORENSE ---
+        try {
+            const forense = await analizarForense(jugadora.foto_url);
+            setResultadoForense(forense);
+        } catch (forenseError) {
+            console.warn("Fallo análisis forense, pero seguimos con IA:", forenseError);
+            setResultadoForense({ 
+                sospechosa: false, 
+                mensaje: "ℹ️ Metadatos no disponibles", 
+                software: "Error de lectura" 
+            });
+        }
+
+        if (!jugadora.foto_url || !jugadora.dni_foto_url) {
+            alert("Faltan imágenes para validar");
+            setProcesando(false);
+            return;
+        }
+
+        // --- 2. CARGA DE IMÁGENES (CORRECCIÓN VITE) ---
+        const imgPerfil = await cargarImagenNativa(jugadora.foto_url);
+        const imgDni = await cargarImagenNativa(jugadora.dni_foto_url);
+
+        // --- 3. BIOMETRÍA ---
+        const opciones = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.2 });
+        
+        let det1 = await faceapi.detectSingleFace(imgPerfil, opciones).withFaceLandmarks().withFaceDescriptor();
+        let det2 = await faceapi.detectSingleFace(imgDni, opciones).withFaceLandmarks().withFaceDescriptor();
+        
+        if (!det2) {
+            det2 = await faceapi.detectSingleFace(imgDni, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+        }
+
+        if (det1 && det2) {
+            const distancia = faceapi.euclideanDistance(det1.descriptor, det2.descriptor);
+            const esMismaPersona = distancia < 0.45; 
+
+            setResultadoIA({
+                distancia: distancia.toFixed(4),
+                mensaje: esMismaPersona ? "✅ IDENTIDAD CONFIRMADA" : "⚠️ DIFERENCIA DETECTADA",
+                match: esMismaPersona
+            });
+        } else {
+            let errorMsg = "❌ NO SE DETECTÓ ROSTRO EN: ";
+            if (!det1 && !det2) errorMsg += "AMBAS FOTOS";
+            else if (!det1) errorMsg += "FOTO PERFIL";
+            else errorMsg += "FOTO DNI";
+            
+            setResultadoIA({ mensaje: errorMsg, match: false, error: true });
+        }
+    } catch (err) {
+        console.error("Error crítico en el proceso:", err);
+        alert("Hubo un problema al cargar las imágenes. Verificá la conexión.");
+    } finally {
+        setProcesando(false);
+    }
+};
+
+   const actualizarEstado = async (id, nuevoEstado, distancia) => {
+    let valorDistancia = 0.0001;
+    if (distancia && distancia !== "0.0001") {
+        valorDistancia = parseFloat(distancia);
+    }
+    
+    const esAprobado = nuevoEstado === 'aprobado';
+
+    const { error } = await supabase
+        .from('jugadoras')
+        .update({ 
+            verificacion_biometrica_estado: nuevoEstado,
+            distancia_biometrica_oficial: valorDistancia,
+            fecha_validacion: new Date().toISOString(),
+            observaciones_ia: resultadoForense?.mensaje || "",
+            verificacion_manual: false, 
+            estado_habil_admin: esAprobado 
+        })
+        .eq('id', id)
+        .eq('organizacion_id', userOrgId);
+
+    if (error) {
+        console.error("Error al actualizar:", error.message);
+        alert("No se pudo guardar: " + error.message);
+    } else {
+        setSeleccionada(null);
         setResultadoIA(null);
         setResultadoForense(null);
+        fetchPendientes();
+    }
+};
 
-        try {
-            // --- 1. SEGURO FORENSE ---
-            try {
-                const forense = await analizarForense(jugadora.foto_url);
-                setResultadoForense(forense);
-            } catch (forenseError) {
-                console.warn("Fallo análisis forense, pero seguimos con IA:", forenseError);
-                setResultadoForense({ 
-                    sospechosa: false, 
-                    mensaje: "ℹ️ Metadatos no disponibles", 
-                    software: "Error de lectura" 
-                });
-            }
-
-            if (!jugadora.foto_url || !jugadora.dni_foto_url) {
-                alert("Faltan imágenes para validar");
-                setProcesando(false);
-                return;
-            }
-
-            // --- 2. CARGA DE IMÁGENES (CORRECCIÓN VITE) ---
-            const imgPerfil = await cargarImagenNativa(jugadora.foto_url);
-            const imgDni = await cargarImagenNativa(jugadora.dni_foto_url);
-
-            // --- 3. BIOMETRÍA ---
-            const opciones = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.2 });
-            
-            let det1 = await faceapi.detectSingleFace(imgPerfil, opciones).withFaceLandmarks().withFaceDescriptor();
-            let det2 = await faceapi.detectSingleFace(imgDni, opciones).withFaceLandmarks().withFaceDescriptor();
-            
-            if (!det2) {
-                det2 = await faceapi.detectSingleFace(imgDni, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
-            }
-
-            if (det1 && det2) {
-                const distancia = faceapi.euclideanDistance(det1.descriptor, det2.descriptor);
-                const esMismaPersona = distancia < 0.45; 
-
-                setResultadoIA({
-                    distancia: distancia.toFixed(4),
-                    mensaje: esMismaPersona ? "✅ IDENTIDAD CONFIRMADA" : "⚠️ DIFERENCIA DETECTADA",
-                    match: esMismaPersona
-                });
-            } else {
-                let errorMsg = "❌ NO SE DETECTÓ ROSTRO EN: ";
-                if (!det1 && !det2) errorMsg += "AMBAS FOTOS";
-                else if (!det1) errorMsg += "FOTO PERFIL";
-                else errorMsg += "FOTO DNI";
-                
-                setResultadoIA({ mensaje: errorMsg, match: false, error: true });
-            }
-        } catch (err) {
-            console.error("Error crítico en el proceso:", err);
-            alert("Hubo un problema al cargar las imágenes. Verificá la conexión.");
-        } finally {
-            setProcesando(false);
-        }
-    };
-
-    const actualizarEstado = async (id, nuevoEstado, distancia) => {
-        let valorDistancia = 0.0001;
-        if (distancia && distancia !== "0.0001") {
-            valorDistancia = parseFloat(distancia);
-        }
-        
-        const esAprobado = nuevoEstado === 'aprobado';
-
-        const { error } = await supabase
-            .from('jugadoras')
-            .update({ 
-                verificacion_biometrica_estado: nuevoEstado,
-                distancia_biometrica_oficial: valorDistancia,
-                fecha_validacion: new Date().toISOString(),
-                observaciones_ia: resultadoForense?.mensaje || "",
-                verificacion_manual: false, 
-                estado_habil_admin: esAprobado 
-            })
-            .eq('id', id)
-            .eq('organizacion_id', userOrgId);
-
-        if (error) {
-            console.error("Error al actualizar:", error.message);
-            alert("No se pudo guardar: " + error.message);
-        } else {
-            setSeleccionada(null);
-            setResultadoIA(null);
-            setResultadoForense(null);
-            fetchPendientes();
-        }
-    };
-
-    if (cargandoModelos) return <div className="p-20 text-center text-white font-black animate-pulse uppercase tracking-[0.3em]">Cargando Motores de Seguridad...</div>;
+    if (cargandoModelos) return <div className="p-20 text-center text-white font-black animate-pulse uppercase tracking-[0.3em]">Cargando Cerebro IA...</div>;
 
     return (
         <div className="flex h-screen bg-slate-950 text-white font-sans">
+            {/* LISTADO LATERAL */}
             <div className="w-1/4 border-r border-slate-800 overflow-y-auto p-6 bg-slate-900/50 flex flex-col">
                 <h2 className="text-xl font-black italic mb-2 text-blue-500 uppercase tracking-tighter">Pendientes ({pendientesFiltrados.length})</h2>
                 
@@ -291,6 +297,7 @@ const ValidadorBiometrico = () => {
                 </div>
             </div>
 
+            {/* ÁREA DE REVISIÓN */}
             <div className="w-3/4 p-10 flex flex-col bg-slate-950">
                 {seleccionada ? (
                     <div className="animate-in fade-in zoom-in duration-300">
@@ -324,7 +331,7 @@ const ValidadorBiometrico = () => {
                         <div className="mt-auto flex gap-4">
                             {!resultadoIA ? (
                                 <button onClick={() => ejecutarCheckCompleto(seleccionada)} disabled={procesando} className="flex-1 bg-blue-600 hover:bg-blue-500 py-6 rounded-3xl font-black text-xl shadow-2xl transition-all active:scale-95">
-                                    {procesando ? "ANALIZANDO PÍXELES..." : "⚡ LANZAR ESCANEO DE SEGURIDAD"}
+                                    {procesando ? "PROCESANDO BIOMETRÍA Y EXIF..." : "⚡ LANZAR ESCANEO DE SEGURIDAD"}
                                 </button>
                             ) : (
                                 <>

@@ -77,21 +77,32 @@ const TablaPosiciones = () => {
       const gen = {};         
 
       const procesarFila = (contenedor, id, info, gF, gC) => {
-        if (!contenedor[id]) {
-          contenedor[id] = { 
-            nombre: info.nombre, escudo: info.escudo_url, 
-            pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, dif: 0, pts: 0 
-          };
-        }
-        const s = contenedor[id];
-        s.pj += 1;
-        s.gf += (gF || 0);
-        s.gc += (gC || 0);
-        s.dif = s.gf - s.gc;
-        if (gF > gC) { s.pg += 1; s.pts += 3; }
-        else if (gF === gC) { s.pe += 1; s.pts += 1; }
-        else { s.pp += 1; }
-      };
+  if (!contenedor[id]) {
+    contenedor[id] = { 
+      nombre: info.nombre, escudo: info.escudo_url, 
+      pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, dif: 0, pts: 0 
+    };
+  }
+  const s = contenedor[id];
+  s.pj += 1;
+  s.gf += (gF || 0);
+  s.gc += (gC || 0);
+  s.dif = s.gf - s.gc;
+
+  // Lógica de puntos: Ganado 2, Empate 1, Perdido 0
+  if (gF > gC) { 
+    s.pg += 1; 
+    s.pts += 2; // Modificado: 2 puntos por victoria
+  }
+  else if (gF === gC) { 
+    s.pe += 1; 
+    s.pts += 1; // Mantenido: 1 punto por empate
+  }
+  else { 
+    s.pp += 1; 
+    // Mantenido: 0 puntos por derrota
+  }
+};
 
       partidos.forEach(p => {
         const cat = p.categoria || "Única";

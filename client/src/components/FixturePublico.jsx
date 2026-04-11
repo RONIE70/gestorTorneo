@@ -91,7 +91,7 @@ const FixturePublico = () => {
       const datosAgrupados = obtenerAgrupados(zonaLabel);
 
       // --- HEADER ---
-      doc.setFillColor(0, 0, 0);
+      doc.setFillColor(identidad.fondo);
       doc.rect(0, 0, pageWidth, 45, 'F');
 
       if (logoLiga) {
@@ -99,7 +99,7 @@ const FixturePublico = () => {
         if (imgLogo) doc.addImage(imgLogo, 'PNG', 12, 8, 28, 28);
       }
 
-      doc.setTextColor(255, 255, 255);
+      doc.setTextColor(identidad.texto);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(22);
       doc.text("LIGA DE LAS NENAS", pageWidth / 2 + 10, 18, { align: 'center' });
@@ -227,6 +227,15 @@ const FixturePublico = () => {
         <div className="h-1 w-24 bg-pink-500 mx-auto rounded-full"></div>
         <p className="text-blue-400 font-bold text-xs uppercase tracking-[0.4em]">Calendario Oficial Liga de las Nenas</p>
       </div>
+      {/* --- AQUÍ COLOCAMOS EL BOTÓN NUEVO --- */}
+        <div className="pt-6 pb-2">
+          <button 
+            onClick={() => navigate('/posiciones')} 
+            className="inline-flex items-center gap-3 bg-emerald-600 hover:bg-emerald-500 text-white px-10 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-xl shadow-emerald-900/20 active:scale-95"
+          >
+            <span className="text-lg">📊</span> Ver Tablas de Posiciones
+          </button>
+        </div>
 
       {/* BOTONES DE DESCARGA ESTRATÉGICOS */}
       <div className="flex flex-wrap justify-center gap-3">

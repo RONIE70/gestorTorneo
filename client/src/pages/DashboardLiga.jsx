@@ -188,7 +188,7 @@ const DashboardLiga = () => {
         {/* 1. JUGADORAS (SIEMPRE ABIERTO) */}
         <Link to="/FixturePublico" className="group relative overflow-hidden bg-slate-900 border border-slate-800 p-6 rounded-[2rem] transition-all hover:border-liga shadow-2xl hover:-translate-y-1">
           <span className="text-3xl mb-3 block">⚽</span>
-          <h3 className="text-lg font-black uppercase italic tracking-tighter">Jugadoras</h3>
+          <h3 className="text-lg font-black uppercase italic tracking-tighter">Jugadoras / Público</h3>
           <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 leading-relaxed">Fixture oficial, resultados y tablas de posiciones.</p>
           <div className="mt-4 text-liga text-[9px] font-black uppercase tracking-widest">Ver Resultados →</div>
         </Link>

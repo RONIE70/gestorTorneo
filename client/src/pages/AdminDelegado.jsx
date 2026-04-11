@@ -755,7 +755,7 @@ const verificarDniDuplicado = async (dni) => {
     startY: 45,
     head: [['N°', 'NOMBRE Y APELLIDO', 'DNI', 'FIRMA JUGADORA', 'GOLES', 'A', 'R']],
     body: [
-      ...localPlayers.map((j, i) => [i + 1, j.apellido.toUpperCase() + " " + j.nombre, j.dni, "", "", "", ""]),
+      ...localPlayers.map((j) => [" ", j.apellido.toUpperCase() + " " + j.nombre, j.dni, "", "", "", ""]),
       ...FILAS_VACIAS_MANUAL
     ],
   });
@@ -774,7 +774,7 @@ const verificarDniDuplicado = async (dni) => {
     startY: currentY + 3,
     head: [['N°', 'NOMBRE Y APELLIDO', 'DNI', 'FIRMA JUGADORA', 'GOLES', 'A', 'R']],
     body: [
-      ...visitaPlayers.map((j, i) => [i + 1, j.apellido.toUpperCase() + " " + j.nombre, j.dni, "", "", "", ""]),
+      ...visitaPlayers.map((j) => [" ", j.apellido.toUpperCase() + " " + j.nombre, j.dni, "", "", "", ""]),
       ...FILAS_VACIAS_MANUAL
     ],
   });

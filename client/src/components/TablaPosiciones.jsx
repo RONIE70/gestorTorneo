@@ -5,10 +5,10 @@ import autoTable from 'jspdf-autotable';
 
 const TablaPosiciones = () => {
   const [datosEstructurados, setDatosEstructurados] = useState({});
-  const [tablaGeneral, setTablaGeneral] = useState([]);
+  const [tablasGeneralesPorZona, setTablasGeneralesPorZona] = useState({}); 
   const [loading, setLoading] = useState(true);
   
-  // --- NUEVOS ESTADOS PARA IDENTIDAD SAAS ---
+  // --- ESTADOS PARA IDENTIDAD SAAS ---
   const [ligaNombre, setLigaNombre] = useState('LIGA OFICIAL');
   const [logoBase64, setLogoBase64] = useState(null);
 
@@ -38,7 +38,6 @@ const TablaPosiciones = () => {
       if (perfil?.organizaciones) {
         setLigaNombre(perfil.organizaciones.nombre);
         
-        // Convertir logo a Base64 para el PDF si existe
         if (perfil.organizaciones.logo_url) {
           const img = new Image();
           img.crossOrigin = 'Anonymous';
@@ -74,46 +73,50 @@ const TablaPosiciones = () => {
       if (error) throw error;
 
       const estructura = {}; 
-      const gen = {};         
+      const acumuladosZona = {};         
 
       const procesarFila = (contenedor, id, info, gF, gC) => {
-  if (!contenedor[id]) {
-    contenedor[id] = { 
-      nombre: info.nombre, escudo: info.escudo_url, 
-      pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, dif: 0, pts: 0 
-    };
-  }
-  const s = contenedor[id];
-  s.pj += 1;
-  s.gf += (gF || 0);
-  s.gc += (gC || 0);
-  s.dif = s.gf - s.gc;
+        if (!contenedor[id]) {
+          contenedor[id] = { 
+            nombre: info.nombre, escudo: info.escudo_url, 
+            pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, dif: 0, pts: 0 
+          };
+        }
+        const s = contenedor[id];
+        s.pj += 1;
+        s.gf += (gF || 0);
+        s.gc += (gC || 0);
+        s.dif = s.gf - s.gc;
 
-  // Lógica de puntos: Ganado 2, Empate 1, Perdido 0
-  if (gF > gC) { 
-    s.pg += 1; 
-    s.pts += 2; // Modificado: 2 puntos por victoria
-  }
-  else if (gF === gC) { 
-    s.pe += 1; 
-    s.pts += 1; // Mantenido: 1 punto por empate
-  }
-  else { 
-    s.pp += 1; 
-    // Mantenido: 0 puntos por derrota
-  }
-};
+        // Lógica de puntos: Ganado 2, Empate 1, Perdido 0
+        if (gF > gC) { 
+          s.pg += 1; 
+          s.pts += 2; 
+        }
+        else if (gF === gC) { 
+          s.pe += 1; 
+          s.pts += 1; 
+        }
+        else { 
+          s.pp += 1; 
+        }
+      };
 
       partidos.forEach(p => {
         const cat = p.categoria || "Única";
         const zona = p.zona || "Zona Única";
+        
+        // Agrupación por Categoría y Zona
         if (!estructura[cat]) estructura[cat] = {};
         if (!estructura[cat][zona]) estructura[cat][zona] = {};
 
         procesarFila(estructura[cat][zona], p.local_id, p.local, p.resultado_local, p.resultado_visitante);
         procesarFila(estructura[cat][zona], p.visitante_id, p.visitante, p.resultado_visitante, p.resultado_local);
-        procesarFila(gen, p.local_id, p.local, p.resultado_local, p.resultado_visitante);
-        procesarFila(gen, p.visitante_id, p.visitante, p.resultado_visitante, p.resultado_local);
+        
+        // Agrupación Acumulada separada POR ZONA
+        if (!acumuladosZona[zona]) acumuladosZona[zona] = {};
+        procesarFila(acumuladosZona[zona], p.local_id, p.local, p.resultado_local, p.resultado_visitante);
+        procesarFila(acumuladosZona[zona], p.visitante_id, p.visitante, p.resultado_visitante, p.resultado_local);
       });
 
       const ordenar = (obj) => Object.values(obj).sort((a, b) => b.pts - a.pts || b.dif - a.dif || b.gf - a.gf);
@@ -126,8 +129,13 @@ const TablaPosiciones = () => {
         });
       });
 
+      const finalGenerales = {};
+      Object.keys(acumuladosZona).forEach(z => {
+        finalGenerales[z] = ordenar(acumuladosZona[z]);
+      });
+
       setDatosEstructurados(finalEstructura);
-      setTablaGeneral(ordenar(gen));
+      setTablasGeneralesPorZona(finalGenerales);
     } catch (err) {
       console.error(err);
     } finally {
@@ -140,7 +148,7 @@ const TablaPosiciones = () => {
     const pageWidth = doc.internal.pageSize.getWidth();
 
     // 1. ENCABEZADO
-    doc.setFillColor(identidad.fondo);;
+    doc.setFillColor(identidad.fondo);
     doc.rect(0, 0, pageWidth, 45, 'F');
     
     if (logoBase64?.data) {
@@ -148,7 +156,7 @@ const TablaPosiciones = () => {
         doc.addImage(logoBase64.data, logoBase64.format, 15, 10, 25, 25);
       // eslint-disable-next-line no-unused-vars
       } catch (e) {
-        doc.setFillColor(identidad.fondo); // Fondo Negro
+        doc.setFillColor(identidad.fondo);
         doc.ellipse(27, 22, 12, 12, 'F');
       }
     } else {
@@ -186,8 +194,7 @@ const TablaPosiciones = () => {
       columnStyles: { 6: { fontStyle: 'bold', fillColor: [248, 250, 252] } }
     });
 
-    // 3. PIE Y QR
-    const urlQR = `...data=${encodeURIComponent(`${window.location.origin}/#/posiciones`)}`;
+    const urlQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/#/posiciones`)}`;
     try {
       doc.addImage(urlQR, 'PNG', 20, 250, 25, 25);
     } catch (err) { console.warn(err); }
@@ -198,7 +205,6 @@ const TablaPosiciones = () => {
     doc.save(`Posiciones_${titulo.replace(/\s+/g, '_')}.pdf`);
   };
 
-  // --- SUB-COMPONENTE DE TABLA ---
   const ComponenteTabla = ({ datos, titulo, esGeneral = false }) => (
     <div className="space-y-3 mb-8">
       <div className="flex justify-between items-end px-2">
@@ -284,13 +290,20 @@ const TablaPosiciones = () => {
         </div>
       ))}
 
-      <div className="mt-20 pt-10 border-t border-slate-800 bg-black/40 rounded-[3rem] p-8">
+      <div className="mt-20 pt-10 border-t border-slate-800 bg-black/40 rounded-[3rem] p-4 md:p-8">
         <div className="text-center mb-8">
             <h2 className="text-xl md:text-3xl font-black uppercase italic text-rose-500">Ranking Institucional</h2>
-            <p className="text-[7px] md:text-[9px] text-slate-500 uppercase font-bold tracking-widest mt-1">Sumatoria total por club</p>
+            <p className="text-[7px] md:text-[9px] text-slate-500 uppercase font-bold tracking-widest mt-1">Sumatoria total por club separada por zonas</p>
         </div>
-        <div className="max-w-2xl mx-auto">
-            <ComponenteTabla datos={tablaGeneral} titulo="Tabla General Acumulada" esGeneral={true} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {Object.keys(tablasGeneralesPorZona).sort().map(zona => (
+                <ComponenteTabla 
+                  key={zona} 
+                  datos={tablasGeneralesPorZona[zona]} 
+                  titulo={`Tabla General - ${zona}`} 
+                  esGeneral={true} 
+                />
+            ))}
         </div>
       </div>
     </div>

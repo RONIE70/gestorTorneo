@@ -587,7 +587,6 @@ const verificarDniDuplicado = async (dni) => {
 
   // 2. Función para generar y descargar
  // --- LÓGICA DE PDF (FRONTEND MVP - DINÁMICO) ---
- // --- LÓGICA DE PDF (FRONTEND MVP - DINÁMICO) ---
  const handleDescargarPlanilla = async () => {
   if (!partidoSeleccionado) return alert("Selecciona un partido");
 
@@ -630,26 +629,29 @@ const verificarDniDuplicado = async (dni) => {
     // 3. Traer jugadoras de ambos equipos (incluyendo fecha_nacimiento para validar)
     const { data: localTodos, error: localErr } = await supabase
       .from('jugadoras')
-      .select('nombre, apellido, dni, fecha_nacimiento')
+      .select('nombre, apellido, dni, fecha_nacimiento, categoria_actual')
       .eq('equipo_id', partido.local_id)
       .order('apellido');
 
     const { data: visitaTodos, error: visitaErr } = await supabase
       .from('jugadoras')
-      .select('nombre, apellido, dni, fecha_nacimiento')
+      .select('nombre, apellido, dni, fecha_nacimiento, categoria_actual')
       .eq('equipo_id', partido.visitante_id)
       .order('apellido');
 
     if (localErr || visitaErr) throw new Error("Error cargando planteles");
 
-    // 4. Filtrar jugadoras: Solo incluimos si su categoría por año coincide con la del partido
-    const localP = (localTodos || []).filter(j => 
-      calcularCategoriaSaaS(j.fecha_nacimiento, reglasCategorias) === partido.categoria
-    );
+    // --- 4 FILTRO DOBLE (POR AÑO O POR CAMPO DB) ---
+    const filtrarPorReglaONombre = (j) => {
+        const catPorAnio = calcularCategoriaSaaS(j.fecha_nacimiento, reglasCategorias);
+        const catEnDB = j.categoria_actual || "";
+        
+        // Si el año coincide O si el texto en la DB coincide, se queda en la lista
+        return catPorAnio === partido.categoria || catEnDB === partido.categoria;
+    };
 
-    const visitaP = (visitaTodos || []).filter(j => 
-      calcularCategoriaSaaS(j.fecha_nacimiento, reglasCategorias) === partido.categoria
-    );
+    const localP = (localTodos || []).filter(filtrarPorReglaONombre);
+    const visitaP = (visitaTodos || []).filter(filtrarPorReglaONombre);
 
     // 5. Preparar objeto para el PDF con los nombres de los clubes
     const partidoParaPDF = {

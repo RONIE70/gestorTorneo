@@ -595,6 +595,13 @@ const verificarDniDuplicado = async (dni) => {
   const calcularCategoriaSaaS = (fechaNac, reglas) => {
     if (!fechaNac || !reglas || reglas.length === 0) return "S/D";
     const anioNac = new Date(fechaNac).getFullYear();
+
+    // --- REGLA DE NEGOCIO TEMPORAL: LIGA DE LAS NENAS ---
+  // Si nació en 2019 o 2020, la mandamos directo a la categoría 2017-2018
+    if (anioNac === 2019 || anioNac === 2020) {
+    return "2017-2018";
+  }
+    
     const match = reglas.find(c => 
       anioNac >= c.año_desde && anioNac <= (c.año_hasta || anioNac)
     );

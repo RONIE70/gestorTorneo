@@ -247,3 +247,4 @@ app.listen(PORT, () => console.log(`🚀 Servidor nc-s1125 INTELIGENTE en puerto
 
 module.exports = app;
 
+// Forzando el redeploy de pliegos en Vercel

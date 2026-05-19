@@ -18,6 +18,9 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// ➔ AGREGÁ ESTA LÍNEA DE PREFLIGHT AQUÍ:
+app.options('*', cors());
+
 // server/index.js
 // Forzamos que use la variable correcta
 const supabase = createClient(

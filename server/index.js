@@ -7,6 +7,7 @@ const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const Tesseract = require('tesseract.js'); // Librería de OCR
+const pliegoRoutes = require('./routes/pliegoRoutes');
 
 
 const app = express();
@@ -234,6 +235,9 @@ app.patch('/jugadoras/:id/aprobar', async (req, res) => {
         res.status(500).json({ error: "Error al actualizar" });
     }
 });
+
+// ➔ PUNTO DE MODIFICACIÓN 2: REGISTRO DEL MIDDLEWARE EN EL SISTEMA DE CAMINOS DE EXPRESS
+app.use('/api', pliegoRoutes);
 
 const PORT = 5000;
 app.listen(PORT, () => console.log(`🚀 Servidor nc-s1125 INTELIGENTE en puerto ${PORT}`));

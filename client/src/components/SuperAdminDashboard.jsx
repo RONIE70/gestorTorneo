@@ -5,6 +5,8 @@ import jsPDF from 'jspdf';
 import { PrinterIcon, ChartBarIcon, TrophyIcon } from '@heroicons/react/24/solid';
 import CarnetJugadora from './CarnetJugadora';
 import GestionFichajesAdmin from './GestionFichajesAdmin';
+import axios from 'axios';
+
 
 const SuperAdminDashboard = () => {
   const [perfil, setPerfil] = useState(null);
@@ -16,6 +18,11 @@ const SuperAdminDashboard = () => {
   const [clubesMap, setClubesMap] = useState({});
   const [ligasMap, setLigasMap] = useState({}); // MAPA DE LIGAS PARA EL PLIEGO
   const lienzoRef = useRef(null);
+  
+  // --- SECCIÓN CORREGIDA: REMOVEMOS LA FUNCIÓN SIN USAR PARA EVITAR EL ERROR DE ESLINT ---
+  const [procesandoPliego, setProcesandoPliego] = useState(false);
+  const [arrayDeUrlsDeTuBaseDeDatos] = useState([]);
+  
 
   useEffect(() => {
     const init = async () => {
@@ -64,6 +71,11 @@ const SuperAdminDashboard = () => {
     const { data: confs } = await supabase.from('configuracion_liga').select('*');
     const lMap = {}; confs?.forEach(c => lMap[c.organizacion_id] = c);
     setLigasMap(lMap);
+
+    // 💡 NOTA PARA EL NEGOCIO: Si guardás las URLs de los archivos PDF en una tabla de Supabase, 
+    // podés descomentar las siguientes líneas dentro de esta función para llenar el pliego automáticamente:
+    // const { data: planillas } = await supabase.from('partidos_planillas').select('url_pdf');
+    // if (planillas) setArrayDeUrlsDeTuBaseDeDatos(planillas.map(p => p.url_pdf));
   };
 
   const imprimirBatchHD = async () => {
@@ -84,14 +96,80 @@ const SuperAdminDashboard = () => {
     } catch (e) { console.error(e); } finally { setGenerandoLona(false); setLoteParaImprimir([]); }
   };
 
+
+  const handleDescargarPliegoCompleto = async () => {
+    if (!jugadorasLiga || jugadorasLiga.length === 0) {
+      return alert("⚠️ No hay jugadoras cargadas para armar el pliego.");
+    }
+
+    setProcesandoPliego(true);
+
+    try {
+      // Mapeamos los datos exactamente igual a como lo hacés en tu lienzo técnico oculto
+      const datosEstructuradosParaCarnets = jugadorasLiga.map(jug => ({
+        id: jug.id,
+        nombre: jug.nombre,
+        apellido: jug.apellido,
+        dni: jug.dni,
+        categoria: jug.categoria_actual || "Única",
+        foto_url: jug.foto_url,
+        club_nombre: clubesMap[jug.equipo_id]?.nombre || "S/D",
+        club_escudo: clubesMap[jug.equipo_id]?.logo || null,
+        liga_nombre: ligasMap[jug.organizacion_id]?.nombre_liga || "LIGA OFICIAL",
+        color_primario: ligasMap[jug.organizacion_id]?.color_primario || "#d90082",
+        color_secundario: ligasMap[jug.organizacion_id]?.color_secundario || "#ffffff"
+      }));
+
+      // Enviamos el lote completo de datos estructurados al servidor
+      const respuesta = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/crear-pliego-impresion`, 
+        { listaJugadores: datosEstructuradosParaCarnets },
+        { responseType: 'blob' }
+      );
+
+      const urlBlob = window.URL.createObjectURL(new Blob([respuesta.data], { type: 'application/pdf' }));
+      const linkDescarga = document.createElement('a');
+      linkDescarga.href = urlBlob;
+      
+      linkDescarga.setAttribute('download', `pliego_158cm_carnets_${Date.now()}.pdf`);
+      document.body.appendChild(linkDescarga);
+      linkDescarga.click();
+      
+      linkDescarga.remove();
+      window.URL.revokeObjectURL(urlBlob);
+
+      alert("🚀 Pliego industrial de 158cm con carnets vectoriales generado con éxito.");
+
+    } catch (error) {
+      console.error("Error al compilar el pliego maestro en el frontend:", error);
+      alert("🚨 Hubo un problema en el servidor al intentar estampar las credenciales en el pliego.");
+    } finally {
+      setProcesandoPliego(false);
+    }
+  };
+
+
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4 md:p-8 font-sans">
       <div className="max-w-7xl mx-auto space-y-10">
         <header className="flex justify-between items-center border-b border-white/10 pb-8">
-          <h1 className="text-4xl font-black uppercase italic italic">Control <span className="text-rose-600">Maestro</span></h1>
-          <button onClick={imprimirBatchHD} disabled={generandoLona} className="bg-blue-600 px-8 py-4 rounded-2xl font-black flex items-center gap-3 transition-all shadow-xl disabled:opacity-30">
-            <PrinterIcon className="w-5 h-5" /> {generandoLona ? 'PROCESANDO...' : 'IMPRIMIR PLIEGOS HD'}
-          </button>
+          <h1 className="text-4xl font-black uppercase italic">Control <span className="text-rose-600">Maestro</span></h1>
+          <div className="flex gap-4">
+            <button onClick={imprimirBatchHD} disabled={generandoLona} className="bg-blue-600 px-8 py-4 rounded-2xl font-black flex items-center gap-3 transition-all shadow-xl disabled:opacity-30 text-xs uppercase">
+              <PrinterIcon className="w-5 h-5" /> {generandoLona ? 'PROCESANDO...' : 'IMPRIMIR PLIEGOS HD'}
+            </button>
+            <button
+              onClick={() => handleDescargarPliegoCompleto(arrayDeUrlsDeTuBaseDeDatos)}
+              disabled={procesandoPliego}
+              className={`px-8 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-xl ${
+                procesandoPliego 
+                  ? 'bg-slate-800 text-slate-600 border border-slate-700 animate-pulse' 
+                  : 'bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white shadow-purple-900/20 active:scale-95'
+              }`}
+            >
+              {procesandoPliego ? "🖨️ COMPILANDO VECTORES EN SERVIDOR..." : "🖨️ ARMAR PLIEGO DE IMPRESIÓN (158 CM)"}
+            </button>
+          </div>
         </header>
 
         {/* ANALÍTICA RECUPERADA */}

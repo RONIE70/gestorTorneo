@@ -19,7 +19,7 @@ app.use(cors({
 app.use(express.json());
 
 // ➔ AGREGÁ ESTA LÍNEA DE PREFLIGHT AQUÍ:
-app.options('*', cors());
+//app.options('*', cors());
 
 // server/index.js
 // Forzamos que use la variable correcta
@@ -240,11 +240,10 @@ app.patch('/jugadoras/:id/aprobar', async (req, res) => {
 });
 
 // ➔ PUNTO DE MODIFICACIÓN 2: REGISTRO DEL MIDDLEWARE EN EL SISTEMA DE CAMINOS DE EXPRESS
-app.use('/api', pliegoRoutes);
+//app.use('/api', pliegoRoutes);
 
 const PORT = 5000;
 app.listen(PORT, () => console.log(`🚀 Servidor nc-s1125 INTELIGENTE en puerto ${PORT}`));
 
 module.exports = app;
 
-// Forzando el redeploy de pliegos en Vercel

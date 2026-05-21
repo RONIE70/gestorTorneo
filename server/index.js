@@ -17,10 +17,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-
-// ➔ AGREGÁ ESTA LÍNEA DE PREFLIGHT AQUÍ:
-app.options('*', cors());
-
 app.use(express.json());
 
 app.use('/api', pliegoRoutes);

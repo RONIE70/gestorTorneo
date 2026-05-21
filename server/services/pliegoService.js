@@ -110,9 +110,25 @@ async function generarPliegoIndustrial(listaJugadores) {
     });
 
     // Sello de Habilitación
-    lienzoPliego.drawText("✓ HABILITADA", {
-      x: x + ANCHO_CARNET_BLOQUE - (35 * MM_A_PUNTOS), y: y + (7 * MM_A_PUNTOS),
+    // Dibujamos la palabra soportada por WinAnsi
+    lienzoPliego.drawText("HABILITADA", {
+      x: x + ANCHO_CARNET_BLOQUE - (27 * MM_A_PUNTOS), y: y + (7 * MM_A_PUNTOS),
       size: 8, font: fuenteBold, color: rgb(0, 0.8, 0.2)
+    });
+
+    // Dibujamos el tilde (✓) vectorialmente para mantener el diseño original sin crashear la fuente
+    const tildeX = x + ANCHO_CARNET_BLOQUE - (35 * MM_A_PUNTOS);
+    const tildeY = y + (7 * MM_A_PUNTOS);
+    
+    lienzoPliego.drawLine({
+      start: { x: tildeX, y: tildeY + (3 * MM_A_PUNTOS) },
+      end: { x: tildeX + (2 * MM_A_PUNTOS), y: tildeY },
+      thickness: 1.5, color: rgb(0, 0.8, 0.2)
+    });
+    lienzoPliego.drawLine({
+      start: { x: tildeX + (2 * MM_A_PUNTOS), y: tildeY },
+      end: { x: tildeX + (6 * MM_A_PUNTOS), y: tildeY + (7 * MM_A_PUNTOS) },
+      thickness: 1.5, color: rgb(0, 0.8, 0.2)
     });
   }
 

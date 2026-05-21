@@ -16,10 +16,14 @@ app.use(cors({
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json());
+
 
 // ➔ AGREGÁ ESTA LÍNEA DE PREFLIGHT AQUÍ:
-//app.options('*', cors());
+app.options('*', cors());
+
+app.use(express.json());
+
+app.use('/api', pliegoRoutes);
 
 // server/index.js
 // Forzamos que use la variable correcta
@@ -239,11 +243,15 @@ app.patch('/jugadoras/:id/aprobar', async (req, res) => {
     }
 });
 
-// ➔ PUNTO DE MODIFICACIÓN 2: REGISTRO DEL MIDDLEWARE EN EL SISTEMA DE CAMINOS DE EXPRESS
-//app.use('/api', pliegoRoutes);
 
-const PORT = 5000;
-app.listen(PORT, () => console.log(`🚀 Servidor nc-s1125 INTELIGENTE en puerto ${PORT}`));
+
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = 5000;
+
+  app.listen(PORT, () => {
+    console.log(`🚀 Servidor en puerto ${PORT}`);
+  });
+}
 
 module.exports = app;
 

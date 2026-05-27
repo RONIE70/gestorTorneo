@@ -56,12 +56,12 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
           <span className="text-white text-[10px] font-black uppercase tracking-[0.25em]">DELEGADO HABILITADO</span>
         </div>
         
-        {/* Foto */}
-        <div className="mt-2 w-25 h-32 rounded-full border-[3px] border-[#e10098] overflow-hidden bg-slate-900 shadow-lg z-20 flex items-center justify-center">
+       {/* Foto */}
+        <div className="mt-2 w-20 h-24 shrink-0 rounded-full border-[3px] border-[#e10098] overflow-hidden bg-slate-900 shadow-lg z-20 flex items-center justify-center">
           <img 
             src={data.foto_url} 
-            className="min-w-full min-h-full object-cover aspect-square saturate-[0.85] contrast-[1.1]" 
-            style={{ objectPosition: 'center' }} 
+            className="w-full h-full object-cover saturate-[0.85] contrast-[1.1]" 
+            style={{ objectPosition: 'center top' }} 
             alt="Foto" 
           />
         </div>

@@ -5,25 +5,28 @@ import jsPDF from 'jspdf';
 import { PrinterIcon, ChartBarIcon, TrophyIcon } from '@heroicons/react/24/solid';
 import CarnetJugadora from './CarnetJugadora';
 import GestionFichajesAdmin from './GestionFichajesAdmin';
+import { CarnetDelDelegado } from './GestionDelegados'; // NUEVO: Importamos el carnet del delegado
 import axios from 'axios';
-
 
 const SuperAdminDashboard = () => {
   const [perfil, setPerfil] = useState(null);
   const [stats, setStats] = useState({ ligas: 0, jugadoras: 0, alertas: 0 });
   const [rankingLigas, setRankingLigas] = useState([]);
   const [generandoLona, setGenerandoLona] = useState(false);
+  const [generandoA4, setGenerandoA4] = useState(false); // NUEVO ESTADO PARA A4
   const [jugadorasLiga, setJugadorasLiga] = useState([]);
+  const [delegadosLiga, setDelegadosLiga] = useState([]); // NUEVO ESTADO PARA DELEGADOS
   const [loteParaImprimir, setLoteParaImprimir] = useState([]);
   const [clubesMap, setClubesMap] = useState({});
   const [ligasMap, setLigasMap] = useState({}); // MAPA DE LIGAS PARA EL PLIEGO
+  
   const lienzoRef = useRef(null);
+  const lienzosA4DelegadosRef = useRef(null); // NUEVA REFERENCIA PARA LAS HOJAS A4 DE DELEGADOS
   
   // --- SECCIÓN CORREGIDA: REMOVEMOS LA FUNCIÓN SIN USAR PARA EVITAR EL ERROR DE ESLINT ---
   const [procesandoPliego, setProcesandoPliego] = useState(false);
   const [arrayDeUrlsDeTuBaseDeDatos] = useState([]);
   
-
   useEffect(() => {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -62,6 +65,12 @@ const SuperAdminDashboard = () => {
     const { data: jugs } = await qJ;
     setJugadorasLiga(jugs || []);
     
+    // NUEVO: CARGAMOS LOS DELEGADOS PARA EL PLIEGO A4
+    let qD = supabase.from('delegados').select('*');
+    if (orgId) qD = qD.eq('organizacion_id', orgId);
+    const { data: dels } = await qD;
+    setDelegadosLiga(dels || []);
+    
     // Mapeo de equipos
     const { data: eqs } = await supabase.from('equipos').select('id, nombre, escudo_url');
     const eMap = {}; eqs?.forEach(e => eMap[e.id] = { nombre: e.nombre, logo: e.escudo_url });
@@ -96,6 +105,43 @@ const SuperAdminDashboard = () => {
     } catch (e) { console.error(e); } finally { setGenerandoLona(false); setLoteParaImprimir([]); }
   };
 
+  // --- NUEVA LÓGICA DE IMPRESIÓN A4 PAGINADA (DELEGADOS) ---
+  const descargarA4Delegados = async () => {
+    if (!lienzosA4DelegadosRef.current || delegadosLiga.length === 0) {
+      return alert("⚠️ No hay delegados para imprimir en A4.");
+    }
+    setGenerandoA4(true);
+    try {
+      const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+      const paginas = lienzosA4DelegadosRef.current.children;
+      
+      for (let i = 0; i < paginas.length; i++) {
+        if (i > 0) doc.addPage();
+        const canvas = await html2canvas(paginas[i], { 
+          scale: 2, // Alta calidad para sublimación
+          useCORS: true, 
+          backgroundColor: '#ffffff' 
+        });
+        const imgData = canvas.toDataURL('image/png');
+        doc.addImage(imgData, 'PNG', 0, 0, 210, 297);
+      }
+      doc.save(`PLIEGOS_A4_DELEGADOS_${new Date().getFullYear()}.pdf`);
+    } catch (error) {
+      console.error("Error PDF A4:", error);
+      alert("🚨 Hubo un error compilando los pliegos A4.");
+    } finally {
+      setGenerandoA4(false);
+    }
+  };
+
+  // Función Auxiliar para dividir el array en grupos de a 9 (3x3 en A4)
+  const chunkArray = (arr, size) => {
+    const chunked = [];
+    for (let i = 0; i < arr.length; i += size) {
+      chunked.push(arr.slice(i, i + size));
+    }
+    return chunked;
+  };
 
   const handleDescargarPliegoCompleto = async () => {
     if (!jugadorasLiga || jugadorasLiga.length === 0) {
@@ -148,13 +194,22 @@ const SuperAdminDashboard = () => {
     }
   };
 
-
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4 md:p-8 font-sans">
       <div className="max-w-7xl mx-auto space-y-10">
         <header className="flex justify-between items-center border-b border-white/10 pb-8">
           <h1 className="text-4xl font-black uppercase italic">Control <span className="text-rose-600">Maestro</span></h1>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4 items-center justify-end">
+            
+            {/* NUEVO BOTÓN DELEGADOS A4 */}
+            <button 
+              onClick={descargarA4Delegados} 
+              disabled={generandoA4 || delegadosLiga.length === 0} 
+              className="bg-purple-600 hover:bg-purple-500 px-8 py-4 rounded-2xl font-black flex items-center gap-3 transition-all shadow-xl disabled:opacity-30 text-xs uppercase"
+            >
+              <PrinterIcon className="w-5 h-5" /> {generandoA4 ? 'COMPILANDO A4...' : 'DELEGADOS A4 (SUBLIMAR)'}
+            </button>
+
             <button onClick={imprimirBatchHD} disabled={generandoLona} className="bg-blue-600 px-8 py-4 rounded-2xl font-black flex items-center gap-3 transition-all shadow-xl disabled:opacity-30 text-xs uppercase">
               <PrinterIcon className="w-5 h-5" /> {generandoLona ? 'PROCESANDO...' : 'IMPRIMIR PLIEGOS HD'}
             </button>
@@ -191,8 +246,10 @@ const SuperAdminDashboard = () => {
           </div>
         </div>
 
-        {/* LIENZO TÉCNICO OCULTO (Corregido con ligasMap) */}
+        {/* LIENZOS TÉCNICOS OCULTOS */}
         <div style={{ position: 'fixed', left: '-10000px', top: '0', background: 'white' }}>
+          
+          {/* LIENZO 500x500 HD ORIGINAL */}
           <div ref={lienzoRef} style={{ width: '500mm', height: '500mm', background: 'white', padding: '10mm', display: 'grid', gridTemplateColumns: 'repeat(2, 185mm)', gridAutoRows: '54mm', gap: '8mm' }}>
             {loteParaImprimir.map(jug => (
               <div key={`p-${jug.id}`} style={{ display: 'flex', gap: '5mm', alignItems: 'center' }}>
@@ -209,6 +266,39 @@ const SuperAdminDashboard = () => {
               </div>
             ))}
           </div>
+
+          {/* NUEVO: LIENZOS A4 PAGINADOS PARA DELEGADOS (3X3) */}
+          <div ref={lienzosA4DelegadosRef} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {chunkArray(delegadosLiga, 9).map((chunk, index) => (
+              <div 
+                key={`a4-page-${index}`} 
+                style={{ 
+                  width: '210mm', 
+                  height: '297mm', 
+                  background: 'white', 
+                  padding: '4mm', 
+                  boxSizing: 'border-box', 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(3, 66.8mm)', 
+                  gridAutoRows: '86.9mm', 
+                  gap: '2mm', 
+                  justifyContent: 'center', 
+                  alignContent: 'start' 
+                }}
+              >
+                {chunk.map(del => (
+                   <CarnetDelDelegado 
+                      key={del.id} 
+                      data={del} 
+                      clubNombre={clubesMap[del.club_id]?.nombre || "S/D"} 
+                      soloDiseño={true} 
+                      configLiga={ligasMap[del.organizacion_id]} 
+                   />
+                ))}
+              </div>
+            ))}
+          </div>
+
         </div>
       </div>
     </div>

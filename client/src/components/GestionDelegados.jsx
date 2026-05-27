@@ -57,7 +57,7 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
         </div>
         
         {/* Foto */}
-        <div className="mt-2 w-28 h-32 rounded-full border-[3px] border-[#e10098] overflow-hidden bg-slate-900 shadow-lg z-20 flex items-center justify-center">
+        <div className="mt-2 w-25 h-32 rounded-full border-[3px] border-[#e10098] overflow-hidden bg-slate-900 shadow-lg z-20 flex items-center justify-center">
           <img 
             src={data.foto_url} 
             className="min-w-full min-h-full object-cover aspect-square saturate-[0.85] contrast-[1.1]" 
@@ -77,7 +77,7 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
         <div className="mt-1 mb-6 bg-white p-1.5 rounded-xl shadow-xl z-20">
           <QRCodeSVG 
             value={urlVerificacion} 
-            size={55} 
+            size={54} 
             level="H" 
             includeMargin={false}
           />
@@ -89,16 +89,16 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
 
         {/* --- MARCAS DE AGUA LATERALES CORREGIDAS --- */}
         
-        {/* LADO IZQUIERDO (Anclado exactamente al borde izquierdo de la tarjeta) */}
-        <div className="absolute left-1 top-1/2 -translate-y-1/2 -rotate-90 origin-center pointer-events-none opacity-20">
-          <span className="text-white text-[18px] font-black uppercase whitespace-nowrap tracking-tighter">
-            {configLiga?.nombre_liga || "LIGA OFICIAL"}
+        {/* LADO IZQUIERDO: Anclado al borde izquierdo absoluto y girado desde su esquina */}
+        <div className="absolute left-0 bottom-0 origin-bottom-left -rotate-90 pointer-events-none opacity-20 pl-4 pb-1">
+          <span className="text-white text-[16px] font-black uppercase whitespace-nowrap tracking-tighter">
+            {configLiga?.nombre_liga || "LIGA DE LAS NENAS"}
           </span>
         </div>
 
-        {/* LADO DERECHO (Anclado exactamente al borde derecho de la tarjeta) */}
-        <div className="absolute right-1 top-1/2 -translate-y-1/2 rotate-90 origin-center pointer-events-none opacity-20">
-          <span className="text-white text-[18px] font-black uppercase whitespace-nowrap tracking-tighter">
+        {/* LADO DERECHO: Anclado al borde derecho absoluto y girado desde su esquina */}
+        <div className="absolute right-0 top-0 origin-top-right -rotate-90 pointer-events-none opacity-20 pr-4 pt-1">
+          <span className="text-white text-[16px] font-black uppercase whitespace-nowrap tracking-tighter">
             {clubNombre || "CLUB OFICIAL"}
           </span>
         </div>

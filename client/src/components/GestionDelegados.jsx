@@ -48,7 +48,7 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
       <div ref={carnetRef} style={cardStyle} className="shadow-2xl">
         <div className="w-full bg-[#e10098] py-1.5 text-center shadow-md z-20">
           <span className="text-black font-black tracking-[0.1em] text-[10px] uppercase">
-            {configLiga?.nombre_liga || "LDLN 2026"}
+            {configLiga?.nombre_liga || "LIGA DE LAS NENAS"}
           </span>
         </div>
 
@@ -87,18 +87,18 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
           <span className="text-[#e10098] text-[6px] font-black uppercase tracking-[0.4em] opacity-90">ACREDITACION OFICIAL</span>
         </div>
 
-        {/* --- MARCAS DE AGUA LATERALES CORREGIDAS --- */}
+        {/* --- MARCAS DE AGUA LATERALES CORREGIDAS DEFINITIVAS --- */}
         
-        {/* LADO IZQUIERDO: Anclado al borde izquierdo absoluto y girado desde su esquina */}
-        <div className="absolute left-0 bottom-0 origin-bottom-left -rotate-90 pointer-events-none opacity-20 pl-4 pb-1">
-          <span className="text-white text-[16px] font-black uppercase whitespace-nowrap tracking-tighter">
-            {configLiga?.nombre_liga || "LIGA DE LAS NENAS"}
+        {/* LADO IZQUIERDO: Columna invisible pegada a la pared izquierda */}
+        <div className="absolute left-1 top-0 bottom-0 w-4 flex items-center justify-center pointer-events-none opacity-20 z-10">
+          <span className="-rotate-90 text-[16px] font-black uppercase whitespace-nowrap tracking-tighter">
+            {configLiga?.nombre_liga || "L.D.L.N. 2026"}
           </span>
         </div>
 
-        {/* LADO DERECHO: Anclado al borde derecho absoluto y girado desde su esquina */}
-        <div className="absolute right-0 top-0 origin-top-right -rotate-90 pointer-events-none opacity-20 pr-4 pt-1">
-          <span className="text-white text-[16px] font-black uppercase whitespace-nowrap tracking-tighter">
+        {/* LADO DERECHO: Columna invisible pegada a la pared derecha */}
+        <div className="absolute right-1 top-0 bottom-0 w-4 flex items-center justify-center pointer-events-none opacity-20 z-10">
+          <span className="rotate-90 text-[16px] font-black uppercase whitespace-nowrap tracking-tighter">
             {clubNombre || "CLUB OFICIAL"}
           </span>
         </div>

@@ -48,7 +48,7 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
       <div ref={carnetRef} style={cardStyle} className="shadow-2xl">
         <div className="w-full bg-[#e10098] py-1.5 text-center shadow-md z-20">
           <span className="text-black font-black tracking-[0.1em] text-[10px] uppercase">
-            {configLiga?.nombre_liga || "Liga de las Nenas"}
+            {configLiga?.nombre_liga || "LDLN 2026"}
           </span>
         </div>
 

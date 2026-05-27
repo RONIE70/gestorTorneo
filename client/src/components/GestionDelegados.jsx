@@ -74,7 +74,7 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
         </div>
 
         {/* QR GENERADO LOCALMENTE (Con margen superior corregido para que no se superponga) */}
-        <div className="mt-1 mb-6 bg-white p-1.5 rounded-xl shadow-xl z-20">
+        <div className="mt-auto mb-3 bg-white p-1.5 rounded-xl shadow-xl z-20">
           <QRCodeSVG 
             value={urlVerificacion} 
             size={54} 

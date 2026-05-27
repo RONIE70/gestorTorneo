@@ -55,6 +55,7 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
         <div className="mt-1 z-20">
           <span className="text-white text-[10px] font-black uppercase tracking-[0.25em]">DELEGADO HABILITADO</span>
         </div>
+        
         {/* Foto */}
         <div className="mt-2 w-28 h-32 rounded-full border-[3px] border-[#e10098] overflow-hidden bg-slate-900 shadow-lg z-20 flex items-center justify-center">
           <img 
@@ -72,8 +73,8 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
           <p className="text-[#e10098] font-black text-[13px] mt-0.5 tracking-widest">{data.dni}</p>
         </div>
 
-        {/* QR GENERADO LOCALMENTE (Más seguro para PDF y escaneo) */}
-        <div className="mt-auto mb-6 bg-white p-1.5 rounded-xl shadow-xl z-20">
+        {/* QR GENERADO LOCALMENTE (Con margen superior corregido para que no se superponga) */}
+        <div className="mt-1 mb-6 bg-white p-1.5 rounded-xl shadow-xl z-20">
           <QRCodeSVG 
             value={urlVerificacion} 
             size={55} 
@@ -82,22 +83,22 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
           />
         </div>
 
-        <div className="absolute bottom-1.5 z-20 text-center">
+        <div className="absolute bottom-1.5 z-20 text-center w-full">
           <span className="text-[#e10098] text-[6px] font-black uppercase tracking-[0.4em] opacity-90">ACREDITACION OFICIAL</span>
         </div>
 
-        {/* --- MARCAS DE AGUA LATERALES (COMPATIBLES CON PDF) --- */}
+        {/* --- MARCAS DE AGUA LATERALES CORREGIDAS --- */}
         
-        {/* LADO IZQUIERDO */}
-        <div className="absolute left-[-10px] top-1/2 -translate-y-1/2 -rotate-90 origin-center pointer-events-none opacity-20 w-[300px] text-center">
-          <span className="text-white text-[20px] font-black uppercase whitespace-nowrap tracking-tighter">
+        {/* LADO IZQUIERDO (Anclado exactamente al borde izquierdo de la tarjeta) */}
+        <div className="absolute left-1 top-1/2 -translate-y-1/2 -rotate-90 origin-center pointer-events-none opacity-20">
+          <span className="text-white text-[18px] font-black uppercase whitespace-nowrap tracking-tighter">
             {configLiga?.nombre_liga || "LIGA OFICIAL"}
           </span>
         </div>
 
-        {/* LADO DERECHO */}
-        <div className="absolute right-[-10px] top-1/2 -translate-y-1/2 rotate-90 origin-center pointer-events-none opacity-20 w-[300px] text-center">
-          <span className="text-white text-[20px] font-black uppercase whitespace-nowrap tracking-tighter">
+        {/* LADO DERECHO (Anclado exactamente al borde derecho de la tarjeta) */}
+        <div className="absolute right-1 top-1/2 -translate-y-1/2 rotate-90 origin-center pointer-events-none opacity-20">
+          <span className="text-white text-[18px] font-black uppercase whitespace-nowrap tracking-tighter">
             {clubNombre || "CLUB OFICIAL"}
           </span>
         </div>

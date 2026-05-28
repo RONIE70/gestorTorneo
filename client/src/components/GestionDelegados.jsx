@@ -66,15 +66,15 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
           />
         </div>
         
-        <div className="mt-1 text-center px-2 w-full z-20">
-          <h4 className="text-white text-[16px] font-black uppercase tracking-tighter leading-none">
+        <div className="mt-1 text-center px-2 w-full z-20 flex flex-col items-center">
+          <h4 className="text-white text-[14px] font-black uppercase tracking-tighter leading-tight whitespace-normal break-words w-full">
             {data.nombre_completo || data.nombre}
           </h4>
           <p className="text-[#e10098] font-black text-[13px] mt-0.5 tracking-widest">{data.dni}</p>
         </div>
 
         {/* QR GENERADO LOCALMENTE (Con margen superior corregido para que no se superponga) */}
-        <div className="mt-auto mb-3 bg-white p-1.5 rounded-xl shadow-xl z-20">
+        <div className="mt-auto mb-4 bg-white p-1.5 rounded-xl shadow-xl z-20">
           <QRCodeSVG 
             value={urlVerificacion} 
             size={54} 
@@ -87,17 +87,17 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
           <span className="text-[#e10098] text-[6px] font-black uppercase tracking-[0.4em] opacity-90">ACREDITACION OFICIAL</span>
         </div>
 
-        {/* --- MARCAS DE AGUA LATERALES CORREGIDAS DEFINITIVAS --- */}
+        {/* --- MARCAS DE AGUA LATERALES DESFASADAS --- */}
         
-        {/* LADO IZQUIERDO: Columna invisible pegada a la pared izquierda */}
-        <div className="absolute left-1 top-0 bottom-0 w-4 flex items-center justify-center pointer-events-none opacity-20 z-10">
+        {/* LADO IZQUIERDO: Alineado hacia ARRIBA (Top) con un pequeño margen */}
+        <div className="absolute left-1 top-0 bottom-0 w-4 flex flex-col items-center justify-start pt-16 pointer-events-none opacity-20 z-10">
           <span className="-rotate-90 text-[16px] font-black uppercase whitespace-nowrap tracking-tighter">
             {configLiga?.nombre_liga || "L.D.L.N. 2026"}
           </span>
         </div>
 
-        {/* LADO DERECHO: Columna invisible pegada a la pared derecha */}
-        <div className="absolute right-1 top-0 bottom-0 w-4 flex items-center justify-center pointer-events-none opacity-20 z-10">
+        {/* LADO DERECHO: Alineado hacia ABAJO (Bottom) con un pequeño margen */}
+        <div className="absolute right-1 top-0 bottom-0 w-4 flex flex-col items-center justify-end pb-16 pointer-events-none opacity-20 z-10">
           <span className="rotate-90 text-[16px] font-black uppercase whitespace-nowrap tracking-tighter">
             {clubNombre || "CLUB OFICIAL"}
           </span>

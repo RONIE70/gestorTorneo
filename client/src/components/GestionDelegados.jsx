@@ -90,15 +90,15 @@ export const CarnetDelDelegado = ({ data, clubNombre, soloDiseño = false, confi
         {/* --- MARCAS DE AGUA LATERALES DESFASADAS --- */}
         
         {/* LADO IZQUIERDO: Alineado hacia ARRIBA (Top) con un pequeño margen */}
-        <div className="absolute left-1 top-0 bottom-0 w-4 flex flex-col items-center justify-start pt-24 pointer-events-none opacity-20 z-10">
-          <span className="-rotate-90 text-[16px] font-black uppercase whitespace-nowrap tracking-tighter">
+        <div className="absolute left-1 top-0 bottom-0 w-4 flex flex-col items-center justify-start pt-16 pointer-events-none opacity-20 z-10">
+          <span className="-rotate-90 text-[12px] font-black uppercase whitespace-nowrap tracking-tighter">
             {configLiga?.nombre_liga || "L.D.L.N. 2026"}
           </span>
         </div>
 
         {/* LADO DERECHO: Alineado hacia ABAJO (Bottom) con un pequeño margen */}
-        <div className="absolute right-1 top-0 bottom-0 w-4 flex flex-col items-center justify-end pb-24 pointer-events-none opacity-20 z-10">
-          <span className="rotate-90 text-[16px] font-black uppercase whitespace-nowrap tracking-tighter">
+        <div className="absolute right-1 top-0 bottom-0 w-4 flex flex-col items-center justify-end pb-16 pointer-events-none opacity-20 z-10">
+          <span className="rotate-90 text-[12px] font-black uppercase whitespace-nowrap tracking-tighter">
             {clubNombre || "CLUB OFICIAL"}
           </span>
         </div>

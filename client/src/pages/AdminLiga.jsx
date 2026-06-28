@@ -235,7 +235,6 @@ const AdminLiga = () => {
     doc.setTextColor(0, 0, 0); 
     doc.text(`FECHA NRO: ${partido.nro_fecha || '---'}`, 14, 30);
     doc.text(`FECHA REAL: ${partido.fecha_calendario || ' / / '} - ${partido.horario || ''} hs`, 40, 30);
-    doc.text(`HORA: ${partido.horario || '---'}`, 100, 30);
     doc.text(`CAT.: ${(partido.categoria || '---').toUpperCase()}`, 115, 30);
     doc.text(`SEDE: ${partido.zona || '---'}`, 170, 30); // Usamos 'zona' de la DB
     

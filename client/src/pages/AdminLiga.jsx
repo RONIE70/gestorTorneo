@@ -119,6 +119,10 @@ const AdminLiga = () => {
     if (!nuevoPartido.local_id || !nuevoPartido.visitante_id || !nuevoPartido.categoria) {
       return alert("Faltan datos requeridos para el partido.");
     }
+    // Obtenemos los nombres de los equipos seleccionados usando los IDs
+    const equipoLocal = equipos.find(e => e.id.toString() === nuevoPartido.local_id.toString());
+    const equipoVisitante = equipos.find(e => e.id.toString() === nuevoPartido.visitante_id.toString());
+    
     if (nuevoPartido.local_id === nuevoPartido.visitante_id) {
       return alert("El equipo local y visitante no pueden ser el mismo.");
     }
@@ -138,6 +142,8 @@ const AdminLiga = () => {
         nro_fecha: parseInt(nuevoPartido.nro_fecha),
         local_id: parseInt(nuevoPartido.local_id),
         visitante_id: parseInt(nuevoPartido.visitante_id),
+        nombre_manual_loc: equipoLocal ? equipoLocal.nombre : 'Sin nombre', // <-- AGREGADO
+        nombre_manual_vis: equipoVisitante ? equipoVisitante.nombre : 'Sin nombre', // <-- AGREGADO
         categoria: nuevoPartido.categoria,
         zona: nuevoPartido.zona,
         fecha_calendario: fechaCalendarioLimpia,

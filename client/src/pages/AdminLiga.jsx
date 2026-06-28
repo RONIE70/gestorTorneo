@@ -165,12 +165,14 @@ const AdminLiga = () => {
         .from('jugadoras')
         .select('*')
         .eq('equipo_id', partido.local_id) // Usamos local_id
+        .eq('categoria_actual', partido.categoria)
         .eq('estado_habil_admin', true); 
 
       const { data: visitaPlayers } = await supabase
         .from('jugadoras')
         .select('*')
         .eq('equipo_id', partido.visitante_id) // Usamos visitante_id
+        .eq('categoria_actual', partido.categoria)
         .eq('estado_habil_admin', true); 
 
       generarPDF(partido, localPlayers || [], visitaPlayers || []);
@@ -516,13 +518,11 @@ const AdminLiga = () => {
                     value={nuevoPartido.categoria}
                     onChange={(e) => setNuevoPartido({...nuevoPartido, categoria: e.target.value})}
                   >
-                    <option value="">Categoría...</option>
-                    <option value="SUB 10">SUB 10</option>
-                    <option value="SUB 12">SUB 12</option>
-                    <option value="SUB 15">SUB 15</option>
-                    <option value="SUB 17">SUB 17</option>
-                    <option value="PRIMERA">PRIMERA</option>
-                    <option value="ÚNICA">ÚNICA</option>
+                    <option value="">Seleccione Categoría...</option>
+                    <option value="2011-2012">2011-2012</option>
+                    <option value="2013-2014">2013-2014</option>
+                    <option value="2015-2016">2015-2016</option>
+                    <option value="2017-2018">2017-2018</option>
                   </select>
                 </div>
                 <div>

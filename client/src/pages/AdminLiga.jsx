@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable'; // <-- IMPORTANTE PARA TU TABLA
+import autoTable from 'jspdf-autotable'; 
 import { PlusIcon, PrinterIcon, XMarkIcon } from '@heroicons/react/24/solid';
 
 const AdminLiga = () => {
@@ -17,13 +17,15 @@ const AdminLiga = () => {
   const [equipos, setEquipos] = useState([]);
   const [partidos, setPartidos] = useState([]);
   const [mostrarModalPartido, setMostrarModalPartido] = useState(false);
+  
+  // Estado adaptado exactamente a las columnas de tu DB
   const [nuevoPartido, setNuevoPartido] = useState({
-    fecha_numero: 'Fecha 1',
-    equipo_local_id: '',
-    equipo_visitante_id: '',
+    nro_fecha: 1, 
+    local_id: '',
+    visitante_id: '',
     categoria: '',
-    sede: '',
-    fecha_hora: ''
+    zona: '', // En tu DB se llama 'zona', lo usaremos para la Sede
+    fecha_hora_temp: '' // Campo temporal para el input datetime
   });
 
   // --- 1. CARGAR CONFIGURACIÓN Y DATOS INICIALES ---
@@ -45,7 +47,6 @@ const AdminLiga = () => {
         if (perfil?.organizacion_id) {
           setUserOrgId(perfil.organizacion_id);
           
-          // Cargar config de liga
           const { data: config } = await supabase
             .from('configuracion_liga')
             .select('*')
@@ -53,24 +54,17 @@ const AdminLiga = () => {
             .maybeSingle();
           if (config) setConfigLiga(config);
 
-          // Cargar equipos para el select (CORREGIDO: Quitamos la columna inexistente 'categoria')
-          const { data: eqs, error: errorEqs } = await supabase
+          const { data: eqs } = await supabase
             .from('equipos')
             .select('id, nombre')
             .eq('organizacion_id', perfil.organizacion_id)
             .order('nombre');
-          
-          if (errorEqs) {
-            console.error("Error de Supabase al cargar equipos:", errorEqs.message);
-          } else if (eqs) {
-            setEquipos(eqs);
-          }
+          if (eqs) setEquipos(eqs);
 
-          // Cargar partidos existentes
           cargarPartidos(perfil.organizacion_id);
         }
       } catch (err) {
-        console.error("Error crítico cargando configuración:", err);
+        console.error("Error cargando datos:", err);
       } finally {
         setCargandoConfig(false);
       }
@@ -80,20 +74,22 @@ const AdminLiga = () => {
   }, []);
 
   const cargarPartidos = async (orgId) => {
+    // Adaptado a las relaciones correctas de local_id y visitante_id
     const { data, error } = await supabase
       .from('partidos')
       .select(`
         *,
-        local:equipo_local_id(nombre),
-        visitante:equipo_visitante_id(nombre)
+        local:local_id(nombre),
+        visitante:visitante_id(nombre)
       `)
       .eq('organizacion_id', orgId)
-      .order('fecha_hora', { ascending: true });
+      // Ordenamos por fecha de creacion ya que fecha_calendario es texto
+      .order('created_at', { ascending: true });
     
     if (!error && data) setPartidos(data);
   };
 
-  // --- 2. FUNCIÓN TOGGLE RÁPIDO FICHAJE (CONSERVADA INTACTA) ---
+  // --- 2. FUNCIÓN TOGGLE RÁPIDO FICHAJE ---
   const toggleFichajeRapido = async () => {
     if (!userOrgId || !configLiga) return;
     const nuevoEstado = !configLiga.inscripciones_abiertas;
@@ -116,63 +112,79 @@ const AdminLiga = () => {
     }
   };
 
-  // --- 3. LÓGICA DE PARTIDOS ---
+  // --- 3. LÓGICA DE GUARDAR EL PARTIDO (ADAPTADA A TU DB) ---
   const guardarPartido = async (e) => {
     e.preventDefault();
-    if (!nuevoPartido.equipo_local_id || !nuevoPartido.equipo_visitante_id || !nuevoPartido.categoria) {
+    if (!nuevoPartido.local_id || !nuevoPartido.visitante_id || !nuevoPartido.categoria) {
       return alert("Faltan datos requeridos para el partido.");
     }
-    if (nuevoPartido.equipo_local_id === nuevoPartido.equipo_visitante_id) {
+    if (nuevoPartido.local_id === nuevoPartido.visitante_id) {
       return alert("El equipo local y visitante no pueden ser el mismo.");
     }
+    if (!nuevoPartido.fecha_hora_temp) {
+      return alert("El día y la hora son obligatorios.");
+    }
+
+    // Tu DB requiere separar la fecha_calendario (texto) y el horario (texto)
+    const [fecha, hora] = nuevoPartido.fecha_hora_temp.split('T');
+
+    // Cambiamos el formato de la fecha de YYYY-MM-DD a DD/MM/YYYY para que se vea lindo
+    const [year, month, day] = fecha.split('-');
+    const fechaCalendarioLimpia = `${day}/${month}/${year}`;
 
     try {
-      const { error } = await supabase.from('partidos').insert([{
-        ...nuevoPartido,
+      const payload = {
+        nro_fecha: parseInt(nuevoPartido.nro_fecha),
+        local_id: parseInt(nuevoPartido.local_id),
+        visitante_id: parseInt(nuevoPartido.visitante_id),
+        categoria: nuevoPartido.categoria,
+        zona: nuevoPartido.zona,
+        fecha_calendario: fechaCalendarioLimpia,
+        horario: hora,
         organizacion_id: userOrgId
-      }]);
+      };
+
+      const { error } = await supabase.from('partidos').insert([payload]);
 
       if (error) throw error;
       alert("✅ Partido programado con éxito");
       setMostrarModalPartido(false);
+      
+      // Limpiamos el formulario
+      setNuevoPartido({ nro_fecha: 1, local_id: '', visitante_id: '', categoria: '', zona: '', fecha_hora_temp: '' });
       cargarPartidos(userOrgId);
     } catch (error) {
       alert("❌ Error al guardar partido: " + error.message);
     }
   };
 
-  // --- 4. MOTOR DE DESCARGA DE PLANILLAS PDF INTEGRADO ---
+  // --- 4. MOTOR DE DESCARGA DE PLANILLAS PDF ---
   const descargarPlanillaPartido = async (partido) => {
     try {
-      // 1. Ir a buscar las jugadoras habilitadas del equipo Local
       const { data: localPlayers } = await supabase
         .from('jugadoras')
         .select('*')
-        .eq('equipo_id', partido.equipo_local_id)
-        .eq('estado_habil_admin', true); // Solo las habilitadas
+        .eq('equipo_id', partido.local_id) // Usamos local_id
+        .eq('estado_habil_admin', true); 
 
-      // 2. Ir a buscar las jugadoras habilitadas del equipo Visitante
       const { data: visitaPlayers } = await supabase
         .from('jugadoras')
         .select('*')
-        .eq('equipo_id', partido.equipo_visitante_id)
-        .eq('estado_habil_admin', true); // Solo las habilitadas
+        .eq('equipo_id', partido.visitante_id) // Usamos visitante_id
+        .eq('estado_habil_admin', true); 
 
-      // 3. Disparar tu generador PDF con los datos exactos
       generarPDF(partido, localPlayers || [], visitaPlayers || []);
-
     } catch (error) {
       console.error("Error obteniendo datos para el PDF:", error);
       alert("Hubo un error al compilar la planilla oficial.");
     }
   };
 
-  // --- TU FUNCIÓN EXACTA DE GENERACIÓN PDF ---
   const generarPDF = (partido, localPlayers, visitaPlayers) => {
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
     const colorMagenta = [217, 0, 130]; 
     const nombreLiga = configLiga?.nombre_liga || "LIGA OFICIAL";
-    const logoBase64 = null;
+    const logoBase64 = null; 
 
     const drawControlesGlobales = (startX, startY) => {
       doc.setFontSize(8);
@@ -218,10 +230,10 @@ const AdminLiga = () => {
 
     doc.setFontSize(9);
     doc.setTextColor(0, 0, 0); 
-    doc.text(`FECHA NRO: ${partido.fecha_numero || '---'}`, 45, 30);
-    doc.text(`FECHA REAL: ${partido.fecha_hora ? new Date(partido.fecha_hora).toLocaleDateString() : ' / / '}`, 85, 30);
-    doc.text(`CATEGORÍA: ${(partido.categoria || '---').toUpperCase()}`, 130, 30);
-    doc.text(`SEDE: ${partido.sede || '---'}`, 175, 30);
+    doc.text(`FECHA NRO: ${partido.nro_fecha || '---'}`, 45, 30);
+    doc.text(`FECHA REAL: ${partido.fecha_calendario || ' / / '} - ${partido.horario || ''} hs`, 85, 30);
+    doc.text(`CATEGORÍA: ${(partido.categoria || '---').toUpperCase()}`, 140, 30);
+    doc.text(`SEDE: ${partido.zona || '---'}`, 175, 30); // Usamos 'zona' de la DB
     
     doc.setDrawColor(0); 
     doc.line(14, 33, 196, 33); 
@@ -311,7 +323,6 @@ const AdminLiga = () => {
           Sede Central <span className="text-white">NC-S1125</span>
         </h1>
         
-        {/* --- CONTROL RÁPIDO DE FICHAJE --- */}
         {!cargandoConfig && (
           <div className="mt-6 flex justify-between items-center bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl">
             <div>
@@ -338,7 +349,6 @@ const AdminLiga = () => {
         </div>
       </header>
 
-      {/* --- SECCIÓN NOTICIAS --- */}
       {tab === 'noticias' && (
         <div className="max-w-2xl bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-2xl animate-in fade-in duration-500">
           <h2 className="text-xl font-black mb-6 uppercase italic text-emerald-400">Publicar Anuncio Oficial</h2>
@@ -371,7 +381,6 @@ const AdminLiga = () => {
         </div>
       )}
 
-      {/* --- SECCIÓN PARTIDOS (FIXTURE) --- */}
       {tab === 'partidos' && (
         <div className="space-y-6 animate-in fade-in duration-500">
           <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-xl flex justify-between items-center">
@@ -387,7 +396,6 @@ const AdminLiga = () => {
             </button>
           </div>
 
-          {/* LISTA DE PARTIDOS PROGRAMADOS */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {partidos.length === 0 ? (
               <div className="col-span-full py-12 text-center border-2 border-dashed border-slate-800 rounded-3xl text-slate-600 font-bold uppercase text-[11px] tracking-widest">
@@ -397,7 +405,7 @@ const AdminLiga = () => {
               partidos.map((partido) => (
                 <div key={partido.id} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
                   <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-black uppercase px-3 py-1 rounded-bl-xl">
-                    {partido.fecha_numero}
+                    FECHA {partido.nro_fecha}
                   </div>
                   
                   <div className="mt-4 flex flex-col gap-3">
@@ -411,7 +419,8 @@ const AdminLiga = () => {
                   <div className="mt-6 pt-4 border-t border-slate-800 flex justify-between items-center">
                     <div>
                       <p className="text-emerald-500 text-[9px] font-black uppercase tracking-widest">{partido.categoria}</p>
-                      <p className="text-slate-500 text-[10px]">{partido.sede || 'Sede a confirmar'}</p>
+                      <p className="text-slate-500 text-[10px]">{partido.fecha_calendario} | {partido.horario} hs</p>
+                      <p className="text-slate-600 text-[9px] italic">{partido.zona || 'Sede a confirmar'}</p>
                     </div>
                     <button 
                       onClick={() => descargarPlanillaPartido(partido)}
@@ -428,7 +437,7 @@ const AdminLiga = () => {
         </div>
       )}
 
-      {/* --- MODAL NUEVO PARTIDO --- */}
+      {/* --- MODAL NUEVO PARTIDO CON SELECTS --- */}
       {mostrarModalPartido && (
         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-[2rem] overflow-hidden shadow-2xl">
@@ -442,25 +451,31 @@ const AdminLiga = () => {
             <form className="p-6 space-y-5" onSubmit={guardarPartido}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Fecha Jornada</label>
+                  <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Nro Jornada</label>
                   <input 
-                    type="text" 
+                    type="number" 
                     required 
+                    min="1"
                     className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500 text-xs" 
-                    placeholder="Ej: Fecha 1"
-                    value={nuevoPartido.fecha_numero}
-                    onChange={(e) => setNuevoPartido({...nuevoPartido, fecha_numero: e.target.value})}
+                    placeholder="Ej: 1"
+                    value={nuevoPartido.nro_fecha}
+                    onChange={(e) => setNuevoPartido({...nuevoPartido, nro_fecha: e.target.value})}
                   />
                 </div>
                 <div>
                   <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Sede / Cancha</label>
-                  <input 
-                    type="text" 
-                    className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500 text-xs" 
-                    placeholder="Ej: Club Social"
-                    value={nuevoPartido.sede}
-                    onChange={(e) => setNuevoPartido({...nuevoPartido, sede: e.target.value})}
-                  />
+                  <select 
+                    required
+                    className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500 text-xs"
+                    value={nuevoPartido.zona}
+                    onChange={(e) => setNuevoPartido({...nuevoPartido, zona: e.target.value})}
+                  >
+                    <option value="">Seleccione Sede...</option>
+                    <option value="Sede Central">Sede Central</option>
+                    <option value="Club Social">Club Social</option>
+                    <option value="Polideportivo">Polideportivo Municipal</option>
+                    <option value="Cancha Auxiliar">Cancha Auxiliar</option>
+                  </select>
                 </div>
               </div>
 
@@ -470,8 +485,8 @@ const AdminLiga = () => {
                   <select 
                     required
                     className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500 text-xs"
-                    value={nuevoPartido.equipo_local_id}
-                    onChange={(e) => setNuevoPartido({...nuevoPartido, equipo_local_id: e.target.value})}
+                    value={nuevoPartido.local_id}
+                    onChange={(e) => setNuevoPartido({...nuevoPartido, local_id: e.target.value})}
                   >
                     <option value="">Seleccione equipo...</option>
                     {equipos.map(eq => <option key={`loc-${eq.id}`} value={eq.id}>{eq.nombre}</option>)}
@@ -483,8 +498,8 @@ const AdminLiga = () => {
                   <select 
                     required
                     className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500 text-xs"
-                    value={nuevoPartido.equipo_visitante_id}
-                    onChange={(e) => setNuevoPartido({...nuevoPartido, equipo_visitante_id: e.target.value})}
+                    value={nuevoPartido.visitante_id}
+                    onChange={(e) => setNuevoPartido({...nuevoPartido, visitante_id: e.target.value})}
                   >
                     <option value="">Seleccione equipo...</option>
                     {equipos.map(eq => <option key={`vis-${eq.id}`} value={eq.id}>{eq.nombre}</option>)}
@@ -495,22 +510,29 @@ const AdminLiga = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Categoría</label>
-                  <input 
-                    type="text" 
+                  <select 
                     required
-                    className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500 text-xs uppercase" 
-                    placeholder="Ej: Sub 12"
+                    className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500 text-xs"
                     value={nuevoPartido.categoria}
                     onChange={(e) => setNuevoPartido({...nuevoPartido, categoria: e.target.value})}
-                  />
+                  >
+                    <option value="">Categoría...</option>
+                    <option value="SUB 10">SUB 10</option>
+                    <option value="SUB 12">SUB 12</option>
+                    <option value="SUB 15">SUB 15</option>
+                    <option value="SUB 17">SUB 17</option>
+                    <option value="PRIMERA">PRIMERA</option>
+                    <option value="ÚNICA">ÚNICA</option>
+                  </select>
                 </div>
                 <div>
                   <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Día y Hora</label>
                   <input 
                     type="datetime-local" 
+                    required
                     className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500 text-xs [color-scheme:dark]" 
-                    value={nuevoPartido.fecha_hora}
-                    onChange={(e) => setNuevoPartido({...nuevoPartido, fecha_hora: e.target.value})}
+                    value={nuevoPartido.fecha_hora_temp}
+                    onChange={(e) => setNuevoPartido({...nuevoPartido, fecha_hora_temp: e.target.value})}
                   />
                 </div>
               </div>

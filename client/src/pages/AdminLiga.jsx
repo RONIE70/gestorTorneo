@@ -53,19 +53,24 @@ const AdminLiga = () => {
             .maybeSingle();
           if (config) setConfigLiga(config);
 
-          // Cargar equipos para el select
-          const { data: eqs } = await supabase
+          // Cargar equipos para el select (CORREGIDO: Quitamos la columna inexistente 'categoria')
+          const { data: eqs, error: errorEqs } = await supabase
             .from('equipos')
-            .select('id, nombre, categoria')
+            .select('id, nombre')
             .eq('organizacion_id', perfil.organizacion_id)
             .order('nombre');
-          if (eqs) setEquipos(eqs);
+          
+          if (errorEqs) {
+            console.error("Error de Supabase al cargar equipos:", errorEqs.message);
+          } else if (eqs) {
+            setEquipos(eqs);
+          }
 
           // Cargar partidos existentes
           cargarPartidos(perfil.organizacion_id);
         }
       } catch (err) {
-        console.error("Error cargando configuración:", err);
+        console.error("Error crítico cargando configuración:", err);
       } finally {
         setCargandoConfig(false);
       }
@@ -167,7 +172,7 @@ const AdminLiga = () => {
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
     const colorMagenta = [217, 0, 130]; 
     const nombreLiga = configLiga?.nombre_liga || "LIGA OFICIAL";
-    const logoBase64 = null; // Podés meter un string base64 de tu logo acá si querés
+    const logoBase64 = null;
 
     const drawControlesGlobales = (startX, startY) => {
       doc.setFontSize(8);

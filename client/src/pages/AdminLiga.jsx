@@ -83,6 +83,7 @@ const AdminLiga = () => {
         visitante:visitante_id(nombre)
       `)
       .eq('organizacion_id', orgId)
+      .eq('finalizado', false)
       // Ordenamos por fecha de creacion ya que fecha_calendario es texto
       .order('created_at', { ascending: true });
     
@@ -232,10 +233,11 @@ const AdminLiga = () => {
 
     doc.setFontSize(9);
     doc.setTextColor(0, 0, 0); 
-    doc.text(`FECHA NRO: ${partido.nro_fecha || '---'}`, 45, 30);
-    doc.text(`FECHA REAL: ${partido.fecha_calendario || ' / / '} - ${partido.horario || ''} hs`, 85, 30);
-    doc.text(`CATEGORÍA: ${(partido.categoria || '---').toUpperCase()}`, 140, 30);
-    doc.text(`SEDE: ${partido.zona || '---'}`, 175, 30); // Usamos 'zona' de la DB
+    doc.text(`FECHA NRO: ${partido.nro_fecha || '---'}`, 14, 30);
+    doc.text(`FECHA REAL: ${partido.fecha_calendario || ' / / '} - ${partido.horario || ''} hs`, 60, 30);
+    doc.text(`HORA: ${partido.horario || '---'}`, 100, 30);
+    doc.text(`CATEGORÍA: ${(partido.categoria || '---').toUpperCase()}`, 135, 30);
+    doc.text(`SEDE: ${partido.zona || '---'}`, 170, 30); // Usamos 'zona' de la DB
     
     doc.setDrawColor(0); 
     doc.line(14, 33, 196, 33); 

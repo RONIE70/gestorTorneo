@@ -687,6 +687,72 @@ fechas.push({ numero: i + 1, encuentros });
 return fechas;
 };
 
+const generarSegundaRuedaClausura = async () => {
+    const confirmar = window.confirm("⚠️ ¿Estás segura de generar la segunda rueda (Clausura) arrancando el 15/08/2026 con localías invertidas?");
+    if (!confirmar) return;
+
+    setLoading(true);
+    try {
+      const { data: partidosActuales, error: errPartidos } = await supabase
+        .from('partidos')
+        .select('*')
+        .eq('organizacion_id', userOrgId);
+
+      if (errPartidos) throw errPartidos;
+      if (!partidosActuales || partidosActuales.length === 0) {
+        alert("❌ No hay partidos en la primera rueda para duplicar.");
+        setLoading(false);
+        return;
+      }
+
+      const fechasUnicas = [...new Set(partidosActuales.map(p => p.nro_fecha))].sort((a, b) => a - b);
+      let nuevosPartidosParaInsertar = [];
+      let fechaBase = new Date(2026, 7, 15); // 15 de agosto de 2026
+
+      fechasUnicas.forEach((fechaOriginal, index) => {
+        const partidosDeLaFecha = partidosActuales.filter(p => p.nro_fecha === fechaOriginal);
+        const nuevoNroFecha = index + 1; 
+
+        let fechaActualCalculada = new Date(fechaBase);
+        fechaActualCalculada.setDate(fechaBase.getDate() + (index * 7));
+
+        const dia = String(fechaActualCalculada.getDate()).padStart(2, '0');
+        const mes = String(fechaActualCalculada.getMonth() + 1).padStart(2, '0');
+        const anio = fechaActualCalculada.getFullYear();
+        const nuevaFechaReal = `${dia}/${mes}/${anio}`;
+
+        partidosDeLaFecha.forEach(p => {
+          nuevosPartidosParaInsertar.push({
+            nro_fecha: nuevoNroFecha,
+            fecha_calendario: nuevaFechaReal,
+            zona: p.zona,
+            local_id: p.visitante_id,
+            visitante_id: p.local_id,
+            nombre_manual_loc: p.nombre_manual_vis,
+            nombre_manual_vis: p.nombre_manual_loc,
+            horario: p.horario,
+            categoria: p.categoria,
+            organizacion_id: userOrgId,
+            finalizado: false,
+            jugado: false
+          });
+        });
+      });
+
+      const { error: errInsert } = await supabase.from('partidos').insert(nuevosPartidosParaInsertar);
+      if (errInsert) throw errInsert;
+
+      alert("✅ ¡Clausura generado con éxito desde el 15/08/2026 con localías invertidas!");
+      await fetchData(); 
+
+    } catch (error) {
+      console.error("Error:", error);
+      alert("❌ Error: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
 
 const borrarMensaje = async (id) => {
 if (!window.confirm("¿Seguro que deseas borrar este mensaje?")) return;
@@ -997,6 +1063,12 @@ ACTUALIZAR PARÁMETROS
       ? '⚠️ Asigna todas las zonas' 
       : '🚀 Generar Fixture Completo'}
 </button>
+<button 
+            onClick={generarSegundaRuedaClausura}
+            className="w-full mt-4 py-4 rounded-[2rem] font-black uppercase text-[10px] shadow-xl active:scale-95 transition-all bg-purple-600 hover:bg-purple-500 text-white border border-purple-400/50"
+          >
+            🔄 Generar Clausura
+          </button>
 </div>
 </section>
 </div>

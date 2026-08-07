@@ -79,9 +79,7 @@ app.post('/fichar', upload.fields([
             else if (anioNac >= 2015) categoria = "2015-2016";
             else if (anioNac >= 2013) categoria = "2013-2014";
             else if (anioNac >= 2011) categoria = "2011-2012";
-            else if (anioNac >= 2009) categoria = "2009-2010";
-            else if (anioNac >= 1994) categoria = "Primera (Libre)";
-            else categoria = "Veteranas";
+            else categoria = "No Categorizada";
         } else {
             // Reglas estándar para otras organizaciones
             if (edad <= 7) categoria = "Sub 7";

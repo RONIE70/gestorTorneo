@@ -348,7 +348,48 @@ const AdminLiga = () => {
             >
               {configLiga?.inscripciones_abiertas ? '🔓 Abierto' : '🔒 Cerrado'}
             </button>
+
+            <div className="flex flex-col gap-3 border-t border-slate-800 pt-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-[10px] font-black uppercase text-amber-500 tracking-widest">Piloto Automático</p>
+                  <h3 className="text-[10px] text-slate-400 italic">Lu 12:00 hs a Jue 14:00 hs</h3>
+                </div>
+                <button 
+                  onClick={async () => {
+                    const nuevoEstado = !configLiga?.fichaje_automatico;
+                    await supabase.from('configuracion_liga').update({ fichaje_automatico: nuevoEstado }).eq('organizacion_id', userOrgId);
+                    setConfigLiga({...configLiga, fichaje_automatico: nuevoEstado});
+                  }}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${
+                    configLiga?.fichaje_automatico 
+                    ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-900/20' 
+                    : 'bg-slate-800 text-slate-500 hover:bg-slate-700'
+                  }`}
+                >
+                  {configLiga?.fichaje_automatico ? '⚡ Activado' : 'Apagado'}
+                </button>
+              </div>
+              
+              {configLiga?.fichaje_automatico && (
+                <div className="flex flex-col gap-1 mt-2 animate-in fade-in">
+                  <label className="text-[9px] font-black uppercase text-slate-500">Fecha fin del campeonato (Cierra 2 sem. antes)</label>
+                  <input 
+                    type="date"
+                    className="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white outline-none focus:border-amber-500 w-full max-w-[200px]"
+                    value={configLiga?.fecha_cierre_torneo || ''}
+                    onChange={async (e) => {
+                      const fecha = e.target.value;
+                      setConfigLiga({...configLiga, fecha_cierre_torneo: fecha});
+                      await supabase.from('configuracion_liga').update({ fecha_cierre_torneo: fecha }).eq('organizacion_id', userOrgId);
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+
           </div>
+          
         )}
 
         <div className="flex gap-4 mt-6">
@@ -481,8 +522,8 @@ const AdminLiga = () => {
                   >
                     <option value="">Seleccione Sede...</option>
                     <option value="Sede Central">Sede Central</option>
-                    <option value="Club Social">Club Social</option>
-                    <option value="Polideportivo">Polideportivo Municipal</option>
+                    <option value="Club Social">Club</option>
+                    <option value="Polideportivo">Polideportivo</option>
                     <option value="Cancha Auxiliar">Cancha Auxiliar</option>
                   </select>
                 </div>

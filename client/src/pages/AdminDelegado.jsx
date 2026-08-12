@@ -881,6 +881,29 @@ const toggleSeleccionarTodas = () => {
     if (partidoReal) setPartidoSeleccionado(partidoReal.id.toString());
   };
 
+  // --- NUEVA FUNCIÓN: LIBERAR JUGADORA ---
+  const handleLiberarJugador = async (jugadora) => {
+    const confirmacion = window.confirm(`¿Estás seguro que deseas liberar a ${jugadora.apellido}, ${jugadora.nombre} (DNI: ${jugadora.dni})? Esta acción la desvinculará del club.`);
+    
+    if (confirmacion) {
+      try {
+        // En un sistema típico, "liberar" significa poner el equipo_id en null
+        const { error } = await supabase
+          .from('jugadoras')
+          .update({ equipo_id: null }) 
+          .eq('id', jugadora.id);
+
+        if (error) throw error;
+        
+        alert("✅ Jugadora liberada exitosamente.");
+        fetchData(); // Recargamos para que desaparezca de la lista
+      } catch (error) {
+        console.error("Error al liberar:", error);
+        alert("🚨 Hubo un error al intentar liberar a la jugadora.");
+      }
+    }
+  };
+
 
   return (
     <div className="p-6 bg-slate-950 min-h-screen text-white font-sans">
@@ -979,7 +1002,7 @@ const toggleSeleccionarTodas = () => {
                     </select>
                   </div>
                 </div>
-                {/* BOTÓN RÁPIDO A CREDENCIALES */}
+                {/* BOTÓN RÁPIDO A CREDENCIALES Y NUEVO BOTON DE GESTION */}
                 <div className="pt-6 border-t border-slate-800">
                   <button 
                     onClick={() => setActiveTab('credenciales')}
@@ -992,6 +1015,25 @@ const toggleSeleccionarTodas = () => {
                       <div className="text-left">
                         <p className="text-[10px] font-black uppercase text-white leading-none">Ver Credenciales</p>
                         <p className="text-[8px] font-bold text-slate-500 uppercase mt-1">Frente de Carnets</p>
+                      </div>
+                    </div>
+                    <span className="text-slate-600">→</span>
+                  </button>
+
+                  {/* NUEVO BOTÓN DE GESTIÓN DE JUGADORAS */}
+                  <button 
+                    onClick={() => setActiveTab('gestion_jugadoras')}
+                    className="w-full bg-slate-800 hover:bg-slate-700 p-4 rounded-2xl flex items-center justify-between group transition-all mt-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-emerald-600/20 rounded-xl group-hover:bg-emerald-600 transition-colors">
+                        <svg className="w-5 h-5 text-emerald-500 group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                      </div>
+                      <div className="text-left">
+                        <p className="text-[10px] font-black uppercase text-white leading-none">Gestión Jugadoras</p>
+                        <p className="text-[8px] font-bold text-slate-500 uppercase mt-1">Liberar y Administrar</p>
                       </div>
                     </div>
                     <span className="text-slate-600">→</span>
@@ -1140,6 +1182,88 @@ const toggleSeleccionarTodas = () => {
               <p className="text-[9px] text-slate-600 uppercase font-bold text-center mt-6 leading-tight italic">
                 * Una vez enviada, la planilla será visible para el árbitro.
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- VISTA DE GESTIÓN DE JUGADORAS NUEVA --- */}
+      {activeTab === 'gestion_jugadoras' && (
+        <div className="animate-in fade-in slide-in-from-bottom-8 duration-500 space-y-6 pb-20">
+          <div className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-md py-4 border-b border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <h2 className="text-lg font-black uppercase italic text-emerald-500">Gestión de Jugadoras</h2>
+            <button onClick={() => setActiveTab('planilla')} className="text-[10px] font-black text-slate-500 uppercase hover:text-white bg-slate-900 px-6 py-3 rounded-xl border border-white/5 transition-all">✕ Volver a Citaciones</button>
+          </div>
+
+          <div className="bg-slate-900 rounded-[2rem] border border-slate-800 overflow-hidden shadow-2xl">
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse min-w-[800px]">
+                <thead>
+                  <tr className="bg-slate-950 border-b border-slate-800 text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="py-5 px-6">Jugador</th>
+                    <th className="py-5 px-6">Tipo & Doc</th>
+                    <th className="py-5 px-6">Fecha de Nac.</th>
+                    <th className="py-5 px-6">Categoría</th>
+                    <th className="py-5 px-6">Fichaje</th>
+                    <th className="py-5 px-6">Estado</th>
+                    <th className="py-5 px-6 text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="text-xs">
+                  {plantel.map((jugadora) => (
+                    <tr key={jugadora.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                      <td className="py-4 px-6 flex items-center gap-4">
+                        <img src={jugadora.foto_url} alt="foto" className="w-10 h-10 rounded-xl object-cover border border-slate-700 shadow-lg" />
+                        <span className="font-black text-[11px] text-white uppercase">{jugadora.apellido}, {jugadora.nombre}</span>
+                      </td>
+                      <td className="py-4 px-6 text-[10px] font-bold text-slate-400 uppercase">
+                        DNI {jugadora.dni}
+                      </td>
+                      <td className="py-4 px-6 text-[10px] font-bold text-slate-400">
+                        {jugadora.fecha_nacimiento}
+                      </td>
+                      <td className="py-4 px-6 text-[10px] font-bold text-slate-400 uppercase">
+                        {jugadora.categoria_actual || jugadora.categoria || 'S/D'}
+                      </td>
+                      <td className="py-4 px-6 text-[10px] font-bold text-slate-400">
+                        {new Date(jugadora.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex flex-col items-start gap-1">
+                          <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest">
+                            {jugadora.verificacion_biometrica_estado === 'aprobado' ? 'FICHAJE OFICIAL' : 'EN REVISIÓN'}
+                          </span>
+                          <span className={`text-[9px] font-black px-2.5 py-1 rounded-md uppercase ${jugadora.verificacion_biometrica_estado === 'aprobado' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500 animate-pulse'}`}>
+                            {jugadora.verificacion_biometrica_estado === 'aprobado' ? 'Activo' : 'Pendiente'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center justify-center gap-4">
+                          {/* BOTÓN RUEDITA PARA LIBERAR */}
+                          <button
+                            onClick={() => handleLiberarJugador(jugadora)}
+                            className="text-slate-500 hover:text-rose-500 transition-colors group relative"
+                            title="Liberar Jugador (Desvincular del Club)"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-90 transition-transform duration-300">
+                              <circle cx="12" cy="12" r="3"></circle>
+                              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {plantel.length === 0 && (
+                    <tr>
+                      <td colSpan="7" className="py-12 text-center text-slate-500 font-bold uppercase text-[10px] tracking-widest">
+                        Aún no hay jugadoras en el plantel para administrar.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

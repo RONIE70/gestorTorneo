@@ -887,7 +887,6 @@ const toggleSeleccionarTodas = () => {
     
     if (confirmacion) {
       try {
-        // En un sistema típico, "liberar" significa poner el equipo_id en null
         const { error } = await supabase
           .from('jugadoras')
           .update({ equipo_id: null }) 
@@ -896,7 +895,7 @@ const toggleSeleccionarTodas = () => {
         if (error) throw error;
         
         alert("✅ Jugadora liberada exitosamente.");
-        fetchData(); // Recargamos para que desaparezca de la lista
+        fetchData(); 
       } catch (error) {
         console.error("Error al liberar:", error);
         alert("🚨 Hubo un error al intentar liberar a la jugadora.");
@@ -1002,7 +1001,7 @@ const toggleSeleccionarTodas = () => {
                     </select>
                   </div>
                 </div>
-                {/* BOTÓN RÁPIDO A CREDENCIALES Y NUEVO BOTON DE GESTION */}
+                {/* BOTÓN RÁPIDO A CREDENCIALES Y NUEVA GESTIÓN JUGADORAS */}
                 <div className="pt-6 border-t border-slate-800">
                   <button 
                     onClick={() => setActiveTab('credenciales')}
@@ -1020,7 +1019,6 @@ const toggleSeleccionarTodas = () => {
                     <span className="text-slate-600">→</span>
                   </button>
 
-                  {/* NUEVO BOTÓN DE GESTIÓN DE JUGADORAS */}
                   <button 
                     onClick={() => setActiveTab('gestion_jugadoras')}
                     className="w-full bg-slate-800 hover:bg-slate-700 p-4 rounded-2xl flex items-center justify-between group transition-all mt-3"
@@ -1204,7 +1202,6 @@ const toggleSeleccionarTodas = () => {
                     <th className="py-5 px-6">Tipo & Doc</th>
                     <th className="py-5 px-6">Fecha de Nac.</th>
                     <th className="py-5 px-6">Categoría</th>
-                    <th className="py-5 px-6">Fichaje</th>
                     <th className="py-5 px-6">Estado</th>
                     <th className="py-5 px-6 text-center">Acciones</th>
                   </tr>
@@ -1225,9 +1222,6 @@ const toggleSeleccionarTodas = () => {
                       <td className="py-4 px-6 text-[10px] font-bold text-slate-400 uppercase">
                         {jugadora.categoria_actual || jugadora.categoria || 'S/D'}
                       </td>
-                      <td className="py-4 px-6 text-[10px] font-bold text-slate-400">
-                        {new Date(jugadora.created_at).toLocaleDateString()}
-                      </td>
                       <td className="py-4 px-6">
                         <div className="flex flex-col items-start gap-1">
                           <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest">
@@ -1240,7 +1234,6 @@ const toggleSeleccionarTodas = () => {
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex items-center justify-center gap-4">
-                          {/* BOTÓN RUEDITA PARA LIBERAR */}
                           <button
                             onClick={() => handleLiberarJugador(jugadora)}
                             className="text-slate-500 hover:text-rose-500 transition-colors group relative"
@@ -1257,7 +1250,7 @@ const toggleSeleccionarTodas = () => {
                   ))}
                   {plantel.length === 0 && (
                     <tr>
-                      <td colSpan="7" className="py-12 text-center text-slate-500 font-bold uppercase text-[10px] tracking-widest">
+                      <td colSpan="6" className="py-12 text-center text-slate-500 font-bold uppercase text-[10px] tracking-widest">
                         Aún no hay jugadoras en el plantel para administrar.
                       </td>
                     </tr>

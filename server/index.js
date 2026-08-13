@@ -45,20 +45,16 @@ const upload = multer({ storage: storage });
 
 // --- RUTA DE FICHAJE CON FILTRO OCR Y VALIDACIÓN DE DUPLICADOS ---
 
-app.post('/fichar', upload.fields([
-    { name: 'foto', maxCount: 1 }, 
-    { name: 'dni_foto', maxCount: 1 }
-]), async (req, res) => {
+// Usamos upload.none() porque el frontend ahora manda URLs en texto dentro del FormData, ya no manda los archivos binarios.
+app.post('/fichar', upload.none(), async (req, res) => {
     try {
         const { 
             nombre, apellido, dni, fecha_nacimiento, equipo_id, 
-            organizacion_id, verificacion_manual, distancia_biometrica_oficial, observaciones_ia 
+            organizacion_id, verificacion_manual, distancia_biometrica_oficial, observaciones_ia,
+            foto_url, dni_foto_url // <--- Ahora extraemos las URLs directamente del body
         } = req.body;
 
-        const foto_url = req.files['foto'] ? req.files['foto'][0].path : null;
-        const dni_foto_url = req.files['dni_foto'] ? req.files['dni_foto'][0].path : null;
-
-        if (!foto_url || !dni_foto_url) return res.status(400).json({ error: "Faltan fotos." });
+        if (!foto_url || !dni_foto_url) return res.status(400).json({ error: "Faltan las URLs de las fotos." });
 
         const nacimiento = new Date(fecha_nacimiento);
         const anioNac = nacimiento.getFullYear();
@@ -103,9 +99,9 @@ app.post('/fichar', upload.fields([
                 fecha_nacimiento: fecha_nacimiento,
                 equipo_id: parseInt(equipo_id),
                 organizacion_id: organizacion_id,
-                foto_url: foto_url,
-                dni_foto_url: dni_foto_url,
-                categoria_actual: categoria, // <--- Aquí ya va con el formato correcto
+                foto_url: foto_url,         // <--- Guardamos el texto directo
+                dni_foto_url: dni_foto_url, // <--- Guardamos el texto directo
+                categoria_actual: categoria, 
                 verificacion_manual: verificacion_manual === 'true' || verificacion_manual === true,
                 distancia_biometrica_oficial: parseFloat(distancia_biometrica_oficial) || 0,
                 observaciones_ia: observaciones_ia || ""
@@ -249,4 +245,3 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 module.exports = app;
-

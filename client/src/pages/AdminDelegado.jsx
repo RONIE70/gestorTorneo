@@ -6,7 +6,6 @@ import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import GestionDelegados from '../components/GestionDelegados';
-// 1. Asegurrate de que esté justo después de los imports
 import { 
   ViewColumnsIcon, 
   TableCellsIcon, 
@@ -15,17 +14,13 @@ import {
   IdentificationIcon 
 } from '@heroicons/react/24/outline';
 
-
-// --- ESTA ES LA LÍNEA QUE FALTA ---
 const CATEGORIAS_OFICIALES = ['2011-2012', '2013-2014', '2015-2016', '2017-2018'];
 
 const AdminDelegado = () => {
   // --- ESTADOS DE SESIÓN Y PERFIL ---
-  const [errorDni, setErrorDni] = useState(""); // Estado para el mensaje de error
+  const [errorDni, setErrorDni] = useState(""); 
   const [perfilUsuario, setPerfilUsuario] = useState(null);
   const [equipoIdActual, setEquipoIdActual] = useState(null);
-  //const [nombreCategoria, setNombreCategoria] = useState("Cargando...");
-  
 
   // --- ESTADOS DE INTERFAZ ---
   const [activeTab, setActiveTab] = useState('planilla'); 
@@ -39,13 +34,9 @@ const AdminDelegado = () => {
   // eslint-disable-next-line no-unused-vars
   const [leyendoOCR, setLeyendoOCR] = useState(false);
   
-  // Obtenemos las categorías únicas de la lista de partidos cargados
-  //const categoriasDisponibles = [...new Set(partidos.map(p => p.categoria))].sort();
-
   const navigate = useNavigate();
 
   // --- ESTADOS DE EDICIÓN Y FICHAJE ---
-  
   const [editandoId, setEditandoId] = useState(null);
   const [datosEdicion, setDatosEdicion] = useState({ nombre: '', apellido: '', dni: '', fecha_nacimiento: '', distancia_biometrica_oficial: '' });
   const [filePerfil, setFilePerfil] = useState(null);
@@ -56,7 +47,6 @@ const AdminDelegado = () => {
   const [filtroFechaPlanilla, setFiltroFechaPlanilla] = useState(1);
   const [filtroCatPlanilla, setFiltroCatPlanilla] = useState(""); 
 
-
   const [loadingSession, setLoadingSession] = useState(true);
   const [cargandoPlantel, setCargandoPlantel] = useState(false);
 
@@ -65,14 +55,12 @@ const AdminDelegado = () => {
   });
   const [logoBase64, setLogoBase64] = useState(null);
 
-  // --- 2. NUEVOS ESTADOS DE CONTROL ---
+  // --- NUEVOS ESTADOS DE CONTROL ---
   const [matchupActual, setMatchupActual] = useState(null);
   const [categoriaSelCred, setCategoriaSelCred] = useState('TODAS');
   const [vistaCred, setVistaCred] = useState('credencial');
 
-  // --- 3. LÓGICA DE FILTRADO (MEMOS) ---
-  
-  // Agrupar partidos para que no se repitan en el Select de Jornada
+  // --- LÓGICA DE FILTRADO (MEMOS) ---
   const crucesUnicos = useMemo(() => {
     const vistos = new Set();
     return partidos.filter(p => {
@@ -83,7 +71,6 @@ const AdminDelegado = () => {
     });
   }, [partidos]);
 
-  // Obtener categorías del cruce seleccionado
   const categoriasDelCruce = useMemo(() => {
     if (!matchupActual) return [];
     return partidos
@@ -96,7 +83,6 @@ const AdminDelegado = () => {
       .sort();
   }, [partidos, matchupActual]);
 
-  // Contadores y Alertas para Credenciales
   const statsCred = useMemo(() => {
     const data = {
       conteos: { 'TODAS': plantel.length },
@@ -123,152 +109,118 @@ const AdminDelegado = () => {
     if (categoriaSelCred === 'TODAS') return plantel;
     return plantel.filter(j => (j.categoria_actual || j.categoria) === categoriaSelCred);
   }, [plantel, categoriaSelCred]);
-  
 
-
-const fetchData = useCallback(async () => {
-  setLoadingSession(true);
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-      setLoadingSession(false);
-      return;
-    }
-
-    // 1. Obtener Perfil del usuario
-    const { data: perfil, error: perfilError } = await supabase
-      .from('perfiles')
-      .select('organizacion_id, equipo_id, rol')
-      .eq('id', session.user.id)
-      .maybeSingle();
-
-    if (perfilError || !perfil) {
-      setLoadingSession(false);
-      return;
-    }
-
-    setPerfilUsuario(perfil);
-    const userOrgId = perfil.organizacion_id;
-
-    // --- LÓGICA DE FILTRADO PARA FICHAR (Admin vs Delegado) ---
-    let idParaFiltrar = 0;
-    if (perfil.rol === 'delegado') {
-      idParaFiltrar = perfil.equipo_id;
-      setEquipoIdActual(perfil.equipo_id);
-    } else {
-      idParaFiltrar = 0; 
-      setEquipoIdActual(null); // Obliga al Admin a usar el SELECT
-    }
-
-    // 2. CARGAR CONFIGURACIÓN O DATOS BÁSICOS
-    const { data: config } = await supabase
-      .from('configuracion_liga')
-      .select('*')
-      .eq('organizacion_id', userOrgId)
-      .maybeSingle();
-    
-    if (config) {
-        setConfigLiga(config);
-        if (config.logo_url) {
-            const img = new Image();
-            img.crossOrigin = 'Anonymous';
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width; canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                if (ctx) { ctx.drawImage(img, 0, 0); setLogoBase64(canvas.toDataURL('image/png')); }
-            };
-            img.src = config.logo_url;
-        }
-    } else {
-        const { data: orgData, error: orgError } = await supabase
-          .from('organizaciones')
-          .select('nombre, logo_url')
-          .eq('id', userOrgId)
-          .maybeSingle();
-
-        if (orgError) console.error("Error en organizaciones:", orgError.message);
-
-        if (orgData) {
-            setConfigLiga({
-                nombre_liga: orgData.nombre,
-                logo_url: orgData.logo_url
-            });
-        }
-    }
-
-    // --- RESTAURACIÓN DE PARTIDOS, EXPEDIENTES Y PLANTEL ---
-    // Solo cargamos si hay un equipo asignado (Delegado)
-    if (idParaFiltrar && idParaFiltrar !== 0) {
+  const fetchData = useCallback(async () => {
+    setLoadingSession(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
       
-      // A. Cargar Plantel
-      const { data: jugadorasData, error: errorPlantel } = await supabase
-    .from('jugadoras')
-    .select(`
-      *, 
-      sanciones(id, motivo, estado),
-      equipos!equipo_id (id, nombre, escudo_url)
-    `) // !equipo_id le dice a Supabase qué columna usar para el JOIN
-    .eq('organizacion_id', userOrgId)
-    .eq('equipo_id', idParaFiltrar);
+      if (!session) {
+        setLoadingSession(false);
+        return;
+      }
 
-  if (errorPlantel) {
-    console.error("Error 400 en Plantel:", errorPlantel.message);
-    setPlantel([]);
-  } else {
-      
-      
-      setPlantel(jugadorasData?.map(j => ({
-        ...j,
-        estaSuspendida: j.sanciones?.some(s => s.estado === 'cumpliendo') || j.sancionada === true
-      })) || []);
-    }
-      // B. Cargar Expedientes (Sanciones) - RESTAURADO
-      const { data: sancData } = await supabase
-        .from('sanciones')
-        .select(`
-          *,
-          jugadora:jugadoras!inner(nombre, apellido, dni, equipo_id, organizacion_id),
-          partido:partidos(
-            nro_fecha, 
-            local:equipos!local_id(nombre), 
-            visitante:equipos!visitante_id(nombre)
-          )
-        `)
-        .eq('jugadora.equipo_id', idParaFiltrar)
-        .order('created_at', { ascending: false });
-      
-      setExpedientes(sancData || []);
+      const { data: perfil, error: perfilError } = await supabase
+        .from('perfiles')
+        .select('organizacion_id, equipo_id, rol')
+        .eq('id', session.user.id)
+        .maybeSingle();
 
-      // C. Cargar Partidos - RESTAURADO
-      const { data: partidosData } = await supabase
-        .from('partidos')
-        .select('*, local:equipos!local_id(nombre), visitante:equipos!visitante_id(nombre)')
-        .or(`local_id.eq.${idParaFiltrar},visitante_id.eq.${idParaFiltrar}`)
+      if (perfilError || !perfil) {
+        setLoadingSession(false);
+        return;
+      }
+
+      setPerfilUsuario(perfil);
+      const userOrgId = perfil.organizacion_id;
+
+      let idParaFiltrar = 0;
+      if (perfil.rol === 'delegado') {
+        idParaFiltrar = perfil.equipo_id;
+        setEquipoIdActual(perfil.equipo_id);
+      } else {
+        idParaFiltrar = 0; 
+        setEquipoIdActual(null); 
+      }
+
+      const { data: config } = await supabase
+        .from('configuracion_liga')
+        .select('*')
         .eq('organizacion_id', userOrgId)
-        .eq('finalizado', false); 
-      setPartidos(partidosData || []);
+        .maybeSingle();
+      
+      if (config) {
+          setConfigLiga(config);
+          if (config.logo_url) {
+              const img = new Image();
+              img.crossOrigin = 'Anonymous';
+              img.onload = () => {
+                  const canvas = document.createElement('canvas');
+                  canvas.width = img.width; canvas.height = img.height;
+                  const ctx = canvas.getContext('2d');
+                  if (ctx) { ctx.drawImage(img, 0, 0); setLogoBase64(canvas.toDataURL('image/png')); }
+              };
+              img.src = config.logo_url;
+          }
+      } else {
+          const { data: orgData, error: orgError } = await supabase
+            .from('organizaciones')
+            .select('nombre, logo_url')
+            .eq('id', userOrgId)
+            .maybeSingle();
+
+          if (orgData) {
+              console.error("Error al cargar la organización:", orgError);
+              setConfigLiga({ nombre_liga: orgData.nombre, logo_url: orgData.logo_url });
+          }
+      }
+
+      if (idParaFiltrar && idParaFiltrar !== 0) {
+        const { data: jugadorasData, error: errorPlantel } = await supabase
+          .from('jugadoras')
+          .select(`*, sanciones(id, motivo, estado), equipos!equipo_id (id, nombre, escudo_url)`)
+          .eq('organizacion_id', userOrgId)
+          .eq('equipo_id', idParaFiltrar);
+
+        if (!errorPlantel) {
+          setPlantel(jugadorasData?.map(j => ({
+            ...j,
+            estaSuspendida: j.sanciones?.some(s => s.estado === 'cumpliendo') || j.sancionada === true
+          })) || []);
+        }
+        
+        const { data: sancData } = await supabase
+          .from('sanciones')
+          .select(`*, jugadora:jugadoras!inner(nombre, apellido, dni, equipo_id, organizacion_id), partido:partidos(nro_fecha, local:equipos!local_id(nombre), visitante:equipos!visitante_id(nombre))`)
+          .eq('jugadora.equipo_id', idParaFiltrar)
+          .order('created_at', { ascending: false });
+        
+        setExpedientes(sancData || []);
+
+        const { data: partidosData } = await supabase
+          .from('partidos')
+          .select('*, local:equipos!local_id(nombre), visitante:equipos!visitante_id(nombre)')
+          .or(`local_id.eq.${idParaFiltrar},visitante_id.eq.${idParaFiltrar}`)
+          .eq('organizacion_id', userOrgId)
+          .eq('finalizado', false); 
+        setPartidos(partidosData || []);
+      }
+
+      const { data: clubesData } = await supabase
+        .from('equipos')
+        .select('*')
+        .eq('organizacion_id', userOrgId)
+        .order('nombre');
+      setClubes(clubesData || []);
+
+    } catch (error) {
+      console.error("Error en fetchData:", error);
+    } finally {
+      setLoadingSession(false);
     }
+  }, []);
 
-    // 3. CLUBES (Siempre cargamos para el Select del Admin)
-    const { data: clubesData } = await supabase
-      .from('equipos')
-      .select('*')
-      .eq('organizacion_id', userOrgId)
-      .order('nombre');
-    setClubes(clubesData || []);
-
-  } catch (error) {
-    console.error("Error en fetchData:", error);
-  } finally {
-    setLoadingSession(false);
-  }
-}, []);
-
-  useEffect(() => { 
-    fetchData(); 
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   useEffect(() => {
     const actualizarPlantelDinamico = async () => {
@@ -311,22 +263,19 @@ const fetchData = useCallback(async () => {
   }, [partidoSeleccionado, partidos]);
 
 
-  // FUNCIÓN PARA GENERAR EL PDF DEL DICTAMEN CON IDENTIDAD VISUAL NUEVA
  const generarPDFDictamenDelegado = (jugadora, config) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
 
-    // --- 1. ENCABEZADO ESTILO PREMIUM ---
-    doc.setFillColor(30, 41, 59); // Color Slate-800
+    doc.setFillColor(30, 41, 59); 
     doc.rect(0, 0, pageWidth, 45, 'F');
     
-    // Inserción de Logo Dinámico
     if (logoBase64) {
       try {
         doc.addImage(logoBase64, 'PNG', 15, 10, 25, 25);
       // eslint-disable-next-line no-unused-vars
       } catch (e) {
-        doc.setFillColor(217, 0, 130); // Rosa de respaldo
+        doc.setFillColor(217, 0, 130); 
         doc.ellipse(27, 22, 12, 12, 'F');
       }
     } else {
@@ -334,22 +283,19 @@ const fetchData = useCallback(async () => {
       doc.ellipse(27, 22, 12, 12, 'F'); 
     }
     
-    // Títulos del Encabezado
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
     doc.text(config?.nombre_liga?.toUpperCase() || "LIGA OFICIAL", 105, 20, { align: 'center' });
     
-    
     doc.setFontSize(12);
-    doc.setTextColor(217, 0, 130); // Rosa fuerte
+    doc.setTextColor(217, 0, 130); 
     doc.text("NOTIFICACIÓN DE SANCIÓN VIGENTE", 105, 28, { align: 'center' });
     
     doc.setFontSize(8);
     doc.setTextColor(200, 200, 200);
     doc.text(`Expediente Electrónico Tribunal | Fecha de Emisión: ${new Date().toLocaleDateString()}`, 105, 36, { align: 'center' });
 
-    // --- 2. CUERPO DE DATOS PRINCIPALES ---
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
@@ -361,17 +307,15 @@ const fetchData = useCallback(async () => {
     doc.text(`DOCUMENTO (DNI): ${jugadora.dni || 'N/A'}`, 20, 85);
     doc.text(`CLUB PERTENECIENTE: ${clubes.find(c => c.id === equipoIdActual)?.nombre || 'S/D'}`, 20, 95);
 
-    // Recuadro de Estado
-    doc.setFillColor(254, 242, 242); // Rojo muy claro
-    doc.setDrawColor(239, 68, 68); // Rojo borde
+    doc.setFillColor(254, 242, 242); 
+    doc.setDrawColor(239, 68, 68); 
     doc.rect(20, 105, 170, 25, 'FD');
     
-    doc.setTextColor(185, 28, 28); // Rojo oscuro
+    doc.setTextColor(185, 28, 28); 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
     doc.text("ESTADO: INHABILITADA PARA COMPETIR", 105, 121, { align: 'center' });
 
-    // --- 3. RESOLUCIÓN DEL TRIBUNAL ---
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
@@ -383,43 +327,33 @@ const fetchData = useCallback(async () => {
     const lineasMotivo = doc.splitTextToSize(motivo, 160);
     doc.text(lineasMotivo, 25, 160);
 
-    // --- 4. PIE DE PÁGINA, QR Y FIRMA ---
-    // QR de validación (apunta a la verificación pública)
-   // --- 4. PIE DE PÁGINA, QR Y FIRMA ---
-// Agregamos el /#/ justo antes de "verificar"
-const urlQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/#/verificar/" + jugadora.id)}`;
-// Usamos una técnica de precarga para evitar que el 404 rompa el PDF
-const imgQR = new Image();
-imgQR.crossOrigin = "Anonymous";
-imgQR.src = urlQR;
+    const urlQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/#/verificar/" + jugadora.id)}`;
+    const imgQR = new Image();
+    imgQR.crossOrigin = "Anonymous";
+    imgQR.src = urlQR;
 
-imgQR.onload = () => {
-    try {
-        doc.addImage(imgQR, 'PNG', 20, 245, 30, 30);
-    // eslint-disable-next-line no-unused-vars
-    } catch (e) {
-        console.warn("No se pudo añadir el QR al PDF");
-    }
-    finalizarYGuardar();
-};
+    imgQR.onload = () => {
+        try {
+            doc.addImage(imgQR, 'PNG', 20, 245, 30, 30);
+        // eslint-disable-next-line no-unused-vars, no-empty
+        } catch (e) {}
+        finalizarYGuardar();
+    };
 
-imgQR.onerror = () => {
-    console.warn("Error 404 o CORS al traer el QR");
-    finalizarYGuardar();
-};
+    imgQR.onerror = () => {
+        finalizarYGuardar();
+    };
 
-// Función auxiliar para no repetir código
-const finalizarYGuardar = () => {
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-    doc.text("Escanee el código para verificar la vigencia de esta sanción en tiempo real.", 55, 260);
-    doc.save(`Dictamen_Oficial_${jugadora.apellido}.pdf`);
-};
+    const finalizarYGuardar = () => {
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text("Escanee el código para verificar la vigencia de esta sanción en tiempo real.", 55, 260);
+        doc.save(`Dictamen_Oficial_${jugadora.apellido}.pdf`);
+    };
 
-// Si por alguna razón la imagen tarda demasiado, lanzamos el guardado igual a los 2 segundos
-setTimeout(() => {
-    if (doc.internal.pages.length > 0) finalizarYGuardar();
-}, 2000);
+    setTimeout(() => {
+        if (doc.internal.pages.length > 0) finalizarYGuardar();
+    }, 2000);
 
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
@@ -431,11 +365,8 @@ setTimeout(() => {
     doc.setTextColor(0, 0, 0);
     doc.text("__________________________", 140, 260);
     doc.text("Secretaría de Competencia", 142, 265);
-    
-    doc.save(`Dictamen_Oficial_${jugadora.apellido}.pdf`);
   };
 
-  // FUNCIÓN PARA ENVIAR DESCARGO
   const enviarDescargo = async (sancionId, textoDescargo, esLocal) => {
     if (!textoDescargo || textoDescargo.trim().length < 5) return alert("Escribe un descargo válido");
     
@@ -455,8 +386,7 @@ setTimeout(() => {
   const toggleJugadora = (jugadora) => {
     if (editandoId) return;
     if (jugadora.estaSuspendida) {
-        alert("🚫 ACCIÓN DENEGADA: Jugadora suspendida por el Tribunal.");
-        return;
+        return alert("🚫 ACCIÓN DENEGADA: Jugadora suspendida por el Tribunal.");
     }
     setSeleccionadas(prev => 
       prev.includes(jugadora.id) ? prev.filter(item => item !== jugadora.id) : [...prev, jugadora.id]
@@ -474,19 +404,15 @@ setTimeout(() => {
     }
   };
   
+// --- NUEVO MANEJO DE FICHAJE: SUBIDA DIRECTA A CLOUDINARY ---
 const manejarEnvioFichaje = async (e) => {
     e.preventDefault();
     
-    // 1. MODIFICACIÓN: Validación inteligente según Rol
-    // El admin debe haber seleccionado un club en el <select> (equipoIdActual)
     if (!equipoIdActual || equipoIdActual === 0 || !filePerfil || !fileDNI) {
         return alert("⚠️ Debes seleccionar un CLUB, cargar ambas fotos y completar los datos antes de enviar.");
     }
     
-    if (errorDni) {
-        return alert("⚠️ No puedes continuar: el DNI ingresado ya existe en la base de datos.");
-    }
-
+    if (errorDni) return alert("⚠️ No puedes continuar: el DNI ingresado ya existe en la base de datos.");
     if (datosFichaje.dni.length < 7) return alert("⚠️ El DNI es demasiado corto.");
 
     setCargandoFichaje(true);
@@ -495,22 +421,39 @@ const manejarEnvioFichaje = async (e) => {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
 
+        // 1. FUNCIÓN INTERNA PARA SUBIR A CLOUDINARY
+        const uploadACloudinary = async (file) => {
+            const formDataCloud = new FormData();
+            formDataCloud.append('file', file);
+            // IMPORTANTE: Asegúrate de tener este preset "unsigned" creado en tu Cloudinary
+            formDataCloud.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'ml_default');
+            const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dgtc9qfmv';
+
+            const resCloud = await axios.post(
+                `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, 
+                formDataCloud
+            );
+            return resCloud.data.secure_url;
+        };
+
+        // 2. SUBIMOS LAS IMÁGENES EN PARALELO ANTES DE LLAMAR A TU BACKEND
+        const [fotoPerfilUrl, fotoDniUrl] = await Promise.all([
+            uploadACloudinary(filePerfil),
+            uploadACloudinary(fileDNI)
+        ]);
+
+        // 3. ARMAMOS LA PETICIÓN PARA EL BACKEND (Node.js/Vercel) CON LAS URLs
         const formData = new FormData();
-        formData.append('foto', filePerfil);
-        formData.append('dni_foto', fileDNI);
+        // Atención backend: ahora recibirán 'foto_url' y 'dni_foto_url' como strings, no archivos
+        formData.append('foto_url', fotoPerfilUrl);
+        formData.append('dni_foto_url', fotoDniUrl);
+        
         formData.append('nombre', datosFichaje.nombre);
         formData.append('apellido', datosFichaje.apellido);
         formData.append('dni', datosFichaje.dni);
         formData.append('fecha_nacimiento', datosFichaje.fecha_nacimiento);
-        
-        // El organizacion_id siempre viene del perfil del que está logueado (Liga de las Nenas)
         formData.append('organizacion_id', perfilUsuario?.organizacion_id);
-        
-        // El equipo_id ahora es dinámico: 
-        // Si eres delegado, equipoIdActual ya tiene tu club.
-        // Si eres Admin, equipoIdActual tiene el valor del <select> que elegiste.
         formData.append('equipo_id', equipoIdActual); 
-        
         formData.append('verificacion_manual', true); 
         formData.append('distancia_biometrica_oficial', 0);
         formData.append('observaciones_ia', "Pendiente de validación biométrica en PC");
@@ -522,28 +465,23 @@ const manejarEnvioFichaje = async (e) => {
         if (res.status === 200 || res.status === 201) {
             alert("🚀 Fichaje enviado con éxito.");
 
-            // Buscamos el nombre del club localmente para no re-consultar
-    const nombreClubSeleccionado = clubes.find(c => c.id === equipoIdActual)?.nombre;
-    const escudoClubSeleccionado = clubes.find(c => c.id === equipoIdActual)?.escudo_url;
+            const nombreClubSeleccionado = clubes.find(c => c.id === equipoIdActual)?.nombre;
+            const escudoClubSeleccionado = clubes.find(c => c.id === equipoIdActual)?.escudo_url;
 
-    const jugadoraConClub = {
-        ...(res.data.jugadora || res.data),
-        club_nombre: nombreClubSeleccionado,
-        club_escudo: escudoClubSeleccionado,
-        equipos: { nombre: nombreClubSeleccionado } // Para compatibilidad total
-    };
+            const jugadoraConClub = {
+                ...(res.data.jugadora || res.data),
+                club_nombre: nombreClubSeleccionado,
+                club_escudo: escudoClubSeleccionado,
+                equipos: { nombre: nombreClubSeleccionado } 
+            };
             
-
-            // Asegúrate de que el backend devuelva la jugadora correctamente
             setJugadoraRegistrada(jugadoraConClub);
 
-            // Limpieza
             setDatosFichaje({ nombre: '', apellido: '', dni: '', fecha_nacimiento: '' });
             setFilePerfil(null);
             setFileDNI(null);
             setErrorDni("");
             
-            // Si eres Admin, reseteamos el select para evitar fichajes accidentales en el mismo club
             if (perfilUsuario?.rol !== 'delegado') setEquipoIdActual(null);
             
             if (typeof fetchData === 'function') fetchData();
@@ -551,20 +489,22 @@ const manejarEnvioFichaje = async (e) => {
 
     } catch (err) { 
         console.error("Error en servidor:", err);
-        alert("🚨 Error: " + (err.response?.data?.error || "No se pudo conectar con el servidor"));
+        // Mejor manejo de errores para que no salga [object Object]
+        let msjError = err.response?.data?.error || err.response?.data?.message || err.message;
+        if (typeof msjError === 'object') msjError = JSON.stringify(msjError);
+        alert("🚨 Error: " + (msjError || "No se pudo conectar con el servidor"));
     } finally { 
         setCargandoFichaje(false); 
     }
 };
 
-// --- VALIDACIÓN PREVIA DE DNI ---
 const verificarDniDuplicado = async (dni) => {
     if (dni.length < 7) {
         setErrorDni(""); 
         return;
     }
-    
     try {
+        // eslint-disable-next-line no-unused-vars
         const { data, error } = await supabase
             .from('jugadoras')
             .select('id, apellido, nombre')
@@ -574,32 +514,23 @@ const verificarDniDuplicado = async (dni) => {
 
         if (data) {
             setErrorDni(`⚠️ Este DNI ya pertenece a ${data.apellido}, ${data.nombre}`);
-            setDatosFichaje(prev => ({ ...prev, dni: '' })); // Opcional: limpiar si querés bloquear
+            setDatosFichaje(prev => ({ ...prev, dni: '' }));
         } else {
-            setErrorDni(""); // Limpiar error si el DNI está libre
+            setErrorDni(""); 
         }
-        if (error) console.error("Error en validación DNI:", error);
     } catch (err) {
         console.error("Error inesperado:", err);
     }
  };
 
 
-  // 2. Función para generar y descargar
- // --- LÓGICA DE PDF (FRONTEND MVP - DINÁMICO) ---
  const handleDescargarPlanilla = async () => {
   if (!partidoSeleccionado) return alert("Selecciona un partido");
 
-  // Función interna para determinar la categoría por año según la tabla de la DB
   const calcularCategoriaSaaS = (fechaNac, reglas) => {
     if (!fechaNac || !reglas || reglas.length === 0) return "S/D";
     const anioNac = new Date(fechaNac).getFullYear();
-
-    // --- REGLA DE NEGOCIO TEMPORAL: LIGA DE LAS NENAS ---
-  // Si nació en 2019 o 2020, la mandamos directo a la categoría 2017-2018
-    if (anioNac === 2019 || anioNac === 2020) {
-    return "2017-2018";
-  }
+    if (anioNac === 2019 || anioNac === 2020) return "2017-2018";
     
     const match = reglas.find(c => 
       anioNac >= c.año_desde && anioNac <= (c.año_hasta || anioNac)
@@ -609,7 +540,6 @@ const verificarDniDuplicado = async (dni) => {
 
   setLoadingSession(true);
   try {
-    // 1. Obtener datos del partido y su organización
     const { data: partido, error: pErr } = await supabase
       .from('partidos')
       .select('id, local_id, visitante_id, categoria, nro_fecha, organizacion_id, fecha_calendario, zona')
@@ -618,7 +548,6 @@ const verificarDniDuplicado = async (dni) => {
 
     if (pErr || !partido) throw new Error("Partido no encontrado");
 
-    // 2. Obtener las reglas de categorías de esta organización (desde tu tabla 'categorias')
     const { data: reglasCategorias, error: catErr } = await supabase
       .from('categorias')
       .select('*')
@@ -626,45 +555,36 @@ const verificarDniDuplicado = async (dni) => {
 
     if (catErr) throw catErr;
 
-    // 3. Traer jugadoras de ambos equipos (incluyendo fecha_nacimiento para validar)
-    const { data: localTodos, error: localErr } = await supabase
+    const { data: localTodos } = await supabase
       .from('jugadoras')
       .select('nombre, apellido, dni, fecha_nacimiento, categoria_actual')
       .eq('equipo_id', partido.local_id)
       .order('apellido');
 
-    const { data: visitaTodos, error: visitaErr } = await supabase
+    const { data: visitaTodos } = await supabase
       .from('jugadoras')
       .select('nombre, apellido, dni, fecha_nacimiento, categoria_actual')
       .eq('equipo_id', partido.visitante_id)
       .order('apellido');
 
-    if (localErr || visitaErr) throw new Error("Error cargando planteles");
-
-    // --- 4 FILTRO DOBLE (POR AÑO O POR CAMPO DB) ---
     const filtrarPorReglaONombre = (j) => {
         const catPorAnio = calcularCategoriaSaaS(j.fecha_nacimiento, reglasCategorias);
         const catEnDB = j.categoria_actual || "";
-        
-        // Si el año coincide O si el texto en la DB coincide, se queda en la lista
         return catPorAnio === partido.categoria || catEnDB === partido.categoria;
     };
 
     const localP = (localTodos || []).filter(filtrarPorReglaONombre);
     const visitaP = (visitaTodos || []).filter(filtrarPorReglaONombre);
 
-    // 5. Preparar objeto para el PDF con los nombres de los clubes
     const partidoParaPDF = {
       ...partido,
       local: { nombre: clubes.find(c => c.id === partido.local_id)?.nombre || "Local" },
       visitante: { nombre: clubes.find(c => c.id === partido.visitante_id)?.nombre || "Visitante" }
     };
 
-    // 6. Generar el documento final
     generarPDF(partidoParaPDF, localP, visitaP);
 
   } catch (err) {
-    console.error("Error detallado:", err.message);
     alert("No se pudo generar la planilla: " + err.message);
   } finally {
     setLoadingSession(false);
@@ -675,10 +595,7 @@ const verificarDniDuplicado = async (dni) => {
   const doc = new jsPDF();
   const colorMagenta = [217, 0, 130]; 
   const nombreLiga = configLiga?.nombre_liga || "LIGA OFICIAL";
-
-  // --- 1. FUNCIONES INTERNAS DE AYUDA (Definidas al inicio para evitar errores) ---
   
-  // Función para dibujar los cuadros de faltas e informes debajo de las tablas
   const drawControlesGlobales = (startX, startY) => {
     doc.setFontSize(8);
     doc.setTextColor(0);
@@ -708,9 +625,9 @@ const verificarDniDuplicado = async (dni) => {
     ['', '', '', '', '', '', '']
   ];
 
-  // --- 2. ENCABEZADO Y LOGO ---
   if (logoBase64) {
-    try { doc.addImage(logoBase64, 'PNG', 14, 8, 22, 22); } catch (e) { console.error("Error logo:", e); }
+    // eslint-disable-next-line no-unused-vars, no-empty
+    try { doc.addImage(logoBase64, 'PNG', 14, 8, 22, 22); } catch (e) {}
   }
 
   doc.setFontSize(16);
@@ -722,7 +639,6 @@ const verificarDniDuplicado = async (dni) => {
   doc.setTextColor(100, 100, 100);
   doc.text("PLANILLA DE JUEGO OFICIAL", 105, 21, { align: 'center' });
 
-  // --- 3. DATOS DEL PARTIDO (ZONA Y FECHA) ---
   doc.setFontSize(9);
   doc.setTextColor(0, 0, 0); 
   doc.text(`FECHA NRO: ${partido.nro_fecha || '---'}`, 45, 30);
@@ -733,28 +649,26 @@ const verificarDniDuplicado = async (dni) => {
   doc.setDrawColor(0); 
   doc.line(14, 33, 196, 33); 
 
-  // --- 4. CONFIGURACIÓN DE TABLA COMPACTA ---
   const configuracionTabla = {
     theme: 'grid',
     headStyles: { fillColor: [240, 240, 240], textColor: 0, fontSize: 8, fontStyle: 'bold', halign: 'center' },
     styles: { 
-      fontSize: 7.5,      // Fuente más pequeña para que entre todo
-      cellPadding: 1,     // Padding mínimo
+      fontSize: 7.5,      
+      cellPadding: 1,     
       lineColor: [0, 0, 0],
-      minCellHeight: 4    // Altura reducida para ahorrar espacio
+      minCellHeight: 4    
     },
     columnStyles: {
-      0: { cellWidth: 8, halign: 'center' },   // N°
-      1: { cellWidth: 72 },                    // Nombre y Apellido
-      2: { cellWidth: 25, halign: 'center' },  // DNI
-      3: { cellWidth: 45 },                    // FIRMA JUGADORA
-      4: { cellWidth: 15, halign: 'center' },  // GOLES
-      5: { cellWidth: 8, halign: 'center' },   // A
-      6: { cellWidth: 8, halign: 'center' }    // R
+      0: { cellWidth: 8, halign: 'center' },   
+      1: { cellWidth: 72 },                    
+      2: { cellWidth: 25, halign: 'center' },  
+      3: { cellWidth: 45 },                    
+      4: { cellWidth: 15, halign: 'center' },  
+      5: { cellWidth: 8, halign: 'center' },   
+      6: { cellWidth: 8, halign: 'center' }    
     }
   };
 
-  // --- 5. TABLA LOCAL ---
   doc.setFontSize(10);
   doc.setTextColor(...colorMagenta);
   doc.text(`LOCAL: ${partido.local?.nombre || '---'}`, 14, 42);
@@ -772,7 +686,6 @@ const verificarDniDuplicado = async (dni) => {
   let currentY = doc.lastAutoTable.finalY + 6;
   drawControlesGlobales(14, currentY);
 
-  // --- 6. TABLA VISITANTE ---
   currentY += 10;
   doc.setFontSize(10);
   doc.setTextColor(...colorMagenta);
@@ -791,7 +704,6 @@ const verificarDniDuplicado = async (dni) => {
   currentY = doc.lastAutoTable.finalY + 6;
   drawControlesGlobales(14, currentY);
 
-  // --- 7. RESULTADOS Y FIRMAS ---
   const resY = 260;
   doc.setDrawColor(0);
   doc.setFillColor(240, 240, 240);
@@ -820,7 +732,6 @@ const verificarDniDuplicado = async (dni) => {
   doc.save(`Planilla_${partido.local?.nombre}_vs_${partido.visitante?.nombre}.pdf`);
 };
 
-    // --- RENDER DE CARGA ---
     if (loadingSession) {
         return (
             <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
@@ -832,7 +743,6 @@ const verificarDniDuplicado = async (dni) => {
         );
     }
 
-  
   const iniciarEdicion = (e, j) => {
     e.stopPropagation();
     setEditandoId(j.id);
@@ -845,21 +755,16 @@ const verificarDniDuplicado = async (dni) => {
     if (!error) { setEditandoId(null); fetchData(); }
   };
 
-  // --- NUEVA FUNCIÓN PARA SELECCIONAR TODAS ---
 const toggleSeleccionarTodas = () => {
-  // Filtramos solo las jugadoras que NO están suspendidas
   const jugadorasHabilitadas = plantel.filter(j => !j.estaSuspendida).map(j => j.id);
 
-  // Si ya están todas seleccionadas, las desmarcamos (limpiamos el array)
   if (seleccionadas.length === jugadorasHabilitadas.length) {
     setSeleccionadas([]);
   } else {
-    // Si no, metemos todos los IDs habilitados de una vez
     setSeleccionadas(jugadorasHabilitadas);
   }
 };
 
-// --- 5. HANDLERS DE SELECCIÓN DE CRUCES ---
   const handleMatchupChange = (id) => {
     const p = partidos.find(part => part.id === parseInt(id));
     if (p) {
@@ -881,6 +786,27 @@ const toggleSeleccionarTodas = () => {
     if (partidoReal) setPartidoSeleccionado(partidoReal.id.toString());
   };
 
+  const handleLiberarJugador = async (jugadora) => {
+    const confirmacion = window.confirm(`¿Estás seguro que deseas liberar a ${jugadora.apellido}, ${jugadora.nombre} (DNI: ${jugadora.dni})? Esta acción la desvinculará del club.`);
+    
+    if (confirmacion) {
+      try {
+        const { error } = await supabase
+          .from('jugadoras')
+          .update({ equipo_id: null }) 
+          .eq('id', jugadora.id);
+
+        if (error) throw error;
+        
+        alert("✅ Jugadora liberada exitosamente.");
+        fetchData(); 
+      // eslint-disable-next-line no-unused-vars
+      } catch (error) {
+        alert("🚨 Hubo un error al intentar liberar a la jugadora.");
+      }
+    }
+  };
+
 
   return (
     <div className="p-6 bg-slate-950 min-h-screen text-white font-sans">
@@ -897,7 +823,6 @@ const toggleSeleccionarTodas = () => {
         </div>
       </header>
 
-      {/* CENTRO DE ESTADÍSTICAS */}
       <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-center gap-4 shadow-2xl mb-8">
         <div>
           <h2 className="text-xl font-black uppercase italic text-blue-500">Centro de Estadísticas</h2>
@@ -908,7 +833,6 @@ const toggleSeleccionarTodas = () => {
         </button>
       </div>
 
-      {/* SECCIÓN DISCIPLINARIA PARA EL DELEGADO */}
       <div className="max-w-full mx-auto mb-8">
         <h3 className="text-xs font-black uppercase text-slate-500 mb-4 ml-4 tracking-widest">Avisos del Tribunal de Disciplina</h3>
         <div className="grid gap-4">
@@ -941,7 +865,6 @@ const toggleSeleccionarTodas = () => {
       {activeTab === 'planilla' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
           
-          {/* COLUMNA 1: SELECCIÓN JORNADA */}
           <div className="space-y-6">
             <div className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 shadow-xl h-full">
               <h2 className="text-xs font-black uppercase mb-6 text-blue-500 flex items-center gap-2">
@@ -979,7 +902,6 @@ const toggleSeleccionarTodas = () => {
                     </select>
                   </div>
                 </div>
-                {/* BOTÓN RÁPIDO A CREDENCIALES */}
                 <div className="pt-6 border-t border-slate-800">
                   <button 
                     onClick={() => setActiveTab('credenciales')}
@@ -996,16 +918,32 @@ const toggleSeleccionarTodas = () => {
                     </div>
                     <span className="text-slate-600">→</span>
                   </button>
+
+                  <button 
+                    onClick={() => setActiveTab('gestion_jugadoras')}
+                    className="w-full bg-slate-800 hover:bg-slate-700 p-4 rounded-2xl flex items-center justify-between group transition-all mt-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-emerald-600/20 rounded-xl group-hover:bg-emerald-600 transition-colors">
+                        <svg className="w-5 h-5 text-emerald-500 group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                      </div>
+                      <div className="text-left">
+                        <p className="text-[10px] font-black uppercase text-white leading-none">Gestión Jugadoras</p>
+                        <p className="text-[8px] font-bold text-slate-500 uppercase mt-1">Liberar y Administrar</p>
+                      </div>
+                    </div>
+                    <span className="text-slate-600">→</span>
+                  </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* COLUMNA 2: CITACIONES (CON SOPORTE PARA EDICIÓN) */}
  <div className="lg:col-span-1 space-y-6">
   <div className="bg-slate-900 p-6 rounded-[2.5rem] border border-slate-800 shadow-2xl h-full relative overflow-hidden">
     <h2 className="text-xs font-black uppercase mb-6 text-emerald-500 flex items-center justify-between">
-      {/* NUEVO: BOTÓN / CHECKBOX SELECCIONAR TODAS */}
 {!cargandoPlantel && plantel.length > 0 && (
   <div 
     onClick={toggleSeleccionarTodas}
@@ -1050,7 +988,6 @@ const toggleSeleccionarTodas = () => {
             'bg-slate-800/40 border-transparent hover:border-slate-700'
           }`}
         >
-          {/* MODO EDICIÓN ACTIVO */}
           {editandoId === j.id ? (
             <div className="space-y-2 w-full" onClick={e => e.stopPropagation()}>
               <input 
@@ -1075,7 +1012,6 @@ const toggleSeleccionarTodas = () => {
               </div>
             </div>
           ) : (
-            /* VISTA NORMAL */
             <div className="flex items-center gap-4 w-full">
               <img src={j.foto_url} className="w-10 h-10 rounded-xl object-cover shadow-lg" alt="p" />
               <div className="flex-1">
@@ -1108,7 +1044,6 @@ const toggleSeleccionarTodas = () => {
     </div>
   </div>
  </div>
-          {/* COLUMNA 3: ENVÍO Y DESCARGA */}
           <div className="space-y-6">
             <div className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 shadow-xl flex flex-col justify-between h-full">
               <h2 className="text-xs font-black uppercase mb-6 text-rose-500 flex items-center gap-2">
@@ -1145,7 +1080,82 @@ const toggleSeleccionarTodas = () => {
         </div>
       )}
 
-      {/* --- VISTA DE CREDENCIALES (DENTRO DE ADMIN DELEGADO) --- */}
+      {activeTab === 'gestion_jugadoras' && (
+        <div className="animate-in fade-in slide-in-from-bottom-8 duration-500 space-y-6 pb-20">
+          <div className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-md py-4 border-b border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <h2 className="text-lg font-black uppercase italic text-emerald-500">Gestión de Jugadoras</h2>
+            <button onClick={() => setActiveTab('planilla')} className="text-[10px] font-black text-slate-500 uppercase hover:text-white bg-slate-900 px-6 py-3 rounded-xl border border-white/5 transition-all">✕ Volver a Citaciones</button>
+          </div>
+
+          <div className="bg-slate-900 rounded-[2rem] border border-slate-800 overflow-hidden shadow-2xl">
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse min-w-[800px]">
+                <thead>
+                  <tr className="bg-slate-950 border-b border-slate-800 text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="py-5 px-6">Jugador</th>
+                    <th className="py-5 px-6">Tipo & Doc</th>
+                    <th className="py-5 px-6">Fecha de Nac.</th>
+                    <th className="py-5 px-6">Categoría</th>
+                    <th className="py-5 px-6">Estado</th>
+                    <th className="py-5 px-6 text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="text-xs">
+                  {plantel.map((jugadora) => (
+                    <tr key={jugadora.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                      <td className="py-4 px-6 flex items-center gap-4">
+                        <img src={jugadora.foto_url} alt="foto" className="w-10 h-10 rounded-xl object-cover border border-slate-700 shadow-lg" />
+                        <span className="font-black text-[11px] text-white uppercase">{jugadora.apellido}, {jugadora.nombre}</span>
+                      </td>
+                      <td className="py-4 px-6 text-[10px] font-bold text-slate-400 uppercase">
+                        DNI {jugadora.dni}
+                      </td>
+                      <td className="py-4 px-6 text-[10px] font-bold text-slate-400">
+                        {jugadora.fecha_nacimiento}
+                      </td>
+                      <td className="py-4 px-6 text-[10px] font-bold text-slate-400 uppercase">
+                        {jugadora.categoria_actual || jugadora.categoria || 'S/D'}
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex flex-col items-start gap-1">
+                          <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest">
+                            {jugadora.verificacion_biometrica_estado === 'aprobado' ? 'FICHAJE OFICIAL' : 'EN REVISIÓN'}
+                          </span>
+                          <span className={`text-[9px] font-black px-2.5 py-1 rounded-md uppercase ${jugadora.verificacion_biometrica_estado === 'aprobado' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500 animate-pulse'}`}>
+                            {jugadora.verificacion_biometrica_estado === 'aprobado' ? 'Activo' : 'Pendiente'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center justify-center gap-4">
+                          <button
+                            onClick={() => handleLiberarJugador(jugadora)}
+                            className="text-slate-500 hover:text-rose-500 transition-colors group relative"
+                            title="Liberar Jugador (Desvincular del Club)"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-90 transition-transform duration-300">
+                              <circle cx="12" cy="12" r="3"></circle>
+                              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {plantel.length === 0 && (
+                    <tr>
+                      <td colSpan="6" className="py-12 text-center text-slate-500 font-bold uppercase text-[10px] tracking-widest">
+                        Aún no hay jugadoras en el plantel para administrar.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'credenciales' && (
         <div className="animate-in fade-in slide-in-from-bottom-8 duration-500 space-y-8 pb-20">
           <div className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-md py-4 border-b border-white/5">
@@ -1187,7 +1197,6 @@ const toggleSeleccionarTodas = () => {
               ) : (
                 <div key={jug.id} className="relative group flex flex-col items-center">
                   
-                  {/* CONTENEDOR RELATIVO CON ANCHO AJUSTADO AL CARNET */}
                   <div className="relative w-fit">
                     <CarnetJugadora 
                       jugadora={{
@@ -1199,12 +1208,10 @@ const toggleSeleccionarTodas = () => {
                       mostrarDorso={false} 
                     />
 
-                    {/* LOGO DE LA LIGA (MÁS GRANDE Y POSICIONADO) */}
                     <div className="absolute bottom-[8px] right-[10px] z-50 pointer-events-none">
                       <img 
                         src="https://res.cloudinary.com/dgtc9qfmv/image/upload/v1770690271/rt0j5lpxilkn8o6ugate.png" 
                         alt="logo-liga"
-                        // Subimos de h-12 a h-16 para que destaque más
                         className="h-16 w-16 object-contain drop-shadow-2xl brightness-110 filter saturate-150"
                       />
                     </div>
@@ -1220,11 +1227,9 @@ const toggleSeleccionarTodas = () => {
         </div>
       )}
 
-
     {activeTab === 'fichaje' && (
   <div className="max-w-4xl mx-auto animate-in slide-in-from-bottom-8 duration-500">
     
-    {/* --- VALIDACIÓN DE CIERRE DE FICHAJE --- */}
     {!configLiga?.inscripciones_abiertas ? (
       <div className="bg-slate-900 border-2 border-dashed border-slate-800 p-20 rounded-[3rem] text-center space-y-4">
         <div className="text-6xl grayscale opacity-50 mb-4">🔒</div>
@@ -1241,7 +1246,6 @@ const toggleSeleccionarTodas = () => {
         </button>
       </div>
     ) : (
-      /* --- SI ESTÁ ABIERTO, MUESTRA TU CÓDIGO ORIGINAL --- */
       <>
         {jugadoraRegistrada ? (
           <div className="flex flex-col items-center gap-6">
@@ -1252,7 +1256,6 @@ const toggleSeleccionarTodas = () => {
           <div className="bg-slate-900 p-8 rounded-[3rem] border border-slate-800 shadow-2xl">
             <h2 className="text-xl font-black uppercase text-emerald-500 mb-6 italic">Fichaje Oficial</h2>
             <form id="formFicha" onSubmit={manejarEnvioFichaje} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* INPUT NOMBRE */}
               <input 
                 id="nombre"
                 type="text" 
@@ -1266,7 +1269,6 @@ const toggleSeleccionarTodas = () => {
                 required 
               />
 
-              {/* INPUT APELLIDO */}
               <input 
                 id="apellido"
                 type="text" 
@@ -1357,7 +1359,7 @@ const toggleSeleccionarTodas = () => {
               </div>
 
               <button disabled={cargandoFichaje} className={`col-span-full py-5 rounded-2xl font-black text-xs uppercase shadow-xl ${cargandoFichaje ? 'bg-slate-700 text-slate-500' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}>
-                {cargandoFichaje ? "PROCESANDO BIOMETRÍA..." : "VALIDAR Y GENERAR CREDENCIAL"}
+                {cargandoFichaje ? "SUBIENDO IMÁGENES..." : "VALIDAR Y GENERAR CREDENCIAL"}
               </button>
             </form>
           </div>

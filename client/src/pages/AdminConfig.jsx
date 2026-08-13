@@ -687,7 +687,7 @@ fechas.push({ numero: i + 1, encuentros });
 return fechas;
 };
 
-// --- VERSIÓN DEFINITIVA: USA LA MEMORIA DE TU PANTALLA ---
+// --- VERSIÓN INQUEBRANTABLE: ELIMINA ESPACIOS INVISIBLES Y FILTROS ---
   const forzarNuevoFixtureZonaA = async () => {
     const confirmar = window.confirm("⚠️ ¿Estás segura de inyectar el nuevo fixture exacto de la Zona A?");
     if (!confirmar) return;
@@ -698,25 +698,24 @@ return fechas;
       if (categoriasParaUsar.length === 0) categoriasParaUsar = categorias; 
       if (categoriasParaUsar.length === 0) throw new Error("No tenés categorías cargadas en el sistema.");
 
-      // Freno inicial: Nos aseguramos de que los clubes ya estén cargados en la pantalla
-      if (!clubes || clubes.length === 0) {
-         throw new Error("No hay clubes cargados en pantalla. Esperá a que carguen e intentá de nuevo.");
-      }
+      // Traemos ABSOLUTAMENTE TODOS los equipos de la base de datos (sin filtros que los oculten)
+      const { data: equiposDB, error: errEquipos } = await supabase
+        .from('equipos')
+        .select('id, nombre');
 
-      // Normalizador para ignorar tildes, mayúsculas y espacios extra
-      const normalizar = (texto) => texto ? texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim() : "";
+      if (errEquipos || !equiposDB) throw new Error("No pudimos leer los equipos de la base de datos.");
+
+      // SUPER NORMALIZADOR: Saca tildes, pasa a mayúsculas y ELIMINA TODOS LOS ESPACIOS Y SÍMBOLOS
+      const normalizar = (texto) => texto ? texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]/g, "") : "";
 
       const buscarClub = (nombreBuscado) => {
         const buscadoNorm = normalizar(nombreBuscado);
         
-        // Buscamos directamente en la lista que ves en tu panel
-        const clubEncontrado = clubes.find(c => {
-          const nombreDB = normalizar(c.nombre);
-          return nombreDB === buscadoNorm || nombreDB.includes(buscadoNorm);
-        });
+        // Busca coincidencia exacta pero sin espacios
+        const clubEncontrado = equiposDB.find(c => normalizar(c.nombre) === buscadoNorm);
         
         if (!clubEncontrado) {
-          throw new Error(`⛔ NO ENCONTRÉ EL CLUB: "${nombreBuscado}". Revisá que no esté oculto o dado de baja.`);
+          throw new Error(`⛔ NO ENCONTRÉ EL CLUB: "${nombreBuscado}". Hay un error grave de lectura.`);
         }
         return clubEncontrado;
       };
@@ -747,7 +746,7 @@ return fechas;
               zona: 'Zona A',
               local_id: local.id,
               visitante_id: visitante.id,
-              nombre_manual_loc: local.nombre,
+              nombre_manual_loc: local.nombre,  // Conserva el nombre como está en la DB
               nombre_manual_vis: visitante.nombre,
               horario: cat.horario || '16:00',
               categoria: cat.nombre,

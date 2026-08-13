@@ -687,7 +687,7 @@ fechas.push({ numero: i + 1, encuentros });
 return fechas;
 };
 
-// --- FUNCIÓN BLINDADA (VERSIÓN 2: ANTITILDES Y PREVENCIÓN DE NULLS) ---
+// --- VERSIÓN DEFINITIVA: USA LA MEMORIA DE TU PANTALLA ---
   const forzarNuevoFixtureZonaA = async () => {
     const confirmar = window.confirm("⚠️ ¿Estás segura de inyectar el nuevo fixture exacto de la Zona A?");
     if (!confirmar) return;
@@ -698,23 +698,25 @@ return fechas;
       if (categoriasParaUsar.length === 0) categoriasParaUsar = categorias; 
       if (categoriasParaUsar.length === 0) throw new Error("No tenés categorías cargadas en el sistema.");
 
-      const { data: equiposDB, error: errEquipos } = await supabase
-        .from('equipos')
-        .select('id, nombre')
-        .eq('organizacion_id', userOrgId);
+      // Freno inicial: Nos aseguramos de que los clubes ya estén cargados en la pantalla
+      if (!clubes || clubes.length === 0) {
+         throw new Error("No hay clubes cargados en pantalla. Esperá a que carguen e intentá de nuevo.");
+      }
 
-      if (errEquipos || !equiposDB) throw new Error("No pudimos leer los equipos de la base de datos.");
-
-      // FUNCIÓN MÁGICA: Saca tildes y convierte todo a mayúsculas para comparar perfecto
-      const normalizarTexto = (texto) => texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+      // Normalizador para ignorar tildes, mayúsculas y espacios extra
+      const normalizar = (texto) => texto ? texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim() : "";
 
       const buscarClub = (nombreBuscado) => {
-        const nombreBuscadoNorm = normalizarTexto(nombreBuscado);
-        const clubEncontrado = equiposDB.find(c => normalizarTexto(c.nombre).includes(nombreBuscadoNorm));
+        const buscadoNorm = normalizar(nombreBuscado);
         
-        // Freno de emergencia: Si no encuentra el club, frena TODO y avisa
+        // Buscamos directamente en la lista que ves en tu panel
+        const clubEncontrado = clubes.find(c => {
+          const nombreDB = normalizar(c.nombre);
+          return nombreDB === buscadoNorm || nombreDB.includes(buscadoNorm);
+        });
+        
         if (!clubEncontrado) {
-          throw new Error(`⛔ NO ENCONTRÉ EL CLUB: "${nombreBuscado}". Revisá cómo está escrito en tu lista de Equipos (Equipos Registrados).`);
+          throw new Error(`⛔ NO ENCONTRÉ EL CLUB: "${nombreBuscado}". Revisá que no esté oculto o dado de baja.`);
         }
         return clubEncontrado;
       };

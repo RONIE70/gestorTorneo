@@ -687,6 +687,83 @@ fechas.push({ numero: i + 1, encuentros });
 return fechas;
 };
 
+// --- FUNCIÓN TEMPORAL PARA INYECTAR EL FIXTURE EXACTO DE LA IMAGEN ---
+  const forzarNuevoFixtureZonaA = async () => {
+    const confirmar = window.confirm("⚠️ ¿Estás segura de inyectar el nuevo fixture exacto de la Zona A?");
+    if (!confirmar) return;
+
+    setLoading(true);
+    try {
+      // Transcripción exacta de la imagen que mandaste
+      const nuevoFixture = [
+        { f: 1, fecha: '15/08/2026', cruces: [['SAN JOSE OBRERO', 'CAMPOS'], ['CICLON', 'LA LEALTAD'], ['LA AMISTAD', 'EL MASTIL'], ['FOMENTO DARWIN', 'FORTALEZA']] },
+        { f: 2, fecha: '22/08/2026', cruces: [['EL MASTIL', 'SAN JOSE OBRERO'], ['6 DE MARZO', 'CICLON'], ['LA LEALTAD', 'FOMENTO DARWIN'], ['FORTALEZA', 'LA AMISTAD']] },
+        { f: 3, fecha: '29/08/2026', cruces: [['FOMENTO DARWIN', '6 DE MARZO'], ['CAMPOS', 'EL MASTIL'], ['LA AMISTAD', 'LA LEALTAD'], ['SAN JOSE OBRERO', 'FORTALEZA']] },
+        { f: 4, fecha: '05/09/2026', cruces: [['6 DE MARZO', 'LA AMISTAD'], ['FORTALEZA', 'CAMPOS'], ['CICLON', 'FOMENTO DARWIN'], ['LA LEALTAD', 'SAN JOSE OBRERO']] },
+        { f: 5, fecha: '12/09/2026', cruces: [['SAN JOSE OBRERO', '6 DE MARZO'], ['CAMPOS', 'LA LEALTAD'], ['LA AMISTAD', 'CICLON'], ['EL MASTIL', 'FORTALEZA']] },
+        { f: 6, fecha: '19/09/2026', cruces: [['6 DE MARZO', 'CAMPOS'], ['CICLON', 'SAN JOSE OBRERO'], ['LA LEALTAD', 'EL MASTIL'], ['FOMENTO DARWIN', 'LA AMISTAD']] },
+        { f: 7, fecha: '26/09/2026', cruces: [['EL MASTIL', '6 DE MARZO'], ['CAMPOS', 'CICLON'], ['SAN JOSE OBRERO', 'FOMENTO DARWIN'], ['FORTALEZA', 'LA LEALTAD']] },
+        { f: 8, fecha: '03/10/2026', cruces: [['6 DE MARZO', 'FORTALEZA'], ['FOMENTO DARWIN', 'CAMPOS'], ['CICLON', 'EL MASTIL'], ['LA AMISTAD', 'SAN JOSE OBRERO']] },
+        { f: 9, fecha: '24/10/2026', cruces: [['LA LEALTAD', '6 DE MARZO'], ['CAMPOS', 'LA AMISTAD'], ['FORTALEZA', 'CICLON'], ['EL MASTIL', 'FOMENTO DARWIN']] }
+      ];
+
+      let partidosParaInsertar = [];
+      const categoriasActivas = categorias.filter(c => c.participa_torneo);
+
+      // Busca el ID del equipo en tu base de datos comparando el nombre
+      const buscarClub = (nombreAproximado) => {
+        const clubEncontrado = clubes.find(c => 
+          c.nombre.toUpperCase().includes(nombreAproximado.toUpperCase()) || 
+          nombreAproximado.toUpperCase().includes(c.nombre.toUpperCase())
+        );
+        return clubEncontrado ? clubEncontrado : { id: null, nombre: nombreAproximado };
+      };
+
+      nuevoFixture.forEach(jornada => {
+        jornada.cruces.forEach(cruce => {
+          const local = buscarClub(cruce[0]);
+          const visitante = buscarClub(cruce[1]);
+
+          // Multiplica el partido por cada categoría activa
+          categoriasActivas.forEach(cat => {
+            partidosParaInsertar.push({
+              nro_fecha: jornada.f,
+              fecha_calendario: jornada.fecha,
+              zona: 'Zona A',
+              local_id: local.id,
+              visitante_id: visitante.id,
+              nombre_manual_loc: local.nombre,
+              nombre_manual_vis: visitante.nombre,
+              horario: cat.horario || '16:00',
+              categoria: cat.nombre,
+              organizacion_id: userOrgId,
+              finalizado: false,
+              jugado: false
+            });
+          });
+        });
+      });
+
+      console.log(`Insertando ${partidosParaInsertar.length} partidos en lotes...`);
+      
+      // Inserción en lotes para evitar el "Failed to fetch"
+      for (let i = 0; i < partidosParaInsertar.length; i += 50) {
+        const lote = partidosParaInsertar.slice(i, i + 50);
+        const { error } = await supabase.from('partidos').insert(lote);
+        if (error) throw error;
+      }
+
+      alert("✅ ¡Nuevo Fixture de Zona A aplicado correctamente!");
+      await fetchData();
+
+    } catch (error) {
+      console.error(error);
+      alert("❌ Error: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
 const generarSegundaRuedaClausura = async () => {
     const confirmar = window.confirm("⚠️ ¿Estás segura de generar la segunda rueda (Clausura) arrancando el 15/08/2026 con localías invertidas?");
     if (!confirmar) return;
@@ -1069,6 +1146,12 @@ ACTUALIZAR PARÁMETROS
           >
             🔄 Generar Clausura
           </button>
+<button 
+    onClick={forzarNuevoFixtureZonaA}
+    className="w-full mt-4 py-4 rounded-[2rem] font-black uppercase text-[10px] shadow-xl active:scale-95 transition-all bg-amber-500 hover:bg-amber-400 text-slate-900 border border-amber-300"
+  >
+    ⚠️ Nuevo Fixture Zona A
+  </button>
 </div>
 </section>
 </div>

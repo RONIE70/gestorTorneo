@@ -144,7 +144,7 @@ const fetchData = useCallback(async () => {
       { data: partidosDB }
     ] = await Promise.all([
       supabase.from('categorias').select('*').eq('organizacion_id', userOrgId).order('orden_correlativo', { ascending: true }),
-      supabase.from('equipos').select('*').eq('organizacion_id', userOrgId).neq('zona', 'Baja').order('nombre'),
+      supabase.from('equipos').select('*').eq('organizacion_id', userOrgId).or('zona.neq.Baja,zona.is.null').order('nombre'),
       supabase.from('mensajes_contacto').select('*').eq('organizacion_id', userOrgId).order('created_at', { ascending: false }),
       supabase.from('configuracion_torneo').select('*').eq('organizacion_id', userOrgId).order('id', { ascending: false }),
       supabase.from('partidos').select('*, local:equipos!local_id(id, nombre, zona), visitante:equipos!visitante_id(id, nombre, zona)').eq('organizacion_id', userOrgId)

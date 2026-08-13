@@ -687,26 +687,17 @@ fechas.push({ numero: i + 1, encuentros });
 return fechas;
 };
 
-// --- FUNCIÓN BLINDADA PARA INYECTAR EL FIXTURE EXACTO DE LA IMAGEN ---
+// --- FUNCIÓN BLINDADA (VERSIÓN 2: ANTITILDES Y PREVENCIÓN DE NULLS) ---
   const forzarNuevoFixtureZonaA = async () => {
     const confirmar = window.confirm("⚠️ ¿Estás segura de inyectar el nuevo fixture exacto de la Zona A?");
     if (!confirmar) return;
 
     setLoading(true);
     try {
-      // 1. Validar categorías de forma segura
       let categoriasParaUsar = categorias.filter(c => c.participa_torneo);
-      if (categoriasParaUsar.length === 0) {
-        // Respaldo: Si ninguna tiene tilde de torneo, agarramos todas para no fallar
-        categoriasParaUsar = categorias; 
-      }
-      if (categoriasParaUsar.length === 0) {
-        alert("❌ ¡Freno de seguridad! No tenés categorías cargadas en el sistema.");
-        setLoading(false);
-        return;
-      }
+      if (categoriasParaUsar.length === 0) categoriasParaUsar = categorias; 
+      if (categoriasParaUsar.length === 0) throw new Error("No tenés categorías cargadas en el sistema.");
 
-      // 2. Traemos los clubes directo de la base de datos para no depender de la memoria local
       const { data: equiposDB, error: errEquipos } = await supabase
         .from('equipos')
         .select('id, nombre')
@@ -714,12 +705,20 @@ return fechas;
 
       if (errEquipos || !equiposDB) throw new Error("No pudimos leer los equipos de la base de datos.");
 
+      // FUNCIÓN MÁGICA: Saca tildes y convierte todo a mayúsculas para comparar perfecto
+      const normalizarTexto = (texto) => texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+
       const buscarClub = (nombreBuscado) => {
-        const clubEncontrado = equiposDB.find(c => c.nombre.toUpperCase().includes(nombreBuscado.toUpperCase()));
-        return clubEncontrado ? clubEncontrado : { id: null, nombre: nombreBuscado };
+        const nombreBuscadoNorm = normalizarTexto(nombreBuscado);
+        const clubEncontrado = equiposDB.find(c => normalizarTexto(c.nombre).includes(nombreBuscadoNorm));
+        
+        // Freno de emergencia: Si no encuentra el club, frena TODO y avisa
+        if (!clubEncontrado) {
+          throw new Error(`⛔ NO ENCONTRÉ EL CLUB: "${nombreBuscado}". Revisá cómo está escrito en tu lista de Equipos (Equipos Registrados).`);
+        }
+        return clubEncontrado;
       };
 
-      // 3. El Fixture Exacto
       const nuevoFixture = [
         { f: 1, fecha: '15/08/2026', cruces: [['SAN JOSE OBRERO', 'CAMPOS'], ['CICLON', 'LA LEALTAD'], ['LA AMISTAD', 'EL MASTIL'], ['FOMENTO DARWIN', 'FORTALEZA']] },
         { f: 2, fecha: '22/08/2026', cruces: [['EL MASTIL', 'SAN JOSE OBRERO'], ['6 DE MARZO', 'CICLON'], ['LA LEALTAD', 'FOMENTO DARWIN'], ['FORTALEZA', 'LA AMISTAD']] },
@@ -758,32 +757,22 @@ return fechas;
         });
       });
 
-      // 4. Control de seguridad
-      if (partidosParaInsertar.length === 0) {
-        alert("❌ ¡Freno! El sistema calculó 0 partidos para insertar.");
-        setLoading(false);
-        return;
-      }
+      if (partidosParaInsertar.length === 0) throw new Error("Se calcularon 0 partidos.");
 
       alert(`⏳ Todo listo. Se generaron ${partidosParaInsertar.length} partidos. Dale Aceptar para inyectarlos en la base de datos.`);
 
-      // 5. Inserción en lotes
       for (let i = 0; i < partidosParaInsertar.length; i += 50) {
         const lote = partidosParaInsertar.slice(i, i + 50);
         const { error } = await supabase.from('partidos').insert(lote);
-        if (error) {
-          console.error("Fallo en lote:", error);
-          alert("❌ Error de Supabase al guardar: " + error.message);
-          throw error;
-        }
+        if (error) throw error;
       }
 
-      alert("✅ ¡NUEVO FIXTURE INYECTADO CON ÉXITO!");
+      alert("✅ ¡NUEVO FIXTURE INYECTADO CON ÉXITO Y SIN ERRORES!");
       await fetchData();
 
     } catch (error) {
       console.error(error);
-      alert("❌ Ocurrió un problema: " + error.message);
+      alert("❌ " + error.message);
     } finally {
       setLoading(false);
     }

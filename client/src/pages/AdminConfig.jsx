@@ -687,14 +687,39 @@ fechas.push({ numero: i + 1, encuentros });
 return fechas;
 };
 
-// --- FUNCIÓN TEMPORAL PARA INYECTAR EL FIXTURE EXACTO DE LA IMAGEN ---
+// --- FUNCIÓN BLINDADA PARA INYECTAR EL FIXTURE EXACTO DE LA IMAGEN ---
   const forzarNuevoFixtureZonaA = async () => {
     const confirmar = window.confirm("⚠️ ¿Estás segura de inyectar el nuevo fixture exacto de la Zona A?");
     if (!confirmar) return;
 
     setLoading(true);
     try {
-      // Transcripción exacta de la imagen que mandaste
+      // 1. Validar categorías de forma segura
+      let categoriasParaUsar = categorias.filter(c => c.participa_torneo);
+      if (categoriasParaUsar.length === 0) {
+        // Respaldo: Si ninguna tiene tilde de torneo, agarramos todas para no fallar
+        categoriasParaUsar = categorias; 
+      }
+      if (categoriasParaUsar.length === 0) {
+        alert("❌ ¡Freno de seguridad! No tenés categorías cargadas en el sistema.");
+        setLoading(false);
+        return;
+      }
+
+      // 2. Traemos los clubes directo de la base de datos para no depender de la memoria local
+      const { data: equiposDB, error: errEquipos } = await supabase
+        .from('equipos')
+        .select('id, nombre')
+        .eq('organizacion_id', userOrgId);
+
+      if (errEquipos || !equiposDB) throw new Error("No pudimos leer los equipos de la base de datos.");
+
+      const buscarClub = (nombreBuscado) => {
+        const clubEncontrado = equiposDB.find(c => c.nombre.toUpperCase().includes(nombreBuscado.toUpperCase()));
+        return clubEncontrado ? clubEncontrado : { id: null, nombre: nombreBuscado };
+      };
+
+      // 3. El Fixture Exacto
       const nuevoFixture = [
         { f: 1, fecha: '15/08/2026', cruces: [['SAN JOSE OBRERO', 'CAMPOS'], ['CICLON', 'LA LEALTAD'], ['LA AMISTAD', 'EL MASTIL'], ['FOMENTO DARWIN', 'FORTALEZA']] },
         { f: 2, fecha: '22/08/2026', cruces: [['EL MASTIL', 'SAN JOSE OBRERO'], ['6 DE MARZO', 'CICLON'], ['LA LEALTAD', 'FOMENTO DARWIN'], ['FORTALEZA', 'LA AMISTAD']] },
@@ -708,24 +733,13 @@ return fechas;
       ];
 
       let partidosParaInsertar = [];
-      const categoriasActivas = categorias.filter(c => c.participa_torneo);
-
-      // Busca el ID del equipo en tu base de datos comparando el nombre
-      const buscarClub = (nombreAproximado) => {
-        const clubEncontrado = clubes.find(c => 
-          c.nombre.toUpperCase().includes(nombreAproximado.toUpperCase()) || 
-          nombreAproximado.toUpperCase().includes(c.nombre.toUpperCase())
-        );
-        return clubEncontrado ? clubEncontrado : { id: null, nombre: nombreAproximado };
-      };
 
       nuevoFixture.forEach(jornada => {
         jornada.cruces.forEach(cruce => {
           const local = buscarClub(cruce[0]);
           const visitante = buscarClub(cruce[1]);
 
-          // Multiplica el partido por cada categoría activa
-          categoriasActivas.forEach(cat => {
+          categoriasParaUsar.forEach(cat => {
             partidosParaInsertar.push({
               nro_fecha: jornada.f,
               fecha_calendario: jornada.fecha,
@@ -744,21 +758,32 @@ return fechas;
         });
       });
 
-      console.log(`Insertando ${partidosParaInsertar.length} partidos en lotes...`);
-      
-      // Inserción en lotes para evitar el "Failed to fetch"
+      // 4. Control de seguridad
+      if (partidosParaInsertar.length === 0) {
+        alert("❌ ¡Freno! El sistema calculó 0 partidos para insertar.");
+        setLoading(false);
+        return;
+      }
+
+      alert(`⏳ Todo listo. Se generaron ${partidosParaInsertar.length} partidos. Dale Aceptar para inyectarlos en la base de datos.`);
+
+      // 5. Inserción en lotes
       for (let i = 0; i < partidosParaInsertar.length; i += 50) {
         const lote = partidosParaInsertar.slice(i, i + 50);
         const { error } = await supabase.from('partidos').insert(lote);
-        if (error) throw error;
+        if (error) {
+          console.error("Fallo en lote:", error);
+          alert("❌ Error de Supabase al guardar: " + error.message);
+          throw error;
+        }
       }
 
-      alert("✅ ¡Nuevo Fixture de Zona A aplicado correctamente!");
+      alert("✅ ¡NUEVO FIXTURE INYECTADO CON ÉXITO!");
       await fetchData();
 
     } catch (error) {
       console.error(error);
-      alert("❌ Error: " + error.message);
+      alert("❌ Ocurrió un problema: " + error.message);
     } finally {
       setLoading(false);
     }

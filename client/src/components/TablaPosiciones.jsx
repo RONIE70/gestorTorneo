@@ -8,7 +8,7 @@ const TablaPosiciones = () => {
   const [tablasGeneralesPorZona, setTablasGeneralesPorZona] = useState({}); 
   const [loading, setLoading] = useState(true);
   
-  // --- NUEVO: ESTADO PARA CONTROLAR QUÉ TORNEO MIRAMOS ---
+  // --- ESTADO PARA CONTROLAR QUÉ TORNEO MIRAMOS ---
   const [faseActiva, setFaseActiva] = useState('Clausura'); 
 
   // --- ESTADOS PARA IDENTIDAD SAAS ---
@@ -75,7 +75,7 @@ const TablaPosiciones = () => {
           visitante:equipos!visitante_id(nombre, escudo_url)
         `)
         .eq('finalizado', true)
-        .eq('fase', faseActiva); // FILTRO DINÁMICO (Apertura o Clausura)
+        .eq('fase', faseActiva);
 
       if (error) throw error;
 
@@ -149,6 +149,7 @@ const TablaPosiciones = () => {
     if (logoBase64?.data) {
       try {
         doc.addImage(logoBase64.data, logoBase64.format, 15, 10, 25, 25);
+      // eslint-disable-next-line no-unused-vars
       } catch (e) {
         doc.setFillColor(identidad.fondo);
         doc.ellipse(27, 22, 12, 12, 'F');
@@ -171,11 +172,12 @@ const TablaPosiciones = () => {
     doc.setTextColor(255, 255, 255);
     doc.text(`${titulo} | Generado el: ${new Date().toLocaleDateString()}`, 105, 36, { align: 'center' });
 
-    const body = datos.map((c, i) => [i + 1, c.nombre.toUpperCase(), c.pj, c.gf, c.gc, c.dif, c.pts]);
+    // Se agregan las columnas G, E, P a la exportación de PDF
+    const body = datos.map((c, i) => [i + 1, c.nombre.toUpperCase(), c.pj, c.pg, c.pe, c.pp, c.gf, c.gc, c.dif, c.pts]);
 
     autoTable(doc, {
       startY: 55,
-      head: [['POS', 'CLUB / EQUIPO', 'PJ', 'GF', 'GC', 'DIF', 'PTS']],
+      head: [['POS', 'CLUB', 'PJ', 'G', 'E', 'P', 'GF', 'GC', 'DIF', 'PTS']],
       body: body,
       theme: 'grid',
        headStyles: { 
@@ -184,10 +186,11 @@ const TablaPosiciones = () => {
         lineColor: identidad.acento,
         lineWidth: 0.1
       }, styles: { fontSize: 9, cellPadding: 4 },
-      columnStyles: { 6: { fontStyle: 'bold', fillColor: [248, 250, 252] } }
+      columnStyles: { 9: { fontStyle: 'bold', fillColor: [248, 250, 252] } } // El índice de PTS ahora es 9
     });
 
     const urlQR = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/#/posiciones`)}`;
+    // eslint-disable-next-line no-unused-vars, no-empty
     try { doc.addImage(urlQR, 'PNG', 20, 250, 25, 25); } catch (err) {}
 
     doc.setFontSize(8);
@@ -213,13 +216,16 @@ const TablaPosiciones = () => {
         <table className="w-full text-left table-fixed">
           <thead>
             <tr className="bg-black text-[7px] md:text-[9px] font-black uppercase text-pink-500 border-b border-slate-800">
-              <th className="w-[10%] py-4 text-center">Pos</th>
-              <th className="w-[35%] px-1">Club</th>
-              <th className="w-[9%] text-center">PJ</th>
-              <th className="w-[9%] text-center">GF</th>
-              <th className="w-[9%] text-center">GC</th>
-              <th className="w-[12%] text-center text-white">DIF</th>
-              <th className="w-[16%] text-center bg-pink-500/10">PTS</th>
+              <th className="w-[8%] py-4 text-center">Pos</th>
+              <th className="w-[30%] px-1">Club</th>
+              <th className="w-[6%] text-center">PJ</th>
+              <th className="w-[6%] text-center text-emerald-500" title="Ganados">G</th>
+              <th className="w-[6%] text-center text-amber-500" title="Empatados">E</th>
+              <th className="w-[6%] text-center text-rose-500" title="Perdidos">P</th>
+              <th className="w-[8%] text-center text-slate-400">GF</th>
+              <th className="w-[8%] text-center text-slate-400">GC</th>
+              <th className="w-[10%] text-center text-white">DIF</th>
+              <th className="w-[12%] text-center bg-pink-500/10">PTS</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/50">
@@ -242,8 +248,16 @@ const TablaPosiciones = () => {
                     </div>
                   </td>
                   <td className="text-center text-[9px] md:text-xs font-bold text-slate-300">{club.pj}</td>
-                  <td className="text-center text-[9px] md:text-xs font-bold text-emerald-500/60">{club.gf}</td>
-                  <td className="text-center text-[9px] md:text-xs font-bold text-rose-500/60">{club.gc}</td>
+                  
+                  {/* NUEVAS COLUMNAS: Ganados, Empatados, Perdidos */}
+                  <td className="text-center text-[9px] md:text-xs font-black text-emerald-500">{club.pg}</td>
+                  <td className="text-center text-[9px] md:text-xs font-black text-amber-500">{club.pe}</td>
+                  <td className="text-center text-[9px] md:text-xs font-black text-rose-500">{club.pp}</td>
+
+                  {/* GF y GC oscurecidos un poco para darle protagonismo a G E P */}
+                  <td className="text-center text-[9px] md:text-xs font-bold text-slate-400">{club.gf}</td>
+                  <td className="text-center text-[9px] md:text-xs font-bold text-slate-400">{club.gc}</td>
+                  
                   <td className={`text-center text-[9px] md:text-xs font-black ${club.dif > 0 ? 'text-blue-400' : club.dif < 0 ? 'text-rose-600' : 'text-slate-600'}`}>{club.dif > 0 ? `+${club.dif}` : club.dif}</td>
                   <td className="text-center text-[10px] md:text-sm font-black text-pink-500 bg-pink-500/5">{club.pts}</td>
                 </tr>

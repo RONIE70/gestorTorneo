@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable'; 
-import { PlusIcon, PrinterIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import { PlusIcon, PrinterIcon, XMarkIcon, TrashIcon } from '@heroicons/react/24/solid';
 
 const AdminLiga = () => {
   const [tab, setTab] = useState('partidos');
@@ -18,14 +18,13 @@ const AdminLiga = () => {
   const [partidos, setPartidos] = useState([]);
   const [mostrarModalPartido, setMostrarModalPartido] = useState(false);
   
-  // Estado adaptado exactamente a las columnas de tu DB
   const [nuevoPartido, setNuevoPartido] = useState({
     nro_fecha: 1, 
     local_id: '',
     visitante_id: '',
     categoria: '',
-    zona: '', // En tu DB se llama 'zona', lo usaremos para la Sede
-    fecha_hora_temp: '' // Campo temporal para el input datetime
+    zona: '', 
+    fecha_hora_temp: '' 
   });
 
   // --- 1. CARGAR CONFIGURACIÓN Y DATOS INICIALES ---
@@ -74,7 +73,6 @@ const AdminLiga = () => {
   }, []);
 
   const cargarPartidos = async (orgId) => {
-    // Adaptado a las relaciones correctas de local_id y visitante_id
     const { data, error } = await supabase
       .from('partidos')
       .select(`
@@ -84,13 +82,11 @@ const AdminLiga = () => {
       `)
       .eq('organizacion_id', orgId)
       .eq('finalizado', false)
-      // Ordenamos por fecha de creacion ya que fecha_calendario es texto
       .order('created_at', { ascending: true });
     
     if (!error && data) setPartidos(data);
   };
 
-  // --- 2. FUNCIÓN TOGGLE RÁPIDO FICHAJE ---
   const toggleFichajeRapido = async () => {
     if (!userOrgId || !configLiga) return;
     const nuevoEstado = !configLiga.inscripciones_abiertas;
@@ -113,15 +109,14 @@ const AdminLiga = () => {
     }
   };
 
-  // --- 3. LÓGICA DE GUARDAR EL PARTIDO (ADAPTADA A TU DB) ---
+  // --- 3. LÓGICA DE GUARDAR PARTIDO (AHORA CON "JORNADA COMPLETA") ---
   const guardarPartido = async (e) => {
     e.preventDefault();
     if (!nuevoPartido.local_id || !nuevoPartido.visitante_id || !nuevoPartido.categoria) {
       return alert("Faltan datos requeridos para el partido.");
     }
-    // Obtenemos los nombres de los equipos seleccionados usando los IDs
-    const equipoLocal = equipos.find(e => e.id.toString() === nuevoPartido.local_id.toString());
-    const equipoVisitante = equipos.find(e => e.id.toString() === nuevoPartido.visitante_id.toString());
+    const equipoLocal = equipos.find(eq => eq.id.toString() === nuevoPartido.local_id.toString());
+    const equipoVisitante = equipos.find(eq => eq.id.toString() === nuevoPartido.visitante_id.toString());
     
     if (nuevoPartido.local_id === nuevoPartido.visitante_id) {
       return alert("El equipo local y visitante no pueden ser el mismo.");
@@ -130,55 +125,104 @@ const AdminLiga = () => {
       return alert("El día y la hora son obligatorios.");
     }
 
-    // Tu DB requiere separar la fecha_calendario (texto) y el horario (texto)
     const [fecha, hora] = nuevoPartido.fecha_hora_temp.split('T');
-
-    // Cambiamos el formato de la fecha de YYYY-MM-DD a DD/MM/YYYY para que se vea lindo
     const [year, month, day] = fecha.split('-');
     const fechaCalendarioLimpia = `${day}/${month}/${year}`;
 
     try {
-      const payload = {
-        nro_fecha: parseInt(nuevoPartido.nro_fecha),
-        local_id: parseInt(nuevoPartido.local_id),
-        visitante_id: parseInt(nuevoPartido.visitante_id),
-        nombre_manual_loc: equipoLocal ? equipoLocal.nombre : 'Sin nombre', // <-- AGREGADO
-        nombre_manual_vis: equipoVisitante ? equipoVisitante.nombre : 'Sin nombre', // <-- AGREGADO
-        categoria: nuevoPartido.categoria,
-        zona: nuevoPartido.zona,
-        fecha_calendario: fechaCalendarioLimpia,
-        horario: hora,
-        organizacion_id: userOrgId
-      };
+      let payloads = [];
 
-      const { error } = await supabase.from('partidos').insert([payload]);
+      if (nuevoPartido.categoria === 'TODAS') {
+        // MODO 1: JORNADA COMPLETA AUTOMÁTICA
+        const categoriasDisponibles = ['2011-2012', '2013-2014', '2015-2016', '2017-2018'];
+        let horaBase = parseInt(hora.split(':')[0]);
+        let minutosBase = hora.split(':')[1];
+
+        categoriasDisponibles.forEach((cat, index) => {
+          // Le sumamos 1 hora a cada categoría de forma escalonada
+          let horaEscalonada = (horaBase + index) % 24; 
+          let horaCalculada = `${String(horaEscalonada).padStart(2, '0')}:${minutosBase}`;
+
+          payloads.push({
+            nro_fecha: parseInt(nuevoPartido.nro_fecha),
+            local_id: parseInt(nuevoPartido.local_id),
+            visitante_id: parseInt(nuevoPartido.visitante_id),
+            nombre_manual_loc: equipoLocal ? equipoLocal.nombre : 'Sin nombre',
+            nombre_manual_vis: equipoVisitante ? equipoVisitante.nombre : 'Sin nombre',
+            categoria: cat,
+            zona: nuevoPartido.zona,
+            fecha_calendario: fechaCalendarioLimpia,
+            horario: horaCalculada,
+            organizacion_id: userOrgId
+          });
+        });
+      } else {
+        // MODO 2: PARTIDO INDIVIDUAL
+        payloads.push({
+          nro_fecha: parseInt(nuevoPartido.nro_fecha),
+          local_id: parseInt(nuevoPartido.local_id),
+          visitante_id: parseInt(nuevoPartido.visitante_id),
+          nombre_manual_loc: equipoLocal ? equipoLocal.nombre : 'Sin nombre',
+          nombre_manual_vis: equipoVisitante ? equipoVisitante.nombre : 'Sin nombre',
+          categoria: nuevoPartido.categoria,
+          zona: nuevoPartido.zona,
+          fecha_calendario: fechaCalendarioLimpia,
+          horario: hora,
+          organizacion_id: userOrgId
+        });
+      }
+
+      // Insertamos el array (puede tener 1 o 4 partidos dependiendo qué seleccionó)
+      const { error } = await supabase.from('partidos').insert(payloads);
 
       if (error) throw error;
-      alert("✅ Partido programado con éxito");
-      setMostrarModalPartido(false);
       
-      // Limpiamos el formulario
+      alert(nuevoPartido.categoria === 'TODAS' 
+        ? `✅ ¡Jornada Completa programada! Se generaron ${payloads.length} partidos.` 
+        : `✅ Partido individual programado con éxito.`);
+        
+      setMostrarModalPartido(false);
       setNuevoPartido({ nro_fecha: 1, local_id: '', visitante_id: '', categoria: '', zona: '', fecha_hora_temp: '' });
       cargarPartidos(userOrgId);
+      
     } catch (error) {
-      alert("❌ Error al guardar partido: " + error.message);
+      alert("❌ Error al guardar: " + error.message);
     }
   };
 
-  // --- 4. MOTOR DE DESCARGA DE PLANILLAS PDF ---
+  const eliminarPartido = async (partidoId) => {
+    const confirmar = window.confirm("⚠️ ¿Estás segura de eliminar este partido? Esta acción no se puede deshacer.");
+    if (!confirmar) return;
+
+    try {
+      const { error } = await supabase
+        .from('partidos')
+        .delete()
+        .eq('id', partidoId);
+
+      if (error) throw error;
+      
+      alert("🗑️ Partido eliminado correctamente.");
+      cargarPartidos(userOrgId);
+    } catch (error) {
+      console.error(error);
+      alert("❌ Error al eliminar: " + error.message);
+    }
+  };
+
   const descargarPlanillaPartido = async (partido) => {
     try {
       const { data: localPlayers } = await supabase
         .from('jugadoras')
         .select('*')
-        .eq('equipo_id', partido.local_id) // Usamos local_id
+        .eq('equipo_id', partido.local_id)
         .eq('categoria_actual', partido.categoria)
         .eq('estado_habil_admin', true); 
 
       const { data: visitaPlayers } = await supabase
         .from('jugadoras')
         .select('*')
-        .eq('equipo_id', partido.visitante_id) // Usamos visitante_id
+        .eq('equipo_id', partido.visitante_id)
         .eq('categoria_actual', partido.categoria)
         .eq('estado_habil_admin', true); 
 
@@ -242,7 +286,7 @@ const AdminLiga = () => {
     doc.text(`FECHA NRO: ${partido.nro_fecha || '---'}`, 14, 30);
     doc.text(`FECHA REAL: ${partido.fecha_calendario || ' / / '} - ${partido.horario || ''} hs`, 40, 30);
     doc.text(`CAT.: ${(partido.categoria || '---').toUpperCase()}`, 115, 30);
-    doc.text(`SEDE: ${partido.zona || '---'}`, 170, 30); // Usamos 'zona' de la DB
+    doc.text(`SEDE: ${partido.zona || '---'}`, 170, 30);
     
     doc.setDrawColor(0); 
     doc.line(14, 33, 196, 33); 
@@ -387,9 +431,7 @@ const AdminLiga = () => {
                 </div>
               )}
             </div>
-
           </div>
-          
         )}
 
         <div className="flex gap-4 mt-6">
@@ -472,13 +514,22 @@ const AdminLiga = () => {
                       <p className="text-slate-500 text-[10px]">{partido.fecha_calendario} | {partido.horario} hs</p>
                       <p className="text-slate-600 text-[9px] italic">{partido.zona || 'Sede a confirmar'}</p>
                     </div>
-                    <button 
-                      onClick={() => descargarPlanillaPartido(partido)}
-                      className="bg-slate-800 hover:bg-emerald-600 text-white p-2.5 rounded-xl transition-all shadow-md group-hover:scale-110"
-                      title="Descargar Planilla Oficial"
-                    >
-                      <PrinterIcon className="w-4 h-4" />
-                    </button>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => eliminarPartido(partido.id)}
+                        className="bg-slate-800 hover:bg-rose-600 text-slate-400 hover:text-white p-2.5 rounded-xl transition-all shadow-md opacity-0 group-hover:opacity-100"
+                        title="Eliminar Partido"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => descargarPlanillaPartido(partido)}
+                        className="bg-slate-800 hover:bg-emerald-600 text-white p-2.5 rounded-xl transition-all shadow-md group-hover:scale-110"
+                        title="Descargar Planilla Oficial"
+                      >
+                        <PrinterIcon className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))
@@ -487,7 +538,7 @@ const AdminLiga = () => {
         </div>
       )}
 
-      {/* --- MODAL NUEVO PARTIDO CON SELECTS --- */}
+      {/* --- MODAL NUEVO PARTIDO --- */}
       {mostrarModalPartido && (
         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-[2rem] overflow-hidden shadow-2xl">
@@ -567,14 +618,16 @@ const AdminLiga = () => {
                     onChange={(e) => setNuevoPartido({...nuevoPartido, categoria: e.target.value})}
                   >
                     <option value="">Seleccione Categoría...</option>
-                    <option value="2011-2012">2011-2012</option>
-                    <option value="2013-2014">2013-2014</option>
-                    <option value="2015-2016">2015-2016</option>
-                    <option value="2017-2018">2017-2018</option>
+                    <option value="TODAS" className="bg-emerald-600 text-white font-bold">⭐ JORNADA COMPLETA (Todas las Categorías)</option>
+                    <option disabled>──────────</option>
+                    <option value="2011-2012">Individual: 2011-2012</option>
+                    <option value="2013-2014">Individual: 2013-2014</option>
+                    <option value="2015-2016">Individual: 2015-2016</option>
+                    <option value="2017-2018">Individual: 2017-2018</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Día y Hora</label>
+                  <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Día y Hora de inicio</label>
                   <input 
                     type="datetime-local" 
                     required
@@ -586,7 +639,7 @@ const AdminLiga = () => {
               </div>
 
               <button type="submit" className="w-full bg-emerald-600 text-white font-black py-4 rounded-xl transition-all active:scale-95 uppercase tracking-widest text-xs mt-4">
-                Programar Partido
+                {nuevoPartido.categoria === 'TODAS' ? '⭐ PROGRAMAR JORNADA COMPLETA' : 'PROGRAMAR PARTIDO'}
               </button>
             </form>
           </div>
